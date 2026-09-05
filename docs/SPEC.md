@@ -394,7 +394,9 @@ bias(c)    = 1.5  si deixis POINTER y c.k ∈ {hover, click}
 visibility = 1.0 si c.target.visible y área > 0, si no 0.3
 ```
 
-Los candidatos que resuelven al mismo sel se fusionan: se suman los scores y se conserva el rect más reciente.
+Los candidatos que resuelven al mismo `sel` se fusionan con **rendimientos decrecientes**, no sumando: `score_final = aporte_max + merge_extra_weight × suma_del_resto`, con `merge_extra_weight = 0.25` en `[correlator]`. Se conserva el `rect` más reciente.
+
+> **CORRECCIÓN (2026-09-05, reportada por B3).** La versión original decía «se suman los scores». Eso está mal: los aportes del mismo `sel` no son evidencia independiente —scrollear hasta un elemento, enfocarlo y clickearlo son una sola interacción vista tres veces— así que sumarlos cuenta la misma evidencia varias veces y deja que N eventos débiles sobre un distractor le ganen a un hover sostenido más click sobre el elemento real. Anclaba al elemento equivocado con confianza 1.00, violando la regla de oro del paso 6.
 
 ### Paso 6 — Decidir el ancla
 
@@ -407,7 +409,7 @@ si no:
        → kind = <span class="s">"element"</span>, target = best.target
   si no → kind = <span class="s">"route"</span>
 
-confidence = clamp(best.score / 6.0, 0, 1)
+confidence = clamp(aporte_max / 6.0, 0, 1)   # del MAXIMO, no del score fusionado
              × 0.7 si el ratio best/second < 1.3
 reason[]   = [<span class="s">"click −0.9s"</span>, <span class="s">"deixis:este"</span>, <span class="s">"hover 2.1s"</span>]
 ```

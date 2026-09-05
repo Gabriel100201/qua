@@ -163,4 +163,16 @@ Resolví un conflicto en ese archivo con `--theirs` y **perdí D-09 y D-10 de A1
 recuperé a mano. Cada worker agrega sus propias entradas, así que el conflicto siempre es
 "ambos agregaron al final": hay que quedarse con las dos partes, nunca con un lado.
 `STATE.md` sí se resuelve con `--ours` (lo escribe el coordinador).
+- `2026-09-05 23:47` — **B3 encontró un bug de diseño en la spec, no una ambigüedad.** El paso 5
+  de §07 decía fusionar candidatos del mismo `sel` **sumando** scores, pero el divisor `6.0` de
+  la confianza del paso 6 es exactamente el score máximo de UN candidato — la fórmula de
+  confianza se escribió asumiendo que no había suma. Sumando, una tira de eventos débiles sobre
+  un distractor (7.07) le ganaba al hover sostenido + click reales (5.04) y anclaba al elemento
+  equivocado con **confianza 1.00**, violando la regla de oro.
+  **Resolución:** rendimientos decrecientes en vez de suma
+  (`score_final = aporte_max + 0.25 × suma_del_resto`) y **confianza calculada del aporte máximo,
+  no del score fusionado**. Así la corroboración ayuda a ganar la comparación pero la confianza
+  sigue siendo honesta sobre la mejor evidencia sola: el que gana por acumular ruido llega con
+  confianza baja y lo filtra el `min_score` o el `dominance_ratio`. `docs/SPEC.md` §07 corregida.
+  El artifact publicado también hay que actualizarlo.
 
