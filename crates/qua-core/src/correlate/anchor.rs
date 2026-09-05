@@ -77,10 +77,16 @@ pub fn decide(
 
     // La confianza mide el **aporte individual más fuerte**, no el score fusionado: la
     // corroboración de varios eventos ayuda a ganar la comparación, pero no puede inventar
-    // evidencia que no existe. Además mantiene honesta la escala del divisor 6.0, que es
-    // exactamente el score máximo de un candidato solo. Ver `docs/DECISIONS.md`, D-B3-07.
+    // evidencia que no existe. Ver `docs/DECISIONS.md`, D-B3-07.
+    //
+    // Se normaliza contra el máximo alcanzable de la **clase de deixis en juego**, no
+    // contra una constante global: `confidence_divisor` (6.0) es el techo de un candidato
+    // ACTION perfecto (`click 3.0 × bias 2.0`), pero POINTER solo puede llegar a `3.0 ×
+    // 1.5 = 4.5` y sin deixis a `3.0 × 1.0 = 3.0`. Dividir siempre por 6.0 le pone un techo
+    // artificial de 0.75 a un match POINTER perfecto. Ver `docs/DECISIONS.md`, D-B6-01.
     let confidence = {
-        let base = best.map_or(0.0, |b| clamp01(b.max_contribution / cfg.confidence_divisor));
+        let max_posible = max_possible_score(deixis.class, cfg);
+        let base = best.map_or(0.0, |b| clamp01(b.max_contribution / max_posible));
         if domina {
             base
         } else {
@@ -127,6 +133,23 @@ pub fn decide(
 
 fn clamp01(v: f64) -> f64 {
     v.clamp(0.0, 1.0)
+}
+
+/// El score máximo alcanzable por un solo candidato en la clase de deixis dada:
+/// `base_click × bias_de_la_clase × recency(1.0) × visibility(1.0)`.
+///
+/// `base_click` (el más alto de los cuatro `base`) sale de `confidence_divisor /
+/// bias_action`, en vez de estar hardcodeado: `confidence_divisor` sigue siendo el umbral
+/// configurable de `[correlator]` que documenta D-B3-01, así que tunearlo desde el toml
+/// escala las tres clases a la vez.
+fn max_possible_score(deixis: Deixis, cfg: &CorrelatorConfig) -> f64 {
+    let base_max = cfg.confidence_divisor / cfg.bias_action;
+    match deixis {
+        Deixis::Action => base_max * cfg.bias_action,
+        Deixis::Pointer => base_max * cfg.bias_pointer,
+        // SCREEN/GLOBAL no llegan acá (se resuelven antes); sin deixis, ninguna bias aplica.
+        Deixis::None | Deixis::Screen | Deixis::Global => base_max,
+    }
 }
 
 #[cfg(test)]
@@ -200,13 +223,15 @@ mod tests {
         assert_eq!(a.target, None);
     }
 
-    /// Un ganador claro y por encima de `min_score`: ancla a elemento.
+    /// Un ganador claro y por encima de `min_score`: ancla a elemento. Sin deixis, `a` con
+    /// score 3.0 es exactamente el máximo posible de esa clase (`base_click × 1.0 × 1.0 ×
+    /// 1.0`): confianza 1.0.
     #[test]
     fn ancla_a_elemento_cuando_domina() {
         let a = decide(&[st("a", 3.0), st("b", 1.0)], &sin_deixis(), 10_000, &ruta(), &cfg());
         assert_eq!(a.kind, AnchorKind::Element);
         assert_eq!(a.target.expect("target").sel, "a");
-        assert!((a.confidence - 0.5).abs() < 1e-12);
+        assert!((a.confidence - 1.0).abs() < 1e-12);
     }
 
     /// La regla de oro: dos scores parecidos → route, no elemento equivocado.
@@ -215,8 +240,8 @@ mod tests {
         let a = decide(&[st("a", 3.0), st("b", 2.6)], &sin_deixis(), 10_000, &ruta(), &cfg());
         assert_eq!(a.kind, AnchorKind::Route);
         assert_eq!(a.target, None);
-        // 3.0/6 = 0.5, penalizado ×0.7.
-        assert!((a.confidence - 0.35).abs() < 1e-12);
+        // 3.0/3.0 = 1.0, penalizado ×0.7.
+        assert!((a.confidence - 0.7).abs() < 1e-12);
         assert!(a.reason.iter().any(|r| r.contains("ambiguo")));
     }
 
@@ -231,7 +256,7 @@ mod tests {
         let a = decide(&[st("a", 1.9)], &sin_deixis(), 10_000, &ruta(), &cfg());
         assert_eq!(a.kind, AnchorKind::Route);
         assert!(a.reason.iter().any(|r| r.contains("min_score")));
-        assert!((a.confidence - 1.9 / 6.0).abs() < 1e-12);
+        assert!((a.confidence - 1.9 / 3.0).abs() < 1e-12);
     }
 
     #[test]
@@ -260,10 +285,16 @@ mod tests {
 
     /// La decisión del coordinador sobre D-B3-07: un candidato que gana **por acumulación**
     /// puede ganar la comparación, pero llega con la confianza de su mejor evidencia sola.
+    ///
+    /// `ruidoso` gana el score fusionado (3.9 contra 3.0, ratio exactamente en el umbral de
+    /// dominancia) acumulando aportes chicos: ninguno solo pasa de 1.2. Ver D-B6-01 en
+    /// `docs/DECISIONS.md` sobre por qué esto ya no es una garantía general una vez que el
+    /// divisor depende de la clase de deixis — acá se elige `max` deliberadamente bajo para
+    /// que siga probando el mecanismo.
     #[test]
     fn la_confianza_mide_el_aporte_mas_fuerte_no_el_acumulado() {
         let a = decide(
-            &[st_acumulado("ruidoso", 7.07, 2.83), st("real", 5.04)],
+            &[st_acumulado("ruidoso", 3.9, 1.2), st("real", 3.0)],
             &sin_deixis(),
             10_000,
             &ruta(),
@@ -271,12 +302,43 @@ mod tests {
         );
         assert_eq!(a.kind, AnchorKind::Element);
         assert_eq!(a.target.expect("target").sel, "ruidoso");
-        // 2.83/6 = 0.47, no 7.07/6 = 1.0.
-        assert!((a.confidence - 2.83 / 6.0).abs() < 1e-12, "{}", a.confidence);
+        // 1.2/3.0 = 0.4, no 3.9/3.0 = 1.0.
+        assert!((a.confidence - 1.2 / 3.0).abs() < 1e-12, "{}", a.confidence);
         assert!(
             a.confidence < 0.5,
             "un ganador por acumulación no puede pasar el umbral de screenshot"
         );
+    }
+
+    /// D-B6-01: el divisor de la confianza depende de la clase de deixis, no es la
+    /// constante global 6.0. Un aporte de score `s` da la misma confianza sin importar la
+    /// clase si `s` es exactamente el máximo de esa clase (POINTER 4.5, ACTION 6.0, sin
+    /// deixis 3.0): siempre 1.0. Con `s` fijo, la confianza es más baja cuanto más grande
+    /// es el máximo de la clase.
+    #[test]
+    fn el_divisor_de_confianza_depende_de_la_clase_de_deixis() {
+        let s = 4.5;
+        let none = decide(&[st("a", s)], &sin_deixis(), 10_000, &ruta(), &cfg());
+        let pointer = decide(
+            &[st("a", s)],
+            &crate::correlate::deixis::classify("este botón"),
+            10_000,
+            &ruta(),
+            &cfg(),
+        );
+        let action = decide(
+            &[st("a", s)],
+            &crate::correlate::deixis::classify("cuando le doy"),
+            10_000,
+            &ruta(),
+            &cfg(),
+        );
+        // sin deixis, 4.5 ya satura contra el máximo de 3.0.
+        assert_eq!(none.confidence, 1.0);
+        // POINTER: 4.5 es exactamente su máximo (3.0 × 1.5) → satura justo en 1.0.
+        assert_eq!(pointer.confidence, 1.0);
+        // ACTION: 4.5 / 6.0 = 0.75, no llega a saturar.
+        assert!((action.confidence - 0.75).abs() < 1e-12, "{}", action.confidence);
     }
 
     #[test]

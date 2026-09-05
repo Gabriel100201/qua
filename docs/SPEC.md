@@ -409,10 +409,19 @@ si no:
        → kind = <span class="s">"element"</span>, target = best.target
   si no → kind = <span class="s">"route"</span>
 
-confidence = clamp(aporte_max / 6.0, 0, 1)   # del MAXIMO, no del score fusionado
+max_posible(deixis) = 3.0 × bias(deixis) × 1.0 × 1.0   # POINTER → 4.5 · ACTION → 6.0 · sin deixis → 3.0
+confidence = clamp(aporte_max / max_posible(deixis), 0, 1)   # del MAXIMO, no del score fusionado
              × 0.7 si el ratio best/second < 1.3
 reason[]   = [<span class="s">"click −0.9s"</span>, <span class="s">"deixis:este"</span>, <span class="s">"hover 2.1s"</span>]
 ```
+
+> **CORRECCIÓN (2026-09-05, reportada por B6).** La versión original normalizaba siempre
+> contra `6.0`, el score máximo alcanzable solo con deixis ACTION (`click 3.0 × bias 2.0`).
+> Con POINTER el máximo real es `3.0 × 1.5 = 4.5`, así que ni un match perfecto podía pasar
+> de `0.75`, y con decaimiento de recencia un hover sostenido + click + deixis POINTER sobre
+> el mismo elemento — el caso más nítido posible — salía con confianza 0.48: por debajo del
+> umbral de screenshot del paso 9. El divisor pasa a depender de la clase de deixis en juego.
+> Ver `docs/DECISIONS.md`, D-B6-01.
 
 > **DECISIÓN** — Regla de oroAnte duda, degradar a route. Un issue anclado a la ruta correcta es útil; uno anclado al elemento equivocado manda al agente a editar el archivo equivocado, que es peor que no anclar.
 

@@ -327,4 +327,19 @@ con severidad alta.
    perfecto nunca pasa de 0,75. Hay que normalizar por clase de deixis.
 2. **El encabezado dice "4 issues" y la tabla lista 3** — el de "Sin anclar" no entra en la
    tabla. Inconsistencia visible en lo primero que se lee.
+- `2026-09-05 03:10` — **B6 ✅**. Los dos defectos de arriba, arreglados en
+  `crates/qua-core/src/{correlate/anchor.rs,render/report.rs}`. **158 tests de Rust, cero
+  fallos** (154 en `qua-core`, incluye los 109+ heredados de B3 con los números de confianza
+  recalibrados, no aflojados). Detalle completo, incluido un gap conocido y fuera de alcance
+  (`s24` del harness) en `docs/DECISIONS.md`, D-B6-01 y D-B6-02.
+  - Confianza: divisor de `confidence` ahora depende de la clase de deixis
+    (POINTER 4.5 · ACTION 6.0 · sin deixis 3.0) en vez de 6.0 fijo. El issue 01 del ejemplo
+    real pasa de **0.48 a 0.64** — cruza el umbral de screenshot (0.5). No llega a 0.75 (lo
+    que pedía el dispatch original): el porqué exacto, con la cuenta, está en D-B6-01. El
+    criterio de §14 que no se podía romper —ningún caso *ambiguo* (ratio < 1.3) anclado a
+    elemento con confianza > 0.5— sigue intacto, verificado contra el harness real (`s23`
+    sigue degradando a route).
+  - Encabezado: `report.md` ahora dice `"N issues"` o `"N issues + M sin anclar"`, contando
+    lo mismo que ve la tabla resumen. `docs/ejemplos/report-ejemplo.md` actualizado a la
+    salida real post-fix.
 

@@ -1206,3 +1206,103 @@ consultas de `qua-mcp` antes de este fix.
 `i01` cada una, confirma que `qua_issues_pending` devuelve las dos (antes del fix, la
 segunda pisaba a la primera y solo aparecía un issue), y que `qua_issue_mark_exported`
 con `(session_id, issue_id)` afecta solo a la sesión correcta.
+
+### D-B6-01 · El divisor de `confidence` depende de la clase de deixis, no es 6.0 fijo
+
+**Contexto.** Corriendo el pipeline real sobre `fixtures/session-full.json` (ver
+`docs/ejemplos/report-ejemplo.md`), el issue 01 — hover sostenido de 2,1 s **más** click
+**más** deixis POINTER ("este botón"), los tres sobre el mismo elemento: el ancla más
+nítida de todo el reporte — salía con confianza **0.48**. Eso está mal por dos razones:
+se lee como una moneda al aire para el caso más claro del reporte, y queda debajo de
+`screenshot_min_confidence` (0.5), así que el paso 9 no pide el recorte justo del issue
+que más lo necesita.
+
+**Causa.** §07 paso 6 normalizaba con `confidence = clamp(aporte_max / 6.0)`.
+`6.0 = base_click(3.0) × bias_action(2.0)` es el score máximo alcanzable **solo** con
+deixis ACTION. Con POINTER el máximo real es `3.0 × bias_pointer(1.5) = 4.5`, así que ni
+un match POINTER perfecto (recency = 1) puede pasar de `4.5 / 6.0 = 0.75` — y con
+decaimiento de recencia (el caso real) cae a 0.48. El divisor era una constante global
+donde la spec necesitaba uno por clase.
+
+**Decisión.** `max_possible_score(deixis, cfg)` en `correlate::anchor` calcula el techo
+de la clase en juego: `base_max × bias_de_la_clase × recency(1.0) × visibility(1.0)`, con
+`base_max = confidence_divisor / bias_action` (no hardcodeado: sigue saliendo del
+`confidence_divisor` de `[correlator]`, así que tunearlo desde el toml escala las tres
+clases a la vez). Con los defaults: POINTER → 4.5, ACTION → 6.0 (sin cambio), sin deixis
+→ 3.0.
+
+```
+confidence = clamp(aporte_max / max_possible_score(deixis), 0, 1)
+             × ambiguity_penalty si ratio best/second < dominance_ratio
+```
+
+Sobre `fixtures/session-full.json`, el issue 01 pasa de **0.48 a 0.64**: cruza el umbral
+de screenshot y deja de leerse como un tiro de moneda. La lógica de dominancia/ambigüedad
+del paso 6 no cambia — solo cambia contra qué se normaliza el aporte ganador.
+
+**Por qué no llega a 0.75.** El pedido original de B6 pedía verificar que el issue 01
+llegue a `≥ 0.75`. La cuenta exacta no da: el click ganador de ese issue ocurre 1.1 s
+después de `t_ref` (`recency = exp(-1100/2500) ≈ 0.644`), y `aporte_max` es
+`3.0 × 1.5 × 0.644 = 2.898` sin importar el divisor. `2.898 / 4.5 = 0.644` es el máximo
+alcanzable para ESE evento con la fórmula del paso 6 — llegar a 0.75 exigiría o inflar
+`aporte_max` con la corroboración del hover (exactamente lo que D-B3-07 prohíbe, por lo
+de abajo) o encoger el techo de la clase POINTER por debajo de lo que un match perfecto
+necesita. Gabriel dormía cuando se detectó esto; queda anotado acá en vez de forzar el
+número.
+
+**Por qué no se usa el score fusionado para acercarse a 0.75.** Se probó normalizar
+contra el score fusionado (`aporte_max + merge_extra_weight × resto`) en vez de contra el
+aporte máximo solo — sube el issue 01 a ~0.78, pero reabre exactamente el bug que D-B3-07
+cerró: corrida contra el harness de F1b, el escenario **s23** (cinco aportes débiles
+sobre un distractor visible superando a un hover + click reales sobre el elemento
+correcto, pero perdiendo por poco en `dominance_ratio`) vuelve a superar confianza 0.5
+anclado al elemento equivocado. Ese criterio — «ningún caso ambiguo anclado a elemento
+con confianza > 0.5» (§14, criterio de aceptación de B3) — no se negocia, así que
+`max_contribution` (no el score fusionado) se mantiene como base de `confidence`.
+Confirmado con `cargo test -p qua-core --test harness_sintetico -- --nocapture`: s23 sigue
+degradando a `route` con confianza 0.44 bajo el fix de este ticket.
+
+**Gap conocido, fuera de alcance de B6: `s24`.** El mismo harness expone un escenario
+(`s24`, "visibilidad penaliza candidato oculto") donde el elemento realmente referido por
+deixis está marcado `visible: false` a propósito; `visibility_penalty` (0.3) lo hunde por
+debajo de un distractor totalmente visible que **domina sin ambigüedad**
+(`ratio ≈ 3.16 ≥ dominance_ratio`). No es el caso que protege el criterio de §14 —ese
+habla de casos *ambiguos* (`ratio < dominance_ratio`), y s24 no lo es—, así que no viola
+la regla de oro tal como la define la spec. Pero con este fix su confianza sube de 0.49 a
+0.63 (antes se colaba por debajo de 0.5 por la coincidencia de que el divisor global 6.0
+aplastaba también a los aciertos). Ya era un desacierto antes de B6 (`los_desaciertos_no_
+pueden_ser_de_alta_confianza` solo mide, no assertea — es "medición, no oráculo" según su
+propio comentario). Tocar `visibility_penalty` o la interacción visibilidad/dominancia es
+un problema distinto (deixis apunta a algo oculto) y queda fuera del alcance de este
+ticket — reportado, no resuelto.
+
+**Tests que cambiaron de número, no de regla.** `correlate::anchor::tests` — los que
+usaban `sin_deixis()` y dividían por 6.0 ahora dividen por 3.0
+(`ancla_a_elemento_cuando_domina`, `degrada_a_route_por_ambiguedad`,
+`degrada_a_route_por_score_bajo`). `la_confianza_mide_el_aporte_mas_fuerte_no_el_acumulado`
+cambió los números de ejemplo (de `7.07/2.83` contra el "real" `5.04`, a `3.9/1.2` contra
+`3.0`) para seguir demostrando el mecanismo — con divisor por clase, los números viejos ya
+no cumplían `< 0.5` sin dejar de ser "ganador por acumulación", así que se recalibraron en
+vez de aflojar la aserción. `ningun_ambiguo_queda_anclado_a_elemento` y
+`el_ratio_justo_en_el_umbral_ancla` (la regla de oro en sí) no cambiaron: siguen pasando
+sin tocar sus números. Se agregó `el_divisor_de_confianza_depende_de_la_clase_de_deixis`
+para fijar los tres techos (3.0 / 4.5 / 6.0) como comportamiento explícito.
+
+### D-B6-02 · El encabezado de `report.md` cuenta lo mismo que la tabla resumen
+
+**Contexto.** `meta_line` usaba `session.issues.len()` — anclados **más** sin anclar — pero
+la tabla resumen solo lista los anclados. Un reporte con 3 issues anclados y 1 en "Sin
+anclar" mostraba «4 issues» en el encabezado contra 3 filas en la tabla: la primera
+inconsistencia que ve quien abre el reporte.
+
+**Decisión.** El encabezado cuenta igual que se ve en la página: `"{anchored} issues"`
+cuando no hay nada sin anclar (sin cambio de formato para el caso común), y
+`"{anchored} issues + {unanchored} sin anclar"` cuando sí hay. Se prefirió esta opción a
+la alternativa (meter el sin anclar en la tabla con ancla en blanco) porque la tabla
+resumen de §8.1 es explícitamente "issues anclados, ordenados por severidad y confianza"
+— forzar una fila sin ancla ahí le pisa el propósito a la sección "Sin anclar" aparte
+(D-B4-03).
+
+**Por qué.** Es lo primero que se lee del reporte. `docs/ejemplos/report-ejemplo.md`
+queda como referencia: "3 issues + 1 sin anclar" con 3 filas en la tabla y 1 entrada en
+"Sin anclar".
