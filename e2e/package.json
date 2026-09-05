@@ -1,0 +1,13 @@
+{
+  "name": "@qua/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "G1 (§14): sesión real de punta a punta — Chrome real + extensión cargada + daemon real, sin intervención manual. No es parte de `pnpm test` (ver README de esta carpeta).",
+  "scripts": {
+    "e2e": "node session.e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
