@@ -350,4 +350,20 @@ con severidad alta.
 - `2026-09-05 02:41` — **La brecha del `audio.opus` que reportó A3 era sólo aparente.** B1 ya
   la resolvió en D-B1-08: transcodifica desde `raw/audio.pcm` con ffmpeg. No hace falta ningún
   mensaje de protocolo para subir el archivo. Cerrada.
+- `2026-09-05 02:45` — **F1c se frenó con `API Error: Server error mid-response`** y quedó idle
+  26 min sin que nadie lo notara. Reactivado con `orca terminal send`.
+  **Mi watchdog no lo detectó**: sólo avisaba cuando TODOS los worktrees estaban congelados
+  —sirve para el corte de cuota, que frena a todos a la vez, pero no para un worker que muere
+  solo—. Lo reemplacé por uno **por worker**: avisa si un worker con dispatch activo lleva 18
+  min sin escribir, y no repite el aviso hasta que vuelve a moverse.
+
+### Los dos modos de falla vistos esta noche
+
+| Síntoma | Causa | Cómo se ve |
+|---|---|---|
+| Todos frenan en el mismo minuto | Límite de cuota agotado | Procesos vivos, idle en el prompt |
+| Uno solo frena | `API Error: Server error mid-response` | Igual, pero los demás siguen |
+
+En los dos casos el dispatch sigue en `dispatched` y Orca no marca nada: **la única señal
+confiable es el mtime de los archivos del worktree.**
 
