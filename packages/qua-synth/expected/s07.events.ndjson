@@ -1,0 +1,4 @@
+{"t":0,"tab":1,"k":"nav","url":"https://app.test/view/6","title":"Vista","kind":"load"}
+{"t":5400,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"item-7\"]","strategy":"testid","tag":"button","text":"Acción 7","visible":true},"dwell_ms":1200}
+{"t":5800,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"item-7\"]","strategy":"testid","tag":"button","text":"Acción 7","visible":true},"button":0,"mods":[]}
+{"t":5700,"tab":1,"k":"console","level":"error","text":"TypeError: render failed"}

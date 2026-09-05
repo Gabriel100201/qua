@@ -1,0 +1,7 @@
+{
+  "issue": "i01",
+  "anchor": {
+    "kind": "element",
+    "selector": "button[data-testid=\"item-1\"]"
+  }
+}

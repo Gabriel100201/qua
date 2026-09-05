@@ -1,0 +1,32 @@
+[
+  {
+    "id": "u09",
+    "t_start": 6800,
+    "t_end": 7185,
+    "text": "eh mm bueno",
+    "lang": "es",
+    "words": [
+      {
+        "w": "eh",
+        "t": 6800,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "mm",
+        "t": 6890,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "bueno",
+        "t": 6980,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.03,
+    "marked": false
+  }
+]

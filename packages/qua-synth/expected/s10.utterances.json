@@ -1,0 +1,50 @@
+[
+  {
+    "id": "u10",
+    "t_start": 6900,
+    "t_end": 8160,
+    "text": "cuando hago clic acá tarda demasiado",
+    "lang": "es",
+    "words": [
+      {
+        "w": "cuando",
+        "t": 6900,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "hago",
+        "t": 6990,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "clic",
+        "t": 7080,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "acá",
+        "t": 7170,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "tarda",
+        "t": 7260,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "demasiado",
+        "t": 7350,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.03,
+    "marked": true
+  }
+]

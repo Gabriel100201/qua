@@ -1,0 +1,56 @@
+[
+  {
+    "id": "u19",
+    "t_start": 7800,
+    "t_end": 9270,
+    "text": "esta pantalla necesita un título más claro",
+    "lang": "es",
+    "words": [
+      {
+        "w": "esta",
+        "t": 7800,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "pantalla",
+        "t": 7890,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "necesita",
+        "t": 7980,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "un",
+        "t": 8070,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "título",
+        "t": 8160,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "más",
+        "t": 8250,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "claro",
+        "t": 8340,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.03,
+    "marked": false
+  }
+]

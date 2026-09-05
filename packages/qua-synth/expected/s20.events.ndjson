@@ -1,0 +1,3 @@
+{"t":0,"tab":2,"k":"nav","url":"https://app.test/view/19","title":"Vista","kind":"load"}
+{"t":6700,"tab":2,"k":"hover","target":{"sel":"button[data-testid=\"item-20\"]","strategy":"testid","tag":"button","text":"Acción 20","visible":true},"dwell_ms":1200}
+{"t":7100,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"item-20\"]","strategy":"testid","tag":"button","text":"Acción 20","visible":true},"button":0,"mods":[]}

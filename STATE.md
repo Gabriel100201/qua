@@ -27,7 +27,7 @@
 | Tarea | Dep. | Estado | Agente | Commit |
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
-| F1 · Generador sintético       | F0     | 🟡 en curso | codex luna | — |
+| F1 · Generador sintético       | F0     | ✅ hecho | codex luna | `d28620d` |
 | A1 · Content script            | F0     | 🟡 en curso | sonnet | — |
 | A2 · Service worker            | F0     | ⬜ pendiente | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
