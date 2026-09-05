@@ -4,64 +4,172 @@
     <meta charset="utf-8" />
     <title>QUA — configuración</title>
     <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f7f8;
+        --bg-elevated: #ffffff;
+        --bg-muted: #f1f1f3;
+        --fg: #18181b;
+        --fg-muted: #52525b;
+        --fg-subtle: #71717a;
+        --border: #e4e4e7;
+        --border-strong: #d4d4d8;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --accent-fg: #ffffff;
+        --success-fg: #15803d;
+        --success-bg: #f0fdf4;
+        --success-border: #bbf7d0;
+        --focus-ring: #2563eb;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #19191c;
+          --bg-elevated: #232326;
+          --bg-muted: #29292d;
+          --fg: #f4f4f5;
+          --fg-muted: #a1a1aa;
+          --fg-subtle: #8b8b93;
+          --border: #38383d;
+          --border-strong: #46464c;
+          --accent: #3b82f6;
+          --accent-hover: #60a5fa;
+          --accent-fg: #0b1220;
+          --success-fg: #86efac;
+          --success-bg: rgba(21, 128, 61, 0.16);
+          --success-border: #166534;
+          --focus-ring: #60a5fa;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         max-width: 480px;
         margin: 32px auto;
         padding: 0 16px;
-        font: 14px/1.5 system-ui, sans-serif;
-        color: #18181b;
+        font: 14px/1.5 -apple-system, system-ui, "Segoe UI", sans-serif;
+        color: var(--fg);
+        background: var(--bg);
       }
+
       h1 {
-        font-size: 18px;
+        font-size: 24px;
+        margin: 0 0 2px;
       }
+
+      .qua-subtitle {
+        color: var(--fg-muted);
+        margin: 0 0 24px;
+      }
+
       section {
-        border: 1px solid #e4e4e7;
-        border-radius: 8px;
-        padding: 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px;
         margin-bottom: 16px;
       }
+
       h2 {
-        font-size: 14px;
-        margin: 0 0 8px;
+        font-size: 18px;
+        margin: 0 0 6px;
       }
+
       p.qua-hint {
-        color: #52525b;
-        margin: 0 0 12px;
+        color: var(--fg-muted);
+        margin: 0 0 14px;
       }
+
       button {
-        padding: 6px 14px;
-        border: 1px solid #d4d4d8;
-        border-radius: 6px;
-        background: #fff;
+        font: inherit;
+        padding: 7px 14px;
+        border: 1px solid var(--border-strong);
+        border-radius: 7px;
+        background: var(--bg-elevated);
+        color: var(--fg);
         cursor: pointer;
       }
+
+      button:hover:not(:disabled) {
+        border-color: var(--fg-subtle);
+      }
+
       button:disabled {
         opacity: 0.5;
         cursor: default;
       }
-      input {
-        padding: 6px 8px;
-        border: 1px solid #d4d4d8;
-        border-radius: 6px;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 2px;
-        width: 100px;
+
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
       }
+
+      #qua-mic-button,
+      #qua-pair-button {
+        border: none;
+        background: var(--accent);
+        color: var(--accent-fg);
+        font-weight: 600;
+      }
+
+      #qua-mic-button:hover:not(:disabled),
+      #qua-pair-button:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+
+      input {
+        font: inherit;
+        padding: 7px 8px;
+        border: 1px solid var(--border-strong);
+        border-radius: 7px;
+        background: var(--bg-elevated);
+        color: var(--fg);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 3px;
+        text-align: center;
+        width: 110px;
+      }
+
       .qua-row {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
       }
+
+      #qua-mic-status {
+        font-size: 11px;
+        color: var(--fg-muted);
+        background: var(--bg-muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 3px 10px;
+      }
+
+      /* Sin ganchos de clase en el JS: el botón queda disabled solo cuando el
+         permiso ya está concedido (ver options/lib/controller.ts), así que ese
+         estado real del DOM alcanza para marcar la insignia como éxito. */
+      .qua-row:has(#qua-mic-button:disabled) #qua-mic-status {
+        color: var(--success-fg);
+        background: var(--success-bg);
+        border-color: var(--success-border);
+      }
+
       .qua-message {
         display: block;
-        margin-top: 8px;
-        color: #52525b;
+        margin-top: 10px;
+        color: var(--fg-muted);
         min-height: 1.2em;
       }
     </style>
   </head>
   <body>
     <h1>QUA</h1>
+    <p class="qua-subtitle">Configuración</p>
 
     <section>
       <h2>Micrófono</h2>
