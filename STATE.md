@@ -36,7 +36,7 @@
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
 | B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
-| D1 · Servidor MCP              | F0     | 🟡 en curso | sonnet | — | — |
+| D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | `9363025` | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
@@ -237,3 +237,13 @@ En el merge de B2 mi loop de resolución hizo `git add` incluso del archivo que 
 Al resolver conflictos: los casos conocidos se resuelven y se agregan; **el resto se deja sin
 agregar y se revisa antes de commitear.**
 
+
+- `2026-09-05` — **D1 ✅** (`9363025`). `qua-mcp`: JSON-RPC 2.0 a mano sobre stdio (sin
+  SDK de MCP), las 5 herramientas de §10 con sus parámetros exactos, solo lectura
+  impuesta con `SQLITE_OPEN_READ_ONLY` salvo `qua_issue_mark_exported` (única conexión
+  de lectura-escritura). Test de aceptación levanta el binario real como subproceso,
+  siembra una DB desde `crates/qua-mcp/tests/fixtures/` (esquema real de
+  `qua-core::store`) y ejerce las 5 herramientas por el protocolo MCP verdadero;
+  confirma que `mark_exported` saca al issue de `issues_pending`. README con el bloque
+  de config para `claude mcp add`. 8 ambigüedades anotadas en `docs/DECISIONS.md`
+  (D-D1-01 a D-D1-08).
