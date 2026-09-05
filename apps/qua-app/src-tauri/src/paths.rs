@@ -35,3 +35,14 @@ pub fn daemon_port() -> u16 {
 pub fn daemon_base_url() -> String {
     format!("http://127.0.0.1:{}", daemon_port())
 }
+
+/// Token de `POST /control` (§09, `docs/DECISIONS.md` D-P1-01) — el daemon lo genera
+/// y lo persiste en `config.toml` en su primer arranque. Si `config.toml` todavía no
+/// existe (el sidecar no arrancó ni una vez), cae a un string vacío: el daemon
+/// rechaza eso igual que cualquier otro token inválido, no hace falta un caso
+/// especial acá.
+pub fn daemon_control_token() -> String {
+    quad::config::Config::load(&config_path())
+        .map(|c| c.daemon.control_token)
+        .unwrap_or_default()
+}

@@ -32,6 +32,7 @@ export const FIXTURE_MANIFEST = [
   { path: "fixtures/messages/server-transcript-partial.json", kind: "server-message" },
   { path: "fixtures/messages/server-capture-request.json", kind: "server-message" },
   { path: "fixtures/messages/server-session-done.json", kind: "server-message" },
+  { path: "fixtures/messages/server-session-control.json", kind: "server-message" },
   { path: "fixtures/messages/server-error.json", kind: "server-message" },
   { path: "fixtures/messages/http-pair-request.json", kind: "pair-request" },
   { path: "fixtures/messages/http-pair-response.json", kind: "pair-response" },

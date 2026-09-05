@@ -16,9 +16,10 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use qua_protocol::messages::error_codes;
-use qua_protocol::{HealthResponse, PairRequest, PairResponse};
+use qua_protocol::{ControlAction, HealthResponse, PairRequest, PairResponse, ServerMessage};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::config::Config;
 use crate::pairing::{self, PairingWindow};
@@ -30,6 +31,11 @@ pub struct AppState {
     pub config: Arc<Mutex<Config>>,
     pub pairing: Arc<Mutex<Option<PairingWindow>>>,
     pub active_session_id: Arc<Mutex<Option<String>>>,
+    /// El WS actualmente conectado, si hay uno — lo que `POST /control` usa para
+    /// reenviar `session.control` (§09, D-P1-01). No implica sesión arrancada: se
+    /// registra apenas el socket autentica, antes de cualquier `hello`, para que el
+    /// hotkey pueda alcanzar a la extensión incluso en su canal de control ocioso.
+    pub client_tx: Arc<Mutex<Option<UnboundedSender<ServerMessage>>>>,
     pub start_time: Instant,
     pub daemon_version: &'static str,
 }
@@ -47,6 +53,12 @@ pub async fn prepare(
     if let Some(p) = port {
         config.daemon.port = p;
     }
+    // D-P1-01: el token de `/control` es secreto local (nunca sale por Origin/pairing
+    // como el de la extensión) — se genera una sola vez y se persiste como cualquier
+    // otro dato de `config.toml`.
+    if config.daemon.control_token.is_empty() {
+        config.daemon.control_token = pairing::generate_token();
+    }
     config.save(&config_path)?;
 
     // Abre (y crea) el SQLite ya, para fallar rápido si el directorio de datos no sirve
@@ -60,6 +72,7 @@ pub async fn prepare(
         config: Arc::new(Mutex::new(config)),
         pairing: Arc::new(Mutex::new(None)),
         active_session_id: Arc::new(Mutex::new(None)),
+        client_tx: Arc::new(Mutex::new(None)),
         start_time: Instant::now(),
         daemon_version: env!("CARGO_PKG_VERSION"),
     };
@@ -87,6 +100,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/pair/start", post(pair_start_handler))
         .route("/pair", post(pair_handler))
         .route("/ws", get(ws_upgrade_handler))
+        .route("/control", post(control_handler))
         .with_state(state)
 }
 
@@ -251,4 +265,57 @@ async fn ws_upgrade_handler(
     }
 
     ws.on_upgrade(move |socket| crate::ws::handle_socket(socket, state))
+}
+
+#[derive(Debug, Deserialize)]
+struct ControlRequest {
+    action: ControlAction,
+}
+
+/// `POST /control` (§09, `docs/DECISIONS.md` D-P1-01): dispara el hotkey global de
+/// la app Tauri. No está en §04 — es interno, como `/pair/start` (D-B1-01) — pero a
+/// diferencia de `/pair`/`/ws`, no lo autentica el pairing de la extensión: lo llama
+/// la app Tauri, un proceso local sin `Origin` de extensión, así que usa su propio
+/// token (`control_token`) por header `Authorization: Bearer <token>`.
+async fn control_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<ControlRequest>,
+) -> Response {
+    let expected = state.config.lock().unwrap().daemon.control_token.clone();
+    let provided = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "));
+    if provided != Some(expected.as_str()) || expected.is_empty() {
+        return err(
+            StatusCode::UNAUTHORIZED,
+            error_codes::UNAUTHORIZED,
+            "token de control inválido",
+        );
+    }
+
+    let msg = ServerMessage::SessionControl {
+        v: Default::default(),
+        action: req.action,
+        t: chrono::Utc::now().timestamp_millis(),
+    };
+
+    let sent = state
+        .client_tx
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|tx| tx.send(msg).is_ok())
+        .unwrap_or(false);
+
+    if !sent {
+        return err(
+            StatusCode::SERVICE_UNAVAILABLE,
+            error_codes::NO_CLIENT,
+            "no hay ningún cliente WS conectado para reenviarle la orden",
+        );
+    }
+
+    StatusCode::NO_CONTENT.into_response()
 }

@@ -142,6 +142,7 @@ export const SERVER_MESSAGE_TYPES = [
   "transcript.partial",
   "capture.request",
   "session.done",
+  "session.control",
   "error",
 ] as const;
 

@@ -25,6 +25,13 @@ pub async fn handle_socket(socket: WebSocket, state: AppState) {
     // El primer tick es inmediato; no queremos sincronizar antes de que haya nada.
     ticker.tick().await;
 
+    // Registrado apenas el socket autentica, antes de cualquier `hello` — es lo que
+    // `POST /control` usa para alcanzar al cliente (§09, D-P1-01). Un solo cliente a
+    // la vez: si hay dos conexiones simultáneas, la última en conectar gana el slot
+    // (mismo criterio de simplicidad que `active_session_id`).
+    let (control_tx, mut control_rx) = tokio::sync::mpsc::unbounded_channel::<ServerMessage>();
+    *state.client_tx.lock().unwrap() = Some(control_tx.clone());
+
     let mut session: Option<ActiveSession> = None;
 
     loop {
@@ -49,6 +56,9 @@ pub async fn handle_socket(socket: WebSocket, state: AppState) {
                     }
                 }
             }
+            Some(control_msg) = control_rx.recv() => {
+                send_message(&mut sender, &control_msg).await;
+            }
         }
     }
 
@@ -56,6 +66,12 @@ pub async fn handle_socket(socket: WebSocket, state: AppState) {
     // cayó fue el WS). Nada que finalizar: lo escrito ya está fsync-eado hasta el
     // último ack, y `qua recover` es exactamente para completar el resto desde acá.
     *state.active_session_id.lock().unwrap() = None;
+    // Solo limpia el slot si todavía es este socket el registrado — si otra conexión
+    // ya lo reemplazó (dos sockets solapados), no hay que pisarle el registro.
+    let mut guard = state.client_tx.lock().unwrap();
+    if guard.as_ref().is_some_and(|tx| tx.same_channel(&control_tx)) {
+        *guard = None;
+    }
 }
 
 fn ack(seq: i64) -> ServerMessage {
