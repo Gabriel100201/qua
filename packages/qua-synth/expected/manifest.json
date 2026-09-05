@@ -1,26 +1,162 @@
 {
-  "version": 1,
-  "count": 20,
+  "version": 2,
+  "count": 26,
   "scenarios": [
-    "s01",
-    "s02",
-    "s03",
-    "s04",
-    "s05",
-    "s06",
-    "s07",
-    "s08",
-    "s09",
-    "s10",
-    "s11",
-    "s12",
-    "s13",
-    "s14",
-    "s15",
-    "s16",
-    "s17",
-    "s18",
-    "s19",
-    "s20"
+    {
+      "id": "s01",
+      "name": "pointer con hover sostenido",
+      "behavior": "POINTER con distractores",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s02",
+      "name": "action sobre click anterior",
+      "behavior": "ACTION prefiere click anterior",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s03",
+      "name": "screen degrada a route",
+      "behavior": "SCREEN fuerza route",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s04",
+      "name": "global degrada a session",
+      "behavior": "GLOBAL fuerza session",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s05",
+      "name": "pointer con hover sostenido",
+      "behavior": "POINTER con distractores",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s06",
+      "name": "action sobre click anterior",
+      "behavior": "ACTION prefiere click anterior",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s07",
+      "name": "screen degrada a route",
+      "behavior": "SCREEN fuerza route",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s08",
+      "name": "global degrada a session",
+      "behavior": "GLOBAL fuerza session",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s09",
+      "name": "pointer con hover sostenido",
+      "behavior": "POINTER con distractores",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s10",
+      "name": "action sobre click anterior",
+      "behavior": "ACTION prefiere click anterior",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s11",
+      "name": "screen degrada a route",
+      "behavior": "SCREEN fuerza route",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s12",
+      "name": "global degrada a session",
+      "behavior": "GLOBAL fuerza session",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s13",
+      "name": "pointer con hover sostenido",
+      "behavior": "POINTER con distractores",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s14",
+      "name": "action sobre click anterior",
+      "behavior": "ACTION prefiere click anterior",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s15",
+      "name": "screen degrada a route",
+      "behavior": "SCREEN fuerza route",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s16",
+      "name": "global degrada a session",
+      "behavior": "GLOBAL fuerza session",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s17",
+      "name": "pointer con hover sostenido",
+      "behavior": "POINTER con distractores",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s18",
+      "name": "action sobre click anterior",
+      "behavior": "ACTION prefiere click anterior",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s19",
+      "name": "screen degrada a route",
+      "behavior": "SCREEN fuerza route",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s20",
+      "name": "global degrada a session",
+      "behavior": "GLOBAL fuerza session",
+      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+    },
+    {
+      "id": "s21",
+      "name": "pointer no sigue click reciente",
+      "behavior": "POINTER: hover sostenido vence click reciente",
+      "naiveFailure": "nearest toma click reciente"
+    },
+    {
+      "id": "s22",
+      "name": "action anclada al click anterior",
+      "behavior": "ACTION usa click anterior y timings",
+      "naiveFailure": "cursor actual es distractor"
+    },
+    {
+      "id": "s23",
+      "name": "ambigüedad con dos scores cercanos",
+      "behavior": "ratio best/second < 1.3 degrada a route",
+      "naiveFailure": "nearest devuelve un elemento arbitrario"
+    },
+    {
+      "id": "s24",
+      "name": "visibilidad penaliza candidato oculto",
+      "behavior": "visibility=false aplica factor 0.3",
+      "naiveFailure": "nearest toma candidato oculto"
+    },
+    {
+      "id": "s25",
+      "name": "corte por marcador de tema",
+      "behavior": "marker fuerza grupo nuevo",
+      "naiveFailure": "fusiona dos issues consecutivos"
+    },
+    {
+      "id": "s26",
+      "name": "ruido ASR descartable",
+      "behavior": "no_speech_prob 0.7 descarta utterance",
+      "naiveFailure": "crea issue desde audio sin habla"
+    }
   ]
 }

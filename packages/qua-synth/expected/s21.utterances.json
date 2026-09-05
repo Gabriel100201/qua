@@ -1,0 +1,38 @@
+[
+  {
+    "id": "u21",
+    "t_start": 33400,
+    "t_end": 34170,
+    "text": "este botón queda chico",
+    "lang": "es",
+    "words": [
+      {
+        "w": "este",
+        "t": 33400,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "botón",
+        "t": 33490,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "queda",
+        "t": 33580,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "chico",
+        "t": 33670,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.03,
+    "marked": false
+  }
+]

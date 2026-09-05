@@ -110,6 +110,12 @@ que mantienen el índice.
 puebla sola**: sin triggers, `qua_issues_search` (§10) devolvería cero resultados siempre.
 No es una decisión de diseño, es lo que hace falta para que lo que dice la spec funcione.
 
+### D-09 · Harness sintético no trivial (F1b)
+
+El harness genera 26 escenarios (20 reforzados y 6 discriminantes), con 15–24 eventos por sesión y 4–6 candidatos por ventana. Cada escenario declara en el manifiesto qué regla ejercita y por qué el baseline temporal falla; el runner mide ese baseline y exige menos de 60% (resultado actual: 15.4%).
+
+Se eligieron fixtures con rutas y selectores de la aplicación (`/agenda/semana`, `button[data-testid=...]`) y distractores de tipos reales. La intención es que el 20/20 valide el ground truth, pero además que una implementación que ignore deixis, visibilidad o dominancia no pueda pasar por casualidad.
+
 ### D-08 · Alcance de los stubs
 
 `packages/{source-resolver,babel-plugin-source,vite-plugin-source}`, `extension/`,

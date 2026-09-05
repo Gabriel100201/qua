@@ -2,6 +2,6 @@
   "issue": "i10",
   "anchor": {
     "kind": "element",
-    "selector": "button[data-testid=\"item-10\"]"
+    "selector": "button[data-testid=\"guardar-cambios\"]"
   }
 }

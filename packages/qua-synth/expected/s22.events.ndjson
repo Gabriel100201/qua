@@ -1,0 +1,25 @@
+{"t":26800,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":27130,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":27460,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":27790,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":28120,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":28450,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":28780,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":29110,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":29440,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":29770,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":30100,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":30430,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":30760,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":31090,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":31420,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":31750,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":32080,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":32410,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":0,"tab":2,"k":"nav","url":"/agenda/semana"}
+{"t":29400,"tab":2,"k":"scroll_settle","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Exportar","visible":true},"top_target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Exportar","visible":true}}
+{"t":30500,"tab":2,"k":"focus_change","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Exportar","visible":true}}
+{"t":31400,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Exportar","visible":true},"button":0}
+{"t":32100,"tab":2,"k":"hover","target":{"sel":"button[data-testid=\"guardar-cambios\"]","strategy":"testid","tag":"button","text":"Guardar cambios","visible":true},"dwell_ms":1400}
+{"t":32900,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"guardar-cambios\"]","strategy":"testid","tag":"button","text":"Guardar cambios","visible":true},"button":0}
+{"t":34500,"tab":2,"k":"hover","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Exportar","visible":true},"dwell_ms":900}

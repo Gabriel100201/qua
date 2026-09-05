@@ -1,4 +1,25 @@
-{"t":0,"tab":1,"k":"nav","url":"https://app.test/view/6","title":"Vista","kind":"load"}
-{"t":5400,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"item-7\"]","strategy":"testid","tag":"button","text":"Acción 7","visible":true},"dwell_ms":1200}
-{"t":5800,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"item-7\"]","strategy":"testid","tag":"button","text":"Acción 7","visible":true},"button":0,"mods":[]}
-{"t":5700,"tab":1,"k":"console","level":"error","text":"TypeError: render failed"}
+{"t":8000,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":8330,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":8660,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":8990,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":9320,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":9650,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":9980,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":10310,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":10640,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":10970,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":11300,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":11630,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":11960,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":12290,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":12620,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":12950,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":13280,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":13610,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":0,"tab":1,"k":"nav","url":"/agenda/semana"}
+{"t":10600,"tab":1,"k":"scroll_settle","target":{"sel":"button[data-testid=\"limpiar-filtros\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"top_target":{"sel":"button[data-testid=\"limpiar-filtros\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
+{"t":11700,"tab":1,"k":"focus_change","target":{"sel":"button[data-testid=\"limpiar-filtros\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
+{"t":12600,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"limpiar-filtros\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"button":0}
+{"t":13300,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"filtrar-agenda\"]","strategy":"testid","tag":"button","text":"Filtrar agenda","visible":true},"dwell_ms":1400}
+{"t":14100,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"filtrar-agenda\"]","strategy":"testid","tag":"button","text":"Filtrar agenda","visible":true},"button":0}
+{"t":15700,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"limpiar-filtros\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"dwell_ms":900}

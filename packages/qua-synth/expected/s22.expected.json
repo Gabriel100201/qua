@@ -1,0 +1,7 @@
+{
+  "issue": "i22",
+  "anchor": {
+    "kind": "element",
+    "selector": "button[data-testid=\"guardar-cambios\"]"
+  }
+}

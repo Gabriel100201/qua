@@ -1,0 +1,38 @@
+[
+  {
+    "id": "u26",
+    "t_start": 35400,
+    "t_end": 36345,
+    "text": "señal espuria del micrófono",
+    "lang": "es",
+    "words": [
+      {
+        "w": "señal",
+        "t": 35400,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "espuria",
+        "t": 35490,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "del",
+        "t": 35580,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "micrófono",
+        "t": 35670,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.7,
+    "marked": false
+  }
+]
