@@ -1,0 +1,123 @@
+{
+  "session": {
+    "id": "2026-09-04T14-32-11Z-a3f9",
+    "status": "ready",
+    "project": "Agendi",
+    "started_at": "2026-09-04T14:32:11.204Z",
+    "duration_ms": 412308,
+    "issue_count": 3,
+    "git_sha": "9f21ac3"
+  },
+  "issues": [
+    {
+      "id": "i01",
+      "t": 5100,
+      "text": "este botón de nuevo turno es re chico, en mobile casi no lo encuentro",
+      "category": "ui",
+      "severity": "low",
+      "confidence": 0.91,
+      "anchor_kind": "element",
+      "sel": "button[data-testid=\"nuevo-turno\"]",
+      "url": "http://localhost:3000/agenda/semana",
+      "src_file": "src/components/AgendaHeader.tsx",
+      "src_line": 42,
+      "exported_to": null,
+      "json": {
+        "id": "i01",
+        "utterance_ids": ["u01"],
+        "t": 5100,
+        "text": "este botón de nuevo turno es re chico, en mobile casi no lo encuentro",
+        "anchor": {
+          "kind": "element",
+          "target": {
+            "sel": "button[data-testid=\"nuevo-turno\"]",
+            "strategy": "testid",
+            "tag": "button",
+            "text": "Nuevo turno",
+            "role": "button",
+            "name": "Nuevo turno",
+            "rect": { "x": 1180, "y": 96, "w": 88, "h": 32 },
+            "visible": true,
+            "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900",
+            "component": ["AgendaHeader", "Button"],
+            "src": { "file": "src/components/AgendaHeader.tsx", "line": 42, "tier": 2 }
+          },
+          "tab": 42,
+          "url": "http://localhost:3000/agenda/semana",
+          "confidence": 0.91,
+          "reason": ["click −0.9s", "deixis:este"]
+        },
+        "evidence": { "console": [], "net": [], "timings": [] },
+        "category": "ui",
+        "severity": "low",
+        "exported_to": null
+      }
+    },
+    {
+      "id": "i02",
+      "t": 88000,
+      "text": "esto tarda un montón en guardar, se me colgó el filtro de la semana",
+      "category": "bug",
+      "severity": "high",
+      "confidence": 0.74,
+      "anchor_kind": "route",
+      "sel": null,
+      "url": "http://localhost:3000/agenda/semana",
+      "src_file": null,
+      "src_line": null,
+      "exported_to": null,
+      "json": {
+        "id": "i02",
+        "utterance_ids": ["u07", "u08"],
+        "t": 88000,
+        "text": "esto tarda un montón en guardar, se me colgó el filtro de la semana",
+        "anchor": {
+          "kind": "route",
+          "tab": 42,
+          "url": "http://localhost:3000/agenda/semana",
+          "confidence": 0.74,
+          "reason": ["net_slow +1.2s"]
+        },
+        "evidence": {
+          "console": [],
+          "net": [{ "t": 88400, "tab": 42, "k": "net_slow", "method": "GET", "url": "/api/agenda", "status": 200, "duration_ms": 1800 }],
+          "timings": [{ "label": "guardar → respuesta", "ms": 1800 }]
+        },
+        "category": "bug",
+        "severity": "high",
+        "exported_to": null
+      }
+    },
+    {
+      "id": "i03",
+      "t": 150000,
+      "text": "la tabla de turnos de supabase tarda en cargar cuando hay muchas filas",
+      "category": "perf",
+      "severity": "med",
+      "confidence": 0.5,
+      "anchor_kind": "session",
+      "sel": null,
+      "url": "https://supabase.com/dashboard/project/agendi/editor",
+      "src_file": null,
+      "src_line": null,
+      "exported_to": "https://linear.app/agendi/issue/AG-40",
+      "json": {
+        "id": "i03",
+        "utterance_ids": ["u12"],
+        "t": 150000,
+        "text": "la tabla de turnos de supabase tarda en cargar cuando hay muchas filas",
+        "anchor": {
+          "kind": "session",
+          "tab": 43,
+          "url": "https://supabase.com/dashboard/project/agendi/editor",
+          "confidence": 0.5,
+          "reason": ["sin click previo"]
+        },
+        "evidence": { "console": [], "net": [], "timings": [] },
+        "category": "perf",
+        "severity": "med",
+        "exported_to": "https://linear.app/agendi/issue/AG-40"
+      }
+    }
+  ]
+}
