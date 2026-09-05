@@ -29,7 +29,7 @@
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
 | F1 · Generador sintético       | F0     | ✅ hecho | codex luna | `d28620d` |
 | A1 · Content script            | F0     | 🟡 en curso | sonnet | — |
-| A2 · Service worker            | F0     | ⬜ pendiente | — | — |
+| A2 · Service worker            | F0     | ✅ hecho | sonnet | `679c64f` |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | ⬜ pendiente | — | — |
@@ -94,3 +94,13 @@ lockfiles. Se mergean a `main` a medida que cierran. Ruta: `~/orca/workspaces/qu
    El camino que funciona es de tres pasos: `worktree create` → `terminal create --command
    '<agente con su modelo>'` → `terminal wait --for tui-idle` → `worker-start --terminal`.
    Está scripteado en `<scratchpad>/launch.sh <ID> <task> '<cmd>' [retry_of]`.
+- `2026-09-05` — **A2 ✅** (`679c64f`). Service worker en `extension/entrypoints/background/`:
+  FSM de sesión en `chrome.storage.session`, ciclo de pestañas, cliente WS del protocolo §04
+  con outbox en IndexedDB (ack por seq, replay al reconectar, backoff 250ms→8s), ring de 40
+  screenshots vía OffscreenCanvas, keepalive con `chrome.alarms`. 38 tests con `wxt/testing`
+  (fakeBrowser) y `fake-indexeddb`, sin dependencias de otras tareas — incluye el test del
+  criterio de aceptación (10 min, 5 cambios de pestaña, daemon caído 30s en el medio, cero
+  eventos perdidos tras el replay). Encontró (sin tocarlo) un bug de build real en
+  `packages/protocol` — `exports`/`types` apuntan a `dist/*` pero `tsc` emite a `dist/src/*` —
+  documentado en `docs/DECISIONS.md` (A2-04) con workaround acotado a `extension/`. Cinco
+  decisiones más (A2-01 a A2-05) sobre ambigüedades del protocolo interno y de reconexión.
