@@ -205,10 +205,12 @@ function defaultCreateMediaRecorder(stream: MediaStream): MediaRecorder {
 }
 
 function defaultWorkletUrl(): string {
+  // G1 (D-G1-07): `entrypoints/pcm-tap-processor.ts` es su propio entrypoint de WXT
+  // (nivel superior, no `offscreen/worklet/...` — WXT no compila rutas anidadas).
   if (typeof chrome !== "undefined" && chrome.runtime?.getURL) {
-    return chrome.runtime.getURL("worklet/pcm-tap-processor.js");
+    return chrome.runtime.getURL("pcm-tap-processor.js");
   }
-  return "worklet/pcm-tap-processor.js";
+  return "pcm-tap-processor.js";
 }
 
 function errorMessage(err: unknown): string {

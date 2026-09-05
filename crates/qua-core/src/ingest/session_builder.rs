@@ -21,6 +21,19 @@ pub fn build_session(
     project: ProjectRef,
     audio_path: String,
 ) -> Session {
+    // G1: `packages/protocol` (§02, comentario de `Event.t`) es explícito — "el
+    // content script lo emite como `performance.timeOrigin + performance.now()` y el
+    // daemon lo normaliza" — pero ningún código lo hacía. `duration_ms` viaja por el
+    // mismo reloj (`SessionManager.stop()` manda `this.now()`, el mismo `Date.now()`
+    // absoluto que arma `t0Wall`), así que se normaliza igual. Encontrado con una
+    // sesión real de punta a punta (G1): sin esto, `session.json` quedaba con
+    // timestamps en epoch-ms crudo y una duración de cientos de miles de horas.
+    let duration_ms = duration_ms.map(|d| d - meta.t0_wall);
+    let events: Vec<Event> = events
+        .into_iter()
+        .map(|e| normalize_t(e, meta.t0_wall))
+        .collect();
+
     let gaps_ms: i64 = events
         .iter()
         .filter_map(|e| match e {
@@ -61,6 +74,54 @@ pub fn build_session(
         events,
         utterances: Vec::new(),
         issues: Vec::new(),
+    }
+}
+
+/// `t` llega en epoch-ms absoluto (§02); esto lo deja en ms desde `t0_wall`, como
+/// pide el contrato de `Event.t`. Reconstruye cada variante entera porque `Event` no
+/// expone un setter de `t` (y no hace falta uno en `qua-protocol` solo para esto).
+fn normalize_t(event: Event, t0_wall: i64) -> Event {
+    match event {
+        Event::Nav { t, tab, url, title, kind } => Event::Nav { t: t - t0_wall, tab, url, title, kind },
+        Event::TabSwitch { t, tab, from, to, url } => {
+            Event::TabSwitch { t: t - t0_wall, tab, from, to, url }
+        }
+        Event::TabClose { t, tab } => Event::TabClose { t: t - t0_wall, tab },
+        Event::Click { t, tab, target, button, mods } => {
+            Event::Click { t: t - t0_wall, tab, target, button, mods }
+        }
+        Event::Hover { t, tab, target, dwell_ms } => {
+            Event::Hover { t: t - t0_wall, tab, target, dwell_ms }
+        }
+        Event::FocusChange { t, tab, target } => Event::FocusChange { t: t - t0_wall, tab, target },
+        Event::Input { t, tab, target, field } => Event::Input { t: t - t0_wall, tab, target, field },
+        Event::Submit { t, tab, target } => Event::Submit { t: t - t0_wall, tab, target },
+        Event::ScrollSettle { t, tab, y, pct, top_target } => {
+            Event::ScrollSettle { t: t - t0_wall, tab, y, pct, top_target }
+        }
+        Event::Viewport { t, tab, w, h, dpr } => Event::Viewport { t: t - t0_wall, tab, w, h, dpr },
+        Event::Console { t, tab, level, text, stack } => {
+            Event::Console { t: t - t0_wall, tab, level, text, stack }
+        }
+        Event::NetFail { t, tab, method, url, status, duration_ms } => {
+            Event::NetFail { t: t - t0_wall, tab, method, url, status, duration_ms }
+        }
+        Event::NetSlow { t, tab, method, url, status, duration_ms } => {
+            Event::NetSlow { t: t - t0_wall, tab, method, url, status, duration_ms }
+        }
+        Event::LongTask { t, tab, duration_ms } => {
+            Event::LongTask { t: t - t0_wall, tab, duration_ms }
+        }
+        Event::LayoutShift { t, tab, value, sources } => {
+            Event::LayoutShift { t: t - t0_wall, tab, value, sources }
+        }
+        Event::MutationBurst { t, tab, target, count } => {
+            Event::MutationBurst { t: t - t0_wall, tab, target, count }
+        }
+        Event::Mark { t, tab, source } => Event::Mark { t: t - t0_wall, tab, source },
+        Event::AudioGap { t, tab, duration_ms } => {
+            Event::AudioGap { t: t - t0_wall, tab, duration_ms }
+        }
     }
 }
 

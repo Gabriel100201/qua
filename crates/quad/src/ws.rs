@@ -278,8 +278,16 @@ fn handle_binary(bytes: &[u8], session: &mut Option<ActiveSession>) {
 }
 
 /// `session.stop`: cierre normal. Fsyncea todo lo pendiente, arma `session.json` y
-/// deja la fila de `sessions` en SQLite. No corre ASR/correlate/render (B2/B3/B4) —
-/// `status` queda en `Processing` y `issues` en 0 a propósito (ver D-B1-04).
+/// deja la fila de `sessions` en SQLite.
+///
+/// **G1** corre acá mismo, en un `spawn_blocking` (whisper y el correlador son CPU-bound
+/// y síncronos), el pipeline completo de `quad::pipeline::process` — ASR sobre
+/// `raw/audio.pcm` + el correlador + el renderer de B4 — así que `session.done` ya
+/// vuelve con `status: "ready"` y el conteo real de issues, sin depender de un
+/// `qua reprocess` manual después (ver D-B1-04 en `docs/DECISIONS.md`, resuelta acá).
+/// Si el pipeline falla (p. ej. sin conexión para bajar el modelo whisper la primera
+/// vez), la sesión queda igual en `"processing"` con 0 issues — un reporte vacío es
+/// preferible a perder la grabación.
 async fn finalize(
     state: &AppState,
     s: &mut ActiveSession,
@@ -305,7 +313,7 @@ async fn finalize(
         .expect("finalize solo se llama con una sesión arrancada");
     let project = state.config.lock().unwrap().match_project(&meta.base_url);
     let events = s.events_snapshot();
-    let session = qua_core::build_session(
+    let mut session = qua_core::build_session(
         &meta,
         events,
         SessionStatus::Processing,
@@ -315,6 +323,36 @@ async fn finalize(
         audio_path,
     );
 
+    let dir = s.dir.clone();
+    let data_dir = state.data_dir.clone();
+    let processing_snapshot = session.clone();
+    let processed = tokio::task::spawn_blocking(move || {
+        crate::pipeline::process(&mut session, &dir, &data_dir)
+            .and_then(|_| {
+                qua_core::render::render_session(&session, &dir).map_err(anyhow::Error::from)
+            })
+            .map(|_| session)
+    })
+    .await;
+
+    let session = match processed {
+        Ok(Ok(session)) => session,
+        Ok(Err(e)) => {
+            tracing::warn!(
+                "pipeline ASR/correlate/render falló para {}: {e} — la sesión queda en processing",
+                s.id
+            );
+            processing_snapshot
+        }
+        Err(e) => {
+            tracing::warn!(
+                "spawn_blocking del pipeline se cayó para {}: {e} — la sesión queda en processing",
+                s.id
+            );
+            processing_snapshot
+        }
+    };
+
     std::fs::write(
         s.dir.join("session.json"),
         serde_json::to_vec_pretty(&session)?,
@@ -322,11 +360,12 @@ async fn finalize(
 
     let conn = qua_core::store::open(&state.data_dir)?;
     qua_core::store::upsert_session(&conn, &session, &s.dir.to_string_lossy())?;
+    qua_core::store::upsert_issues(&conn, &session.id, &session.issues)?;
 
     Ok(ServerMessage::SessionDone {
         v: Default::default(),
         report_path: s.dir.join("report.md").to_string_lossy().to_string(),
-        issues: 0,
+        issues: session.issues.len() as i64,
     })
 }
 

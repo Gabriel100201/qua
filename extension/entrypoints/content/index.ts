@@ -1,14 +1,19 @@
+import { defineContentScript } from "wxt/utils/define-content-script";
 import { startQuaContentScript } from "./main.js";
 
 /**
- * Punto de entrada real del content script (§05, `document_start`).
+ * Wiring de WXT del content script real (§05, `document_start`).
  *
- * El wiring con WXT (`defineContentScript`, `matches`, manifest) es del
- * scaffold compartido con A2/A3 (§5.3) — ver `docs/DECISIONS.md` (D-09).
- * Este archivo se mantiene framework-agnóstico a propósito: se autoarranca
- * solo cuando corre dentro de una extensión real (`chrome.runtime` presente),
- * así que importar este módulo en Node/tests nunca dispara nada.
+ * `main.ts` se mantiene framework-agnóstico a propósito (ver `docs/DECISIONS.md`,
+ * D-09 de A1): esto es solo el adaptador que hace que WXT lo reconozca como
+ * content script de verdad — `matches: ["<all_urls>"]` para cubrir cualquier
+ * página del usuario (§12: la redacción, no el matching, es lo que protege
+ * datos sensibles) y `runAt: "document_start"` para no perderse el `nav` inicial.
  */
-if (typeof chrome !== "undefined" && chrome.runtime?.id) {
-  startQuaContentScript();
-}
+export default defineContentScript({
+  matches: ["<all_urls>"],
+  runAt: "document_start",
+  main() {
+    startQuaContentScript();
+  },
+});

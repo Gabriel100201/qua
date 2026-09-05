@@ -1515,3 +1515,382 @@ desactualizado, sin cliente conectado), se loguea en `~/.qua/logs/qua-app.log` y
 respuesta HTTP, y `daemon_health`/`sidecar.rs` ya establecen el precedente de "el daemon
 puede no estar listo todavía, no es una excepción" en esta app. El tray sigue reflejando el
 toggle local (§09 FSM del tray, sin cambios) independientemente de si `/control` tuvo éxito.
+
+## G1 · Integración y packaging
+
+### D-G1-01 · `quad::pipeline::process` cablea B2+B3+B4 en `finalize`, sin capturas de pantalla en vivo
+
+**Contexto.** D-B1-04 dejó `session.stop` respondiendo con `status=processing` y 0
+issues a propósito, con los traits de `qua_core::ingest::pipeline` (`AsrPipeline`,
+`Correlator`, `Renderer`) como el contrato para que alguien los uniera. La nota de B4
+al final de D-B4-09 (arriba) ya dejaba el cableado concreto anotado: correr
+`qua_core::correlate::correlate` sobre `session.events` + `session.utterances`, leídas
+de `[correlator]` en `config.toml`.
+
+**Decisión.** `crates/quad/src/pipeline.rs::process` hace exactamente eso más la parte
+de ASR que faltaba: transcribe `raw/audio.pcm` por lotes reconstruyendo los frames de
+20 ms tal como llegarían por WS (mismo pipeline síncrono jitter+ring+VAD+whisper que
+B2 testeó en `asr_pipeline.rs`), corre el correlador, y deja `session.status = Ready`.
+`finalize()` en `ws.rs` la llama en un `spawn_blocking` (whisper y el correlador son
+CPU-bound) antes de responder `session.done`; `qua reprocess` la llama también, pero
+solo re-transcribe si `utterances` está vacío — así tunear `[correlator]` sobre una
+sesión ya grabada sigue siendo barato, que es el criterio de aceptación de B4.
+
+**Lo que queda afuera, a propósito.** El paso 9 de §07 (`Correlation.captures`, el
+pedido de `capture.request`) es un round-trip en vivo por WS: el daemon le pide a la
+extensión un frame del ring y la extensión responde con `frame` (jpeg). Cuando
+`process` corre (adentro de `finalize`, después de que la sesión ya cerró, o en
+`reprocess`, minutos u horas después) esa conexión ya no existe. Cablear esto bien
+requiere que el loop de mensajes de `ws.rs` intercale `capture.request`/`frame` con
+`events`/`mark`/`frame de audio` mientras la sesión sigue viva — un cambio de
+arquitectura del server, no de este módulo. `process` descarta `captures` sin más:
+`render_session` ya degrada correctamente a "sin recorte" (D-B4-05), así que
+`report.md` sale válido, solo que sin evidencia visual en los issues anclados a
+elemento. **Pendiente para una tarea futura.**
+
+**Por qué no bloqueé G1 en esto.** El criterio de aceptación de G1 (§14) es "una sesión
+grabada de punta a punta produce un report.md válido" — no exige capturas. Bloquear la
+integración completa por una mejora de evidencia visual habría dejado sin cablear lo
+que sí es indispensable (ASR + correlador). Ver también la brecha de protocolo que
+reportó A3 (más abajo, sin resolver): ni siquiera hay mensaje de subida de
+`audio.opus`, así que el round-trip de capturas no era la única pieza de vivo que
+faltaba.
+
+### D-G1-02 · `qua process` no se agregó como subcomando nuevo
+
+**Contexto.** Podría haberse expuesto `quad::pipeline::process` como un subcomando de
+CLI separado (`qua process <id>`), pero eso hubiera creado dos caminos para la misma
+operación: `reprocess` ya es "correr el pipeline sobre una sesión grabada", y agregar
+`process` al lado habría sido una distinción sin diferencia real, además de una
+superficie de API nueva que nadie pidió en §6.2.
+
+**Decisión.** `reprocess` es el único punto de entrada de CLI para correr el pipeline
+completo (o solo el correlador, si ya hay utterances). `finalize` en el daemon llama a
+`quad::pipeline::process` directamente, sin pasar por CLI.
+
+### D-G1-03 · El contrato interno A1/A3 ↔ A2 nunca se probó junto, y no coincidía
+
+**Contexto.** Cada tarea de la extensión (A1 content script, A2 service worker, A3
+popup/offscreen/options) tiene su propia suite de tests, pero ninguna corre contra el
+código real de las otras — cada una mockea el lado de enfrente. Al cablear una sesión
+real de punta a punta (criterio de G1) aparecieron tres mensajes de `chrome.runtime`
+donde el emisor y el receptor NO coincidían, y que ningún test detectaba:
+
+1. `content/lib/emit.ts` manda `{type: "qua:event", event}` (un evento por mensaje);
+   `background/index.ts` solo entendía `{type: "qua:events", items: Event[]}` (lote).
+   Resultado: **ningún evento del content script llegaba nunca al service worker** —
+   el `sendMessage` no tiraba (A1 lo diseñó para no tirar nunca) y el handler
+   devolvía `{ok:false, error:"mensaje desconocido"}` que nadie miraba.
+2. `popup/lib/status-client.ts` manda `{type: "qua:start-session"}` sin `baseUrl` ni
+   `viewport` (el popup no tiene ese contexto — vive en su propia página); el tipo en
+   `internal-messages.ts` los pedía como campos requeridos. `sessions.start(undefined,
+   undefined)` habría arrancado una sesión con `base_url` inválido para el daemon.
+3. El botón de marcador del popup manda `{type: "qua:trigger-mark"}`;
+   `internal-messages.ts` solo tenía `"qua:mark"`.
+
+**Decisión.** Se ajustó `internal-messages.ts` + `background/index.ts` para hablar el
+protocolo que A1 y A3 ya tienen testeado (en vez de tocar `emit.ts`/`status-client.ts`,
+que sí tienen tests que fijan su formato de salida). `qua:start-session` ahora resuelve
+`baseUrl`/`viewport` en el propio service worker contra la pestaña activa
+(`browser.tabs.query` + `browser.scripting.executeScript`, permiso `scripting` ya
+declarado en `wxt.config.ts`).
+
+**Por qué no hay test que lo hubiera atrapado antes.** Ninguna de las tres tareas
+declaraba dependencia de las otras dos para el *wiring* de mensajería interna (§14 solo
+las liga por `packages/protocol`, el contrato con el daemon) — es exactamente la clase
+de bug que un test de integración real (G1) existe para encontrar. Pendiente: agregar
+un test de `background/index.ts` que ejercite el router de mensajes contra los shapes
+reales de A1/A3, para que esto no se repita.
+
+**Lo que sigue sin empujarse en vivo:** `popup/lib/status-client.ts` escucha pushes de
+`onStatus`/`onTranscript`, pero el service worker nunca los manda — no hay
+`browser.runtime.sendMessage` de status/transcript hacia el popup en ningún lado. El
+popup sigue funcionando (arranca/para sesión, `qua:get-status` bajo pedido responde
+bien), solo que no se actualiza solo mientras queda abierto. Fuera del alcance del
+criterio de aceptación de G1 (el report.md no depende de la UI del popup); queda para
+una tarea futura.
+
+### D-G1-04 · Wiring de WXT: content script + offscreen doc + relay de audio
+
+**Contexto.** `extension/entrypoints/content/index.ts` era un módulo que se autoarrancaba
+por un guard manual (`if (chrome.runtime?.id)`), no un content script real de WXT — sin
+`defineContentScript`, `wxt build` nunca lo iba a inyectar en ninguna página (`wxt.config.ts`
+ya lo anticipaba: "A1 ... van a necesitar ampliar manifest acá"). Por el otro lado, nadie
+llamaba nunca a `chrome.offscreen.createDocument`: A3 dejó todo el lado del offscreen doc
+(`AudioCapture`, el framer PCM, el contrato de mensajes) listo y testeado, pero A2 nunca lo
+disparó ni recibió sus mensajes — `session-manager.ts` no conocía `qua:audio-frame`.
+
+**Decisión.**
+- `content/index.ts` ahora envuelve `startQuaContentScript` con
+  `defineContentScript({ matches: ["<all_urls>"], runAt: "document_start", main })`.
+- `SessionManager.start()`/`stop()` crean/cierran el offscreen doc
+  (`browser.offscreen.hasDocument`/`createDocument`/`closeDocument`, permiso `offscreen`
+  ya declarado) y mandan `qua:start-capture`/`qua:stop-capture`. Si falla (sin permiso de
+  mic, por ejemplo) la sesión sigue igual sin audio — no bloquea eventos+DOM (§15).
+- `SessionManager.handleOffscreenMessage` (llamado desde el mismo listener de
+  `browser.runtime.onMessage` que ya existía en `background/index.ts`, antes de tratar el
+  mensaje como `ToBackgroundMessage`) relaya `qua:audio-frame` a `WsClient.sendBinary`
+  (ya existía, sin nada que lo llamara) y arma el `Event` `audio_gap` desde
+  `qua:audio-gap`. `qua:capture-started`/`qua:capture-error`/`qua:recording-chunk` se
+  reciben pero no disparan nada más (el opus de respaldo sigue sin camino de subida,
+  D-13).
+- El estado de la conexión WS se relaya al offscreen doc (`qua:connection-state`) vía
+  `onStatusChange` de `WsClient`, para el buffer de 30 s de A3.
+- `extension/package.json`: `"build": "wxt build"` (era un stub). Requiere que
+  `@qua/protocol` y `@qua/source-resolver` ya estén compilados (`dist/` — están en
+  `.gitignore`, así que hace falta `pnpm --filter @qua/protocol --filter
+  @qua/source-resolver run build` antes, o `pnpm -w run build` desde la raíz).
+
+**Por qué.** Esto es literalmente "cablear la extensión" (§14, criterio de G1): sin esto,
+`wxt build` no produce nada cargable y ninguna sesión real habría llegado con audio al
+daemon aunque B2/B3/B4 estuvieran perfectos del otro lado.
+
+### D-G1-05 · El E2E lanza Chrome for Testing (vía Playwright), no el Chrome de /Applications
+
+**Contexto.** El criterio de G1 pide una instancia aparte de Chrome con
+`--load-extension`/`--user-data-dir`, sin activar el modo desarrollador a mano.
+Probé primero contra el Google Chrome real de `/Applications` (el mismo de
+STATE.md, "Chrome en /Applications" del toolchain verificado). No cargó nunca: el
+log de arranque (`--enable-logging=stderr --v=1`) muestra
+`--disable-extensions-except is not allowed in Google Chrome, ignoring` y
+`Extensions.NotAllowlistedDisabled2 recorded 1 samples` — Google Chrome (la build de
+consumo, no Chromium) bloquea cargar una extensión sin empaquetar salvo que el toggle
+"Modo de desarrollador" esté prendido **en el perfil**, y ese toggle no se puede
+setear por archivo de preferencias (Chrome lo protege con un hash anti-tamper —
+`PrefHashFilter` — que lo resetea solo si se edita a mano el `Preferences` del
+perfil).
+
+**Decisión.** El script (`e2e/session.e2e.mjs`) usa `playwright` (no
+`playwright-core`) y deja que maneje su propio binario ("Chrome for Testing",
+`npx playwright install chromium` una vez) en vez de apuntar a
+`executablePath` de `/Applications`. Es el mismo motor Blink/V8 real, motor real de
+Chrome, pero es la build que Google distribuye específicamente para
+automatización — sin la restricción de arriba. `ignoreDefaultArgs:
+["--disable-extensions", "--disable-component-extensions-with-background-pages"]`
+sigue haciendo falta (Playwright agrega `--disable-extensions` por default, que
+pisa el `--disable-extensions-except` de la extensión real).
+
+**Efecto secundario encontrado:** con `--disable-component-extensions-with-background-pages`
+ignorado, componentes internos de Chrome (`Google Network Speech`, id
+`fignfifoniblkonapihmkfakmlgkbkcf`) también registran su propio service worker, y
+pueden aparecer en `context.serviceWorkers()` antes que el nuestro. El script busca
+por `chrome.runtime.getManifest().name === "QUA"` en vez de tomar "el primero" o
+"el último" — ver `findExtensionServiceWorker` en `session.e2e.mjs`.
+
+**Por qué no es trampa.** El criterio dice "instancia aparte de Chrome", no
+"el Chrome instalado en /Applications" — y el punto central ("sin modo
+desarrollador a mano") se cumple mejor así: cero intervención humana, en vez de
+depender de un toggle que ni siquiera se puede automatizar con las herramientas
+disponibles.
+
+### D-G1-06 · Bug real encontrado por el E2E: nadie normalizaba `t` contra `t0_wall`
+
+**Contexto.** La primera corrida completa del E2E produjo un `report.md` válido pero
+con una duración absurda ("496829h 55m 41s"). `packages/protocol` (§02, comentario de
+`Event.t`, intocable por regla) es explícito: *"el content script lo emite como
+`performance.timeOrigin + performance.now()` y el daemon lo normaliza"* — pero
+`qua_core::ingest::session_builder::build_session` (B1) nunca restaba `t0_wall` de
+nada: ni de los `t` de cada `Event`, ni de `duration_ms` (que llega como el mismo
+epoch-ms absoluto de `SessionStop.t` / `StopMarker.t`). El bug es invisible a
+cualquier test que arme sus propios eventos con `t` chico a mano — que es lo que
+hacían **todos** los tests existentes de B1/B3/B4 (`t: 10`, `t: 100`, …) — porque un
+`t` "ya relativo" pasado sin normalizar simplemente queda como estaba. Solo aparece
+con un reloj real (`Date.now()`, ~1.7 billones de ms), que es exactamente lo que una
+sesión de verdad manda y ninguna fixture sintética reproduce.
+
+**Decisión.** `build_session` ahora normaliza: `duration_ms = duration_ms - t0_wall`,
+y cada `Event.t` pasa por `normalize_t` (un match exhaustivo que reconstruye cada una
+de las 18 variantes con `t - t0_wall` — `Event` no tiene un setter de `t`, y no vale
+la pena agregar uno en `qua-protocol` solo para esto). Es el único lugar donde hace
+falta: tanto `finalize()` en vivo como `recover_session` pasan por acá.
+
+**Impacto en tests existentes.** `ingest_100k.rs` y
+`recover.rs::con_stop_marker_queda_processing` mandaban eventos con `t` chico junto a
+un `t0_wall` grande (`1_800_000_000_000` / `1_788_012_731_204`) — inconsistente con
+lo que un content script real manda. Los ajusté para que los `t` simulados sean
+`t0_wall + relativo`, que es la forma real del contrato, y las aserciones ahora
+comparan contra el valor ya normalizado. `kill_and_recover.rs` no necesitó cambios
+(ya mandaba valores consistentes). **190 tests de Rust, todos verdes después del
+fix.**
+
+**Por qué esto no es un cambio de protocolo.** `packages/protocol` no se tocó: el
+campo `t` sigue siendo `z.int()`, sin cambio de forma ni de schema. Lo que cambió es
+que `qua-core` (B1, no F0) por fin hace lo que el comentario del contrato siempre
+dijo que iba a hacer.
+
+### D-G1-07 · El AudioWorklet nunca compilaba: WXT no reconoce entrypoints anidados
+
+**Contexto.** Con G1 wireado de punta a punta, el hover real disparaba la sesión pero
+`raw/audio.pcm` quedaba en 0 bytes. `context.on("console")` en la extensión mostró el
+motivo: `AudioWorklet falló: Failed to load worklet module script:
+chrome-extension://.../worklet/pcm-tap-processor.js (Network error)` — ese archivo
+nunca se compilaba. `entrypoints/offscreen/worklet/pcm-tap-processor.ts` (A3) vivía
+dos niveles bajo `entrypoints/`; WXT solo escanea `entrypoints/*.ts` y
+`entrypoints/*/index.ts` (un archivo o un único nivel de carpeta) para decidir qué es
+un entrypoint — cualquier ruta más anidada es código fuente normal, importado por
+quien lo referencie con `import`, nunca su propio archivo de salida. Como
+`audio-capture.ts` lo carga por `chrome.runtime.getURL(...)` (un string en tiempo de
+ejecución, no un `import`), tampoco terminaba en ningún bundle: WXT simplemente no
+sabía que ese archivo existía. El comentario de A3 en el archivo original ya lo
+anticipaba: "el wiring de bundling con WXT... es del scaffold compartido con A2/G1".
+
+**Decisión.** Se movió a `extension/entrypoints/pcm-tap-processor.ts` (nivel superior,
+un solo segmento de ruta) como su propio "unlisted script" de WXT —
+`export default defineUnlistedScript(() => {...})` — y `audio-capture.ts` ahora pide
+`chrome.runtime.getURL("pcm-tap-processor.js")` (antes `"worklet/pcm-tap-processor.js"`).
+La clase `PcmTapProcessor extends AudioWorkletProcessor` quedó **adentro** de la
+función `main()`: WXT importa cada entrypoint en Node para leer su configuración antes
+de empaquetarlo para el navegador, y `AudioWorkletProcessor` no existe como global en
+Node — declararla a nivel de módulo revienta ese import con
+`AudioWorkletProcessor is not defined`. Las declaraciones ambiente
+(`declare class AudioWorkletProcessor`, `declare function registerProcessor`) se
+separaron a `offscreen/lib/audio-worklet-globals.d.ts` (un script ambiente sin
+`import`/`export`, dos niveles bajo `entrypoints/` así que no lo escanea como
+entrypoint) — vivían inline en el archivo, pero el analizador estático de WXT
+(`@babel/parser` sin soporte de TypeScript) no entiende `declare` y tira
+"Missing semicolon" al escanearlo.
+
+**Una rareza más, no resuelta a fondo por falta de tiempo:** un comentario JSDoc
+(`/** ... */`) largo con texto que incluye rutas con `*` entre backticks (p. ej.
+`` `entrypoints/*.ts` ``) hace que el mismo escaneo de WXT tire "Missing semicolon"
+en una posición de línea/columna que no corresponde al archivo fuente real — probé
+achicar el comentario, sacar backticks de patrones con `*`, y usar comentarios `//`
+en vez de `/** */`, y con eso deja de reproducirse. No aislé la causa exacta (puede
+ser el propio `@babel/parser` de WXT interpretando algo dentro del comentario, o un
+plugin de Rollup buscando anotaciones tipo `@__PURE__` en cualquier comentario del
+archivo — la build ya mostraba advertencias de ese estilo sobre comentarios de
+`zod`). El archivo de `pcm-tap-processor.ts` que quedó usa comentarios `//` en vez de
+`/** */` por eso — no es una preferencia de estilo, es lo que hace que compile.
+
+**Impacto verificado.** Con esto, una sesión E2E real con
+`--use-fake-device-for-media-stream` + `--use-file-for-fake-audio-capture` sobre
+`fixtures/audio/es-hover-sidebar.wav` deja de tener `raw/audio.pcm` en 0 bytes.
+
+### D-G1-08 · `chrome.runtime.sendMessage` no preserva `Uint8Array` — llega como objeto plano
+
+**Contexto.** Con el worklet ya compilando (D-G1-07), la sesión E2E seguía sin
+transcripción: `qua:audio-frame` SÍ llegaba al service worker (confirmado con logging
+en vivo), pero `raw/audio.pcm` quedaba en 0 bytes. La guarda `isAudioFrameMessage`
+chequeaba `msg.bytes instanceof Uint8Array` — y esa condición daba `false` en
+producción. Depurado en vivo: `Array.isArray(msg.bytes)` también da `false`,
+`msg.bytes.length` es `undefined`, y `Object.keys(msg.bytes)` da `['0','1','2',...]`.
+`chrome.runtime.sendMessage`/`onMessage` **no preserva typed arrays** al cruzar de un
+contexto de extensión a otro (offscreen doc → service worker): el `Uint8Array` que
+`offscreen/main.ts` manda llega del otro lado convertido a un objeto plano indexado
+por string, sin ninguna de las dos marcas (`Array.isArray`, `instanceof
+Uint8Array`) que uno esperaría. Esto es distinto de un `MessagePort` real (el que
+usa el worklet para hablar con `audio-capture.ts` en el mismo hilo del offscreen
+doc, que sí preserva el `Uint8Array` — por eso ese primer tramo nunca mostró el
+problema).
+
+**Decisión.** `isAudioFrameMessage` (`offscreen/lib/messages.ts`) ya no exige
+`instanceof Uint8Array`, solo el `type`. `toAudioFrameBytes` reconstruye el array
+real con `Uint8Array.from(Object.values(msg.bytes))` — el orden de
+`Object.values` sobre claves enteras está garantizado ascendente por la spec de JS,
+así que los bytes quedan en el orden correcto sin necesidad de conocer la
+longitud de antemano.
+
+**Por qué no se encontró antes.** Ningún test de A2/A3 ejercita el mensaje
+`qua:audio-frame` cruzando de verdad `chrome.runtime.sendMessage` entre dos
+contextos reales — los tests de `audio-capture.ts` inyectan callbacks directos, y
+no había ningún test de `session-manager.ts` para el lado de recepción (no existía
+`handleOffscreenMessage` hasta esta misma tarea). Es la clase de bug que solo un
+`chrome.runtime.sendMessage` real entre dos páginas de extensión reales expone.
+
+**Impacto verificado.** Con este fix, la sesión E2E completa (Chrome real +
+extensión real + daemon real, audio fake vía
+`--use-file-for-fake-audio-capture` sobre `fixtures/audio/es-hover-sidebar.wav`)
+produce una `Utterance` real, transcripta por whisper, y el correlador la ancla
+con confianza 0.80 vía deixis. `report.md` sale con la transcripción y el issue
+anclado — no vacío. **Este es el primer `report.md` de punta a punta con
+contenido real que produjo el proyecto.**
+
+## M1 · La integración final: `g1` sobre `main`
+
+### D-M1-01 · `SessionManager` compone el canal de control (P1) y el offscreen de audio (G1) sin que ninguno de los dos ceda
+
+**Contexto.** P1 y G1 salieron del mismo commit base (el merge de A3) y los dos
+reescribieron `extension/entrypoints/background/session-manager.ts`, incluida la firma
+del constructor. No es un conflicto de texto que git pueda alinear: son dos features
+distintas que tocan el mismo ciclo de vida (`init` → `start` → `stop`).
+
+- **P1** agregó el canal de control ocioso de D-P1-01 (`controlWs`, `handleControl`,
+  `openControlChannel`, la función suelta `activeTabContext`) y, para poder testearlo,
+  un segundo parámetro de constructor `createSocket?: (url) => WebSocketLike`.
+- **G1** agregó el puente al offscreen document de §05.4 (`ensureOffscreenDocument`,
+  `sendToOffscreen`, `handleOffscreenMessage`, el arranque/cierre del doc dentro de
+  `start`/`stop`, y `onStatusChange` en `openTransport`) y dejó el constructor con solo
+  `now`.
+
+**Decisión.** Unión completa, sin elegir un lado en ningún punto. Las dos features son
+ortogonales — una habla con el daemon por WS cuando *no* hay sesión, la otra habla con
+una página de extensión cuando *sí* la hay — así que el criterio fue componerlas en el
+orden del ciclo de vida y no dejar que ninguna pisara a la otra:
+
+- **Constructor**: se toma el de P1 (`now`, `createSocket`). El de G1 es un subconjunto
+  estricto — `createSocket` es opcional y default `undefined`, así que todo llamador de
+  G1 sigue compilando y andando sin tocarlo. Éste era el nudo real: no había que elegir,
+  había que ver que uno contenía al otro.
+- **`init()`**: se toma la forma de P1 (early `return` en `recording` en vez del
+  `else if` de G1 — equivalentes) y se conserva el `openControlChannel()` final. Grabando
+  no se abre canal ocioso; en cualquier otro caso sí.
+- **`start()`**: primero el cierre de `controlWs` de P1 (arriba de todo, antes de mover
+  la FSM), después todo el arranque que ya existía, y al final el bloque de audio de G1.
+  El orden importa: el `try/catch` del offscreen es lo último a propósito, porque G1 lo
+  diseñó para degradar en silencio (§15) y no debe poder abortar una sesión que la FSM
+  ya confirmó.
+- **`stop()`**: el apagado del offscreen de G1 antes de cerrar el WS (el doc tiene que
+  dejar de emitir frames antes de que se caiga el transporte), y el `openControlChannel()`
+  de P1 al final, después de `fsm.finish()` — recién ahí la fase volvió a `idle`, que es
+  la precondición que `openControlChannel` chequea.
+- **`openTransport()`**: es el único punto donde los dos lados escriben en el mismo
+  objeto literal. Las `WsClientOptions` ya admitían las cuatro (`createSocket`,
+  `onCaptureRequest`, `onSessionControl`, `onStatusChange`) desde antes del fork, así que
+  el merge es aditivo y no hubo que tocar `ws-client.ts`.
+- **`openControlChannel()`** queda sin `onStatusChange` a propósito: `qua:connection-state`
+  le informa al offscreen doc si el transporte *de la sesión* está vivo, y en idle no hay
+  offscreen doc ni sesión de la cual informar.
+
+**Efecto colateral deseado.** `handleControl("start")` llama a `this.start()`, que ahora
+arranca el offscreen doc — o sea que el hotkey global de P1 captura audio, sin haber
+escrito una línea para unirlos. Los tests de control de P1
+(`session-manager.test.ts`) pasan sin modificarse y ejercitan de paso el camino de
+degradación de G1: `@webext-core/fake-browser` no implementa `offscreen.hasDocument`,
+tira, y la sesión arranca igual con un `console.warn`. Es exactamente el
+comportamiento que §15 pide, verificado gratis.
+
+### D-M1-02 · Los otros ocho conflictos
+
+Todos mecánicos, se anotan para que no haya que redescubrirlos si alguien rebasea:
+
+- `crates/quad/src/cli.rs` → **la de `g1`**. `reprocess` llama a `crate::pipeline::process`
+  (ASR + correlador + renderer, D-G1-01); la de `main` era el cableado inline de B5, más
+  pobre. Es un reemplazo, no una unión.
+- `crates/qua-core/Cargo.toml` → **reescrito a mano**. La unión por clave que intenta git
+  rompe las secciones `[target.'cfg(...)']`: `whisper-rs` aparece dos veces *a propósito*
+  (macOS con feature `metal`, y el resto sin). `g1` además había quedado con la sección
+  `cfg(not(macos))` vacía, así que la de `main` es la buena; se le suma
+  `image.workspace = true`, que git había duplicado en `[dependencies]`.
+- `crates/qua-core/src/lib.rs` → unión de módulos (asr, correlate, ingest, render, store);
+  el conflicto real era solo el doc-comment de `render`, se queda el de `main` que también
+  nombra `transcript.txt`.
+- `.gitignore`, `pnpm-workspace.yaml`, `docs/DECISIONS.md` → unión de líneas/secciones.
+- `STATE.md` → **la de `main`**.
+- `Cargo.lock`, `pnpm-lock.yaml` → **los de `g1` como punto de partida, y después
+  regenerados**. Los dos lados de un lockfile no se unen a mano. Ojo con el detalle: `g1`
+  salió de antes de que C1 agregara `apps/qua-app`, así que su lock *no tiene* las
+  entradas de Tauri; tomarlo tal cual las borra. `pnpm install` y el primer `cargo build`
+  las vuelven a poner, y recién esos archivos regenerados son la unión real. Tomar el
+  lock de un lado sin regenerarlo después deja el árbol inconsistente aunque el merge
+  cierre limpio.
+
+### D-M1-03 · Los sidecars de Tauri no están en el repo, y `cargo test --workspace` los necesita
+
+**Síntoma.** Después del merge, `cargo test --workspace` muere antes de correr un solo
+test: el build script de `qua-app` falla con ``resource path `binaries/quad-aarch64-apple-darwin`
+doesn't exist``. No lo causa el merge — `apps/qua-app/src-tauri/binaries/` está en
+`.gitignore` desde C1 (dos binarios de ~25 MB) y un worktree nuevo nunca los tiene.
+
+**Cómo se destraba.** `bash apps/qua-app/scripts/build-sidecars.sh` antes del primer
+`cargo test --workspace` en cada worktree. Se anota acá porque el error apunta a un
+recurso faltante y no al script que lo genera.
