@@ -35,7 +35,7 @@
 | B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — | — |
 | B3 · Correlador                | F0, F1 | ✅ hecho | **opus** | `2509595` | — | — |
 | B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
-| C1 · App Tauri                 | B1     | 🟡 en curso | sonnet | — | — |
+| C1 · App Tauri                 | B1     | ✅ hecho | sonnet | `88deeca` | — |
 | D1 · Servidor MCP              | F0     | 🟡 en curso | sonnet | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
@@ -258,4 +258,28 @@ agregar y se revisa antes de commitear.**
 2. **El harness sigue roto.** 234 líneas con el evento inexistente `scroll`; con validación
    estricta B3 contó 572 de 651 inválidas. Falta **F1c**.
 3. **7 escenarios contradicen §07** (los 6 POINTER y s24). Arreglarlos sube el 73,1% real.
+
+- `2026-09-05 02:35` — **C1 ✅** (`88deeca`), verificado en la máquina, no solo reportado.
+  App Tauri 2 en `apps/qua-app/`, no existía nada más que el stub de F0. Prioricé tray +
+  sidecar + hotkey como pidió el coordinador; ventana de sesiones quedó mínima a propósito.
+  **Probado de verdad, no solo compilado**: `pnpm tauri build --bundles app` produce
+  `QUA.app`; arranca, lanza `quad` como sidecar desde `Contents/MacOS/` (mecanismo oficial
+  de `tauri-plugin-shell`, no un `Command::new` a mano), `GET /health` responde. `kill -9`
+  al proceso `quad` → se relanza solo con backoff, `/health` vuelve a responder segundos
+  después. `LSUIElement` confirmado en el `Info.plist` del bundle (sin ícono en el Dock).
+  Reusa código existente en vez de reinventarlo: `qua_core::asr::model::ensure_model` (B2,
+  con SHA-256 reales) para la descarga del modelo con progreso, y `quad::config` /
+  `qua_core::read_meta` para rutas de `~/.qua/` y lectura de sesiones.
+  **Límite real, documentado en `docs/DECISIONS.md` D-C1-01**: el hotkey global (⌘⇧R/⌘⇧E)
+  dispara con cualquier app en foco — confirmado, es una API del SO — pero todavía no mueve
+  una grabación real de la extensión: §04 no tiene mensaje servidor→cliente para eso, y
+  agregarlo es un cambio de contrato fuera del alcance de C1 (rompería A2 en silencio si lo
+  aplicaba unilateral). Queda propuesto el mensaje (`control.toggle_recording` /
+  `control.mark`) para quien cierre esa brecha.
+  Otras decisiones de criterio en D-C1-02/03/04: binarios de sidecar no commiteados (script
+  `build-sidecars.sh`), medidor de nivel de mic con un stream `cpal` propio (independiente
+  del de la extensión, nunca se persiste).
+  **No verificado** por falta de entorno gráfico interactivo en este dispatch: la demo
+  visual del hotkey con Chrome real en foco (el mecanismo subyacente sí se probó — registro
+  global de shortcut vía `tauri-plugin-global-shortcut`, estándar y no depende de foco).
 
