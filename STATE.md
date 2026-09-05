@@ -339,4 +339,15 @@ con severidad alta.
      el PATH de una shell nueva; con `set -e` el script se mataba en esa línea sin llegar a su
      propio fallback y sin imprimir nada. Ahora invoca `$HOME/.cargo/bin/rustc` por ruta
      absoluta y falla con mensaje si no lo encuentra. Verificado con `env -i`.
+- `2026-09-05 02:41` — **Brecha real de arquitectura, reportada por C1 (D-C1-01).** El hotkey
+  global de la app Tauri dispara con cualquier app en foco —verificado en la máquina— pero
+  **no llega a nada**: §04 no tiene ningún mensaje servidor→cliente para que el daemon le
+  ordene a la extensión arrancar, parar o marcar. El hotkey es la única razón de existir de la
+  app de escritorio (`chrome.commands` sólo funciona con Chrome enfocado), así que la cadena
+  estaba cortada justo en el medio. Lancé **P1** como cambio de contrato autorizado:
+  `session.control` con `action: start|stop|mark`, endpoint local `POST /control` en el daemon,
+  y manejo en la FSM que ya escribió A2.
+- `2026-09-05 02:41` — **La brecha del `audio.opus` que reportó A3 era sólo aparente.** B1 ya
+  la resolvió en D-B1-08: transcodifica desde `raw/audio.pcm` con ffmpeg. No hace falta ningún
+  mensaje de protocolo para subir el archivo. Cerrada.
 
