@@ -38,7 +38,7 @@
 | C1 · App Tauri                 | B1     | ❌ sin commitear | sonnet | — | — |
 | D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
-| G1 · Integración y packaging   | todas  | 🟡 en curso | sonnet | — | — |
+| G1 · Integración y packaging   | todas  | ✅ hecho (ver "Qué falta de G1" más abajo) | sonnet | `104afcc` | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
 
@@ -296,3 +296,87 @@ en `docs/DECISIONS.md`. **Decidilo con la cabeza fresca**: o se agrega un mensaj
 o el daemon reconstruye el opus desde `raw/audio.pcm` con ffmpeg (que es lo que B1 ya hace en
 D-B1-08, así que probablemente la brecha sea sólo aparente).
 
+
+- `2026-09-05 03:22` — **G1 ✅** (`104afcc`, ver detalle en `docs/DECISIONS.md`
+  D-G1-01 a D-G1-08). Integré lo que existía en `main` (A1+A2+A3, B1, B2, B3, B4, D1,
+  E1) — **no** C1 (Tauri, sin commitear, ver abajo) ni F1c (harness de F1b, sin
+  arrancar). Mergeé **B4** a `main` (estaba completo en su rama, sin mergear).
+
+  **Cableado real, no solo "unir código que ya andaba":** ninguna de las tareas de
+  la extensión se había probado corriendo junta, y ninguna de B1/B3/B4 corría
+  encadenada de verdad. Cablear una sesión real de punta a punta encontró y arregló
+  **seis bugs reales** que ningún test unitario detectaba (cada uno con el detalle
+  completo en `docs/DECISIONS.md`):
+  1. **D-G1-01/02** — nadie unía B2 (ASR) + B3 (correlador) + B4 (renderer):
+     `session.stop` respondía siempre con 0 issues, a propósito (D-B1-04). Ahora
+     `quad::pipeline::process` corre los tres en `finalize()` y en `qua reprocess`.
+  2. **D-G1-03** — el content script mandaba `qua:event` y el service worker
+     esperaba `qua:events`: **ningún evento de A1 llegaba nunca a A2.** Más: el
+     popup mandaba `qua:start-session` sin `baseUrl`/`viewport` (no tiene ese
+     contexto) contra un tipo que los pedía como requeridos, y el botón de
+     marcador mandaba `qua:trigger-mark` contra un handler que solo sabía
+     `qua:mark`.
+  3. **D-G1-04** — el content script no era un content script real de WXT (sin
+     `defineContentScript`, `wxt build` nunca lo iba a inyectar), y nada disparaba
+     el offscreen doc de audio (A3 lo dejó listo, A2 nunca lo llamaba).
+  4. **D-G1-06** — nadie normalizaba `t` contra `t0_wall` (`packages/protocol` lo
+     documenta, pero ningún código lo hacía): con un reloj real, `report.md` salía
+     con **"496829h 55m 41s"** de duración. Invisible en todo test existente
+     porque cada uno arma sus eventos con `t` chico a mano.
+  5. **D-G1-07** — el `AudioWorklet` vivía en una ruta que WXT no compila
+     (`entrypoints/offscreen/worklet/*.ts`, dos niveles de más): nunca se hubiera
+     servido en producción.
+  6. **D-G1-08** — `chrome.runtime.sendMessage` no preserva `Uint8Array` entre
+     contextos de extensión: los frames de audio llegaban, pero como objeto
+     plano, no como bytes reconocibles.
+
+  **Con los seis arreglados, `e2e/session.e2e.mjs` produce el primer `report.md`
+  de punta a punta con contenido real del proyecto:** Chrome real (el que maneja
+  Playwright — "Chrome for Testing", no el de `/Applications`, que bloquea
+  `--load-extension` sin modo desarrollador prendido a mano, D-G1-05) con la
+  extensión cargada, daemon real, hover real sobre un botón mientras
+  `--use-file-for-fake-audio-capture` le inyecta a `getUserMedia` el WAV de B2
+  como si fuera el micrófono. Sale una `Utterance` transcripta por whisper de
+  verdad y un issue anclado con confianza 0.80 vía deixis. Sin intervención
+  manual: `pnpm --filter @qua/e2e run e2e` hace todo solo (ver `e2e/README.md`).
+
+  **Packaging:** `.dmg` de macOS armado y probado (monta, tiene los binarios) —
+  pero **no** es la app Tauri de §09 (C1 no cerró: queda como scaffold sin
+  commitear en el worktree `c1`, con `apps/qua-app/{package.json,src,src-tauri,...}`
+  sin trackear en git). `packaging/macos/build-dmg.sh` empaqueta lo que sí existe:
+  los binarios `quad`+`qua`, sin firmar (no hay Developer ID de Apple en este
+  entorno). Windows/Linux: no llegué — quedan para cuando alguien retome.
+
+  `pnpm test` (242 tests TS) y `~/.cargo/bin/cargo test --workspace` (190 tests
+  Rust) verdes.
+
+  ### Qué falta de G1 (para la próxima sesión)
+
+  1. **App Tauri (C1) no existe de verdad.** El criterio de §14 de G1 pedía
+     empaquetar la app Tauri; sin ella, el `.dmg` es solo el daemon+CLI (ver
+     `packaging/macos/README-DMG.md`). Si alguien retoma C1, hay que:
+     reemplazar `packaging/macos/build-dmg.sh` por `tauri build`, y el
+     `install.sh`/pairing manual del README por el onboarding de la app.
+  2. **Capturas de pantalla en vivo no están cableadas** (D-G1-01). El paso 9 del
+     correlador pide un recorte por WS mientras la sesión sigue conectada; acá el
+     pipeline corre después de que la sesión ya cerró. `report.md` sale válido,
+     solo que sin evidencia visual en los issues anclados a elemento. Requiere
+     que el loop de mensajes de `ws.rs` intercale `capture.request`/`frame` con
+     el resto de la sesión — cambio de arquitectura del server, no de un módulo.
+  3. **F1c (saneo del harness de F1b) nunca arrancó.** El harness sigue con el
+     evento inexistente `scroll` y cobertura floja de tipos de evento (ver
+     bitácora de B3 más arriba). No bloqueó a B3 ni a G1, pero sigue pendiente.
+  4. **El popup no recibe pushes en vivo** (D-G1-03). `qua:get-status` bajo
+     pedido funciona; `onStatus`/`onTranscript` (que esperan que el service
+     worker empuje mensajes solo) nunca se disparan. No afecta el criterio de
+     G1 (el reporte no depende de la UI del popup).
+  5. **La brecha de protocolo de audio.opus que reportó A3 (más arriba) está
+     resuelta, solo que no como un mensaje nuevo:** el daemon reconstruye
+     `audio.opus` desde `raw/audio.pcm` con `ffmpeg` (`transcode_to_opus` en
+     `ws.rs`, ya existía de B1), y el ASR de todos modos lee `raw/audio.pcm`
+     directo. El `qua:recording-chunk` (blob de `MediaRecorder`) que sube A3
+     sigue sin destino (D-13) — es redundante con lo anterior, no bloqueante.
+  6. **El E2E prueba un solo camino feliz** (una sesión corta, un hover, un WAV
+     de ~4s). No hay una prueba E2E real de reconexión del daemon a mitad de
+     sesión (eso sí está cubierto en Rust puro, sin Chrome, en
+     `kill_and_recover.rs`).
