@@ -31,7 +31,7 @@
 | A1 · Content script            | F0     | ⬜ pendiente | — | — |
 | A2 · Service worker            | F0     | ⬜ pendiente | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
-| B1 · Daemon servidor y store   | F0     | ⬜ pendiente | — | — |
+| B1 · Daemon servidor y store   | F0     | ✅ hecho | Sonnet | *(ver bitácora)* |
 | B2 · Daemon audio y ASR        | F0     | ⬜ pendiente | — | — |
 | B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
@@ -62,6 +62,25 @@ Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ blo
   de la spec resueltas y anotadas en `docs/DECISIONS.md` (la más importante: **los tipos de
   evento son 18, no 17** — la tabla de §03 tiene 18 filas y la prosa de §14 quedó vieja).
   **Ola 1 desbloqueada:** F1 · A1 · A2 · A3 · B1 · B2 · D1 · E1 pueden arrancar en paralelo.
+- `2026-09-04 ~23:40` — **B1 hecha.** Servidor axum en `crates/quad/` (§06): `/health`,
+  `/pair/start` + `/pair` (código de 6 dígitos, ventana de 60s, allowlist de Origin, token
+  de 32 bytes persistido en `config.toml`), y `/ws` con el loop de mensajes de §04. Ingesta
+  crash-safe en `crates/qua-core/src/ingest/`: `raw/events.ndjson` (fsync cada
+  `[daemon].fsync_interval_ms`, default 2000ms) y `raw/audio.pcm`, con **ack acumulativo
+  que solo sale después del fsync** — nunca antes (D-B1-06). `qua recover <id>` (segundo
+  binario del mismo crate, D-B1-05) reconstruye `session.json` + la fila de `sessions` en
+  SQLite desde `raw/` sin que el proceso original esté vivo. Al parar la sesión, transcodea
+  `raw/audio.pcm` → `audio.opus` con `ffmpeg` (best-effort, D-B1-08).
+  `qua-core::ingest::pipeline` deja las interfaces (`AsrPipeline`, `Correlator`,
+  `Renderer`) para B2/B3/B4 sin implementarlas.
+  **Los dos criterios de aceptación corren en CI real:** `ingest_100k.rs` manda 100.000
+  eventos por WS contra el servidor real y verifica cero pérdida/duplicados en
+  `session.json`; `kill_and_recover.rs` levanta `quad` como proceso de verdad, le manda
+  `Child::kill()` (SIGKILL real) a mitad de sesión, y corre `qua recover` como proceso
+  aparte para confirmar que reconstruye. 29 tests Rust en el workspace, verdes;
+  `cargo fmt --check` y `cargo clippy -D warnings` limpios. Nueve ambigüedades anotadas en
+  `docs/DECISIONS.md` (D-B1-01 a D-B1-09) — ninguna toca `packages/protocol` ni `fixtures/`.
+  **C1 desbloqueada** (depende de que B1 exponga `/health`, ya lo hace).
 
 ## Qué hacer si retomás en frío
 

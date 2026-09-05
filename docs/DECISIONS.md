@@ -120,3 +120,152 @@ qué tarea lo implementa.
 **Por qué.** §14 asigna esas piezas a otras tareas. F0 solo tiene que dejar el esqueleto en
 pie para que `pnpm test` y `cargo test --workspace` sean verdes desde el commit uno, que es
 lo que permite que las ocho tareas de la ola 1 arranquen sin pisarse.
+
+---
+
+## B1 · Daemon: servidor, ingesta y store
+
+### D-B1-01 · `POST /pair/start` no está en la spec, pero hace falta
+
+**Ambigüedad.** §04 dice "la app Tauri abre una ventana de pairing de 60 s y muestra un
+código de 6 dígitos", pero la lista de mensajes de §04 no tiene ningún endpoint para que
+el daemon *genere* ese código — solo existe `POST /pair` para consumirlo.
+
+**Decisión.** Se agrega `POST /pair/start` (sin body), que genera el código, abre la
+ventana de 60 s en memoria y devuelve `{code, expires_in_ms}`. `POST /pair` la valida y
+la consume (un solo uso, correcto o no — así no se puede fuerza-bruta un código de 6
+dígitos contra la misma ventana).
+
+**Por qué.** La app Tauri (C1) todavía no existe. Alguien tiene que poder disparar el
+inicio del pairing para probar el flujo — un test, `qua doctor`, o eventualmente C1. Sin
+este endpoint, `POST /pair` no tendría contra qué validar el código.
+
+**Si C1 necesita otra forma de arrancarlo** (por ejemplo vía stdio en vez de HTTP), lo
+reporta y se ajusta acá — el contrato de `PairRequest`/`PairResponse` de `qua-protocol`
+no cambia.
+
+### D-B1-02 · El `mark` de nivel de mensaje se persiste fuera de banda, con `source: popup`
+
+**Ambigüedad.** §04 tiene dos caminos para un marcador: el evento `Event::Mark` (con
+`source: hotkey | popup`) dentro de un lote `events`, y el mensaje suelto
+`{v,type:"mark",t}` sin `seq` ni `source`. La spec no dice cómo conviven.
+
+**Decisión.** El mensaje suelto `mark` se interpreta como el marcador manual del popup
+(`MarkSource::Popup`) — el del hotkey global ya llega como `Event::Mark{source:hotkey}`
+adentro de un lote `events`, emitido por el content script. El servidor lo escribe en
+`raw/events.ndjson` fuera de banda (sin ocupar un `seq` de cliente, ver
+`RawEventLog::append_out_of_band` en `qua-core`) y fuerza un `sync()` inmediato, tal
+como pide "`mark` ... fuerza flush inmediato".
+
+**Por qué.** Si el mark tomara un `seq` propio (por ejemplo `last_written_seq + 1`),
+competiría con la numeración que el outbox de la extensión ya usa para sus lotes de
+`events`, y un lote de cliente legítimo con ese mismo número quedaría descartado como
+falso duplicado. Mantenerlo fuera de esa numeración es lo único seguro.
+
+### D-B1-03 · `git: None` siempre — B1 no resuelve el repo del proyecto
+
+**Ambigüedad.** `Session.git` (§03) requiere branch/sha/dirty del repo del proyecto, que
+supone resolver `base_url` contra `[[projects]].repo` y correr git sobre ese path.
+
+**Decisión.** B1 sí resuelve `project` (label + repo) contra `config.toml` — es un
+`match` de string, sin dependencias nuevas — pero deja `git: None` siempre. Ningún
+criterio de aceptación de B1 (§14) menciona git, y agregar `git2` como dependencia solo
+para esto infla el build de un daemon que tiene que arrancar rápido.
+
+**Por qué.** Es un enriquecimiento, no algo de lo que dependa la durabilidad ni el
+criterio de "ingesta sin pérdida / recover". Queda para quien construya el paso de
+render (B4) o un C1 que ya tenga que shellear git para otra cosa.
+
+### D-B1-04 · `session.stop` responde `session.done` sin correr ASR/correlate/render
+
+**Contexto.** B1 no implementa VAD, whisper, el correlador ni el renderer (fuera de
+alcance explícito de la tarea). Pero §04 sí le pide al daemon responder
+`session.done` cuando llega `session.stop`.
+
+**Decisión.** B1 responde `session.done` igual, con `issues: 0` siempre y `report_path`
+apuntando a la ruta donde *debería* quedar `report.md` (aunque B4 todavía no lo genera).
+`Session.status` queda en `"processing"` (nunca `"ready"`) y `utterances`/`issues` salen
+vacíos en `session.json`. `qua-core::ingest::pipeline` deja los traits `AsrPipeline`,
+`Correlator` y `Renderer` como las interfaces que B2/B3/B4 implementan sobre ese mismo
+`session.json`, sin tocar el servidor.
+
+**Por qué.** El criterio de aceptación de B1 es ingesta + durabilidad + recover, no un
+pipeline completo. Inventar un estado `"ready"` con 0 issues mentiría sobre que la
+sesión se procesó; `"processing"` es honesto y es justo lo que B2→B3→B4 tienen que
+completar.
+
+### D-B1-05 · `qua` vive como segundo binario en `crates/quad/`, no en un crate propio
+
+**Ambigüedad.** §13 solo lista `crates/{qua-protocol,qua-core,quad,qua-mcp}` — no hay un
+crate para el CLI `qua` de §6.2, aunque la tabla de comandos (`qua sessions`, `qua show`,
+`qua recover`, ...) claramente es un binario distinto de `quad` (el servidor).
+
+**Decisión.** `qua` se agrega como un segundo `[[bin]]` de `crates/quad/` (vía
+`src/bin/qua.rs`, autodescubierto por Cargo), no como un crate nuevo. B1 solo implementa
+`qua recover <id>` (el criterio de aceptación) y un `qua doctor` mínimo (`GET /health`);
+`sessions`, `show`, `reprocess`, `refine`, `export` quedan como stubs que imprimen qué
+tarea los completa.
+
+**Por qué.** El CLI y el servidor comparten `config.rs` y el store de `qua-core` — vive
+en el mismo crate para reusar ese código sin duplicarlo ni promoverlo a una lib
+intermedia que nadie pidió. Si B4 (que sí necesita `show`/`export`/`reprocess`
+completos) prefiere partirlo en un crate propio, lo reporta y se mueve; no es un cambio
+de contrato de red, solo de layout.
+
+### D-B1-06 · El ack es acumulativo por ciclo de fsync, no por mensaje
+
+**Ambigüedad/riesgo.** §04 dice "`ack seq:12`" pero no explicita cuándo exactamente
+tiene que salir un ack respecto del fsync de 2s que menciona la resiliencia.
+
+**Decisión.** El daemon **nunca** ackea un lote antes de que su fsync haya terminado.
+`RawEventLog::sync()` es lo único que puede mover `last_synced_seq`, y el timer
+periódico (cada `[daemon].fsync_interval_ms`, default 2000 como dice §04) es lo único
+que llama a `sync()` y dispara el `Ack` correspondiente — nunca se manda un ack
+"inline" al procesar un `events`.
+
+**Por qué.** Es la única forma de que la garantía de crash-safety sea real: si el daemon
+ackeara antes del fsync y crasheara entre medio, la extensión ya habría borrado esos
+eventos de su outbox (§04: "se borran al recibir ack") y esos datos se perderían para
+siempre. `qua-core::ingest::raw_log` tiene tests que cubren esto (incluido que un
+`append_out_of_band`, ver D-B1-02, no invente acks que no le corresponden).
+
+### D-B1-07 · `fsync_interval_ms` es un umbral de `config.toml`, no una constante
+
+**Decisión.** El período de fsync de 2s de §04 vive en `[daemon].fsync_interval_ms`
+(default 2000), no hardcodeado en el servidor.
+
+**Por qué.** La regla general del proyecto ("umbrales van a config.toml, nunca
+hardcodeados") aplica acá tanto como al correlador — y en la práctica hizo falta de
+inmediato: el test de "100k eventos sin pérdida" lo baja a 40ms para no tardar minutos
+esperando acks reales de a 2s.
+
+### D-B1-08 · `audio.opus` vía `ffmpeg` shell-out, con fallback silencioso a `raw/audio.pcm`
+
+**Ambigüedad.** §04 solo especifica que el audio crudo llega como PCM por WS y se
+guarda en `raw/audio.pcm`. Pero `Session.audio.path` (§03) y el layout de archivos
+(§8.2) muestran `audio.opus` como el artefacto final de una sesión — y no hay ningún
+mensaje en el protocolo que suba un archivo opus ya codificado desde el navegador.
+
+**Decisión.** Al recibir `session.stop`, B1 shellea `ffmpeg` (verificado en el
+toolchain, STATE.md) para transcodificar `raw/audio.pcm` → `audio.opus` en el
+directorio de la sesión, best-effort: si `ffmpeg` no está o falla, `session.json`
+apunta a `raw/audio.pcm` en vez de fallar la sesión entera.
+
+**Por qué.** Es la única lectura que cierra el círculo entre "el WS solo manda PCM" y
+"el archivo final es opus" sin inventar un mensaje de protocolo nuevo. No es parte de
+ningún criterio de aceptación de B1, así que el fallback nunca puede tirar abajo
+`session.stop`.
+
+### D-B1-09 · `qua recover` sin `raw/meta.json` falla explícitamente
+
+**Contexto.** `raw/meta.json` (que trae `t0_wall`, `base_url`, `env`) recién se escribe
+al procesar `session.start` — no en `hello`, que es cuando se crea el directorio.
+
+**Decisión.** Si el proceso muere entre `hello` y `session.start`, `qua recover <id>`
+falla con un error explícito en vez de inventar un `session.json` con campos vacíos o
+inventados.
+
+**Por qué.** `t0_wall` y `env` son requeridos por el esquema de `Session` (§03, no son
+`Option`) — no hay un valor "vacío" honesto para ellos. Fallar es preferible a escribir
+un `session.json` con datos inventados que después alguien (B3, B4, un humano) toma
+como reales.
