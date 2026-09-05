@@ -8,7 +8,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
-    "test": "echo \"(stub — la implementa la tarea E1)\" && exit 0"
+    "test": "vitest run"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

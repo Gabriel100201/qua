@@ -1,6 +1,2 @@
-/**
- * `@qua/vite-plugin-source` — idem para Vite (tier 1, §11).
- *
- * STUB. Lo implementa la tarea E1.
- */
-export {};
+export interface QuaViteOptions { dev?: boolean }
+export default function quaSource(options: QuaViteOptions = {}) { return { name: "qua-source", enforce: "pre" as const, transform(code: string, id: string) { if (options.dev === false || !/\.[jt]sx?$/.test(id)) return null; const out = code.replace(/<([A-Za-z][\w.]*)\b([^<>]*?)(\/?)>/g, (whole, tag, attrs, close, index: number) => { if (/\bdata-qua-src\s*=/.test(attrs)) return whole; const before = code.slice(0, index); const line = (before.match(/\n/g) ?? []).length + 1; const last = before.lastIndexOf("\n"); const col = index - last; return `<${tag}${attrs} data-qua-src="${id}:${line}:${col}"${close}>`; }); return out === code ? null : { code: out, map: null }; } }; }
