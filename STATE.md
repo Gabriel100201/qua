@@ -32,7 +32,7 @@
 | A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
-| B2 · Daemon audio y ASR        | F0     | ⬜ pendiente | — | — |
+| B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
 | B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
@@ -118,3 +118,8 @@ Dos de los tres entregables revisados hasta ahora estaban mal a pesar de reporta
 F1 pasaba sus tests pero con escenarios triviales, y E1 directamente no corrió los suyos.
 **Verificar cada entregable ejecutando los criterios de aceptación, no leer el reporte del
 worker.** Es lo que separó un merge sano de meter basura en `main`.
+- `2026-09-04 23:50` — **E1b ✅** (`296b433`) verificada y mergeada a `main`. 70 tests verdes.
+  Pendiente menor de estilo: `packages/source-resolver/src/index.ts` quedó con funciones
+  enteras en una sola línea. Funciona y está testeado, pero merece un pase de formato.
+- `2026-09-04 23:51` — Largué **B2** (audio + ASR). Es la de cola más larga: descarga el modelo
+  de 574 MB y compila whisper.cpp con Metal, así que conviene que arranque temprano.
