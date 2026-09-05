@@ -3,12 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Extensión Chrome MV3 (WXT). La implementan las tareas A1, A2 y A3.",
+  "description": "Extensión Chrome MV3 (WXT). Content script: A1. Service worker: A2 (pendiente). Offscreen/UI: A3 (pendiente).",
   "scripts": {
-    "build": "echo \"(stub — la implementan A1/A2/A3)\" && exit 0",
-    "test": "echo \"(stub — la implementan A1/A2/A3)\" && exit 0"
+    "typecheck": "tsc --noEmit",
+    "build": "echo \"(stub — falta el wiring de WXT/A2/A3)\" && exit 0",
+    "test": "tsc --noEmit && vitest run"
   },
   "dependencies": {
-    "@qua/protocol": "workspace:*"
+    "@qua/protocol": "workspace:*",
+    "@qua/source-resolver": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.8",
+    "@types/node": "^22.10.2",
+    "jsdom": "^30.0.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   }
 }

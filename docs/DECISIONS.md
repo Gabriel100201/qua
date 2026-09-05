@@ -120,3 +120,65 @@ qué tarea lo implementa.
 **Por qué.** §14 asigna esas piezas a otras tareas. F0 solo tiene que dejar el esqueleto en
 pie para que `pnpm test` y `cargo test --workspace` sean verdes desde el commit uno, que es
 lo que permite que las ocho tareas de la ola 1 arranquen sin pisarse.
+
+---
+
+## A1 · Content script
+
+### D-09 · `tab_switch`, `tab_close` y `mark` no los dispara el content script
+
+**Ambigüedad.** D-01 dice que el criterio real de A1 es "emitir 17 de los 18 tipos desde
+el content script" (todo salvo `audio_gap`). Pero mirando §03 y §5.1/§5.3 con más cuidado:
+
+- `tab_switch` nace de `chrome.tabs.onActivated` y `tab_close` de `chrome.tabs.onRemoved`
+  — ninguna de las dos API existe dentro de un content script inyectado en la página. Solo
+  el service worker (A2) puede escucharlas.
+- `mark` lo dispara el hotkey (`chrome.commands`, §05 manifest) o el botón del popup — los
+  dos viven en contextos de extensión que tampoco son el content script.
+
+**Decisión.** El content script (A1) instala hooks/listeners/observers/hover para 14 tipos
+que sí puede detectar directamente sobre el DOM de la página (`nav`, `click`, `hover`,
+`focus_change`, `input`, `submit`, `scroll_settle`, `viewport`, `console`, `net_fail`,
+`net_slow`, `long_task`, `layout_shift`, `mutation_burst`), más `mark` mediante un relay:
+escucha un mensaje del service worker (`chrome.runtime.onMessage`, tipo `qua:mark`) y
+construye el evento con su propio reloj — así viaja en el mismo lote que el resto de los
+eventos de esa pestaña en vez de que el service worker tenga que inyectarlo aparte. Para
+`tab_switch`/`tab_close`, que el content script genuinamente no puede disparar, se dejan
+builders puros (`extension/entrypoints/content/lib/tab-events.ts`) para que A2 los use con
+el mismo reloj y quede documentado el contrato — pero A2 es quien los llama de verdad desde
+`chrome.tabs.onActivated`/`onRemoved`.
+
+**Por qué.** No hay forma de hacer que un content script escuche `chrome.tabs.*` sin
+otorgarle permisos y arquitectura que la spec pone explícitamente en el service worker
+(§5.3, "Ciclo de pestañas"). Forzarlo sería inventar una API que Chrome no tiene.
+
+**Consecuencia.** El criterio de aceptación verificable *dentro del alcance de A1* es 15
+tipos (14 detectados + `mark` vía relay) disparados de punta a punta, más `tab_switch`/
+`tab_close` pasando por el mismo `emit()` validado vía sus builders — 17 tipos en total
+tocan el pipeline de A1, aunque dos de ellos esperan que A2 los dispare en producción. El
+test de `extension/entrypoints/content/test/content-script.test.ts` cubre exactamente eso.
+Si esto no te convence como resolución de D-01, es una tarea de dos líneas: A2 revisa que
+sus triggers de `chrome.tabs` usen `buildTabSwitchEvent`/`buildTabCloseEvent`.
+
+### D-10 · El build de `@qua/protocol` no coincide con su propio `package.json`
+
+**Bug de F0, no de A1 — se reporta, no se corrige acá (regla de "nadie toca
+`packages/protocol` fuera de F0").**
+
+`packages/protocol/tsconfig.json` usa `rootDir: "."` (para poder compilar `scripts/` y
+`test/` bajo el mismo `outDir`), así que `tsc -b` deja el JS real en `dist/src/index.js`.
+Pero `package.json` declara `"main": "./dist/index.js"` y `"exports"` apunta a lo mismo —
+un archivo que nunca se genera. Nadie lo notó porque los propios tests de `packages/protocol`
+importan por ruta relativa (`../src/...`), nunca como `@qua/protocol` desde otro paquete del
+workspace — A1 es la primera tarea que consume el paquete así.
+
+**Workaround en A1 (sin tocar `packages/protocol`):** `extension/tsconfig.json` (`paths`) y
+`extension/vitest.config.ts` (`resolve.alias`) resuelven `@qua/protocol` directo contra
+`packages/protocol/src/index.ts` en vez de `dist/`. Sigue siendo el mismo código fuente, solo
+cambia de dónde se lee — el día que se arregle el `rootDir`/`exports` de `packages/protocol`,
+estos dos alias se pueden borrar sin que A1 tenga que cambiar ni una línea de sus imports.
+
+**Arreglo real sugerido para quien lo aplique en F0/G1:** en
+`packages/protocol/tsconfig.json`, o separar `scripts`/`test` a su propio `tsconfig`
+(`rootDir: "src"` para el build de la librería), o cambiar `main`/`exports` a
+`./dist/src/index.js`. Cualquiera de las dos cierra la brecha.
