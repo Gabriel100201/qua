@@ -34,7 +34,7 @@
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — | — |
 | B3 · Correlador                | F0, F1 | ✅ hecho | **opus** | `2509595` | — | — |
-| B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
+| B4 · Renderer y CLI            | F0, F1 | ✅ hecho | sonnet | mergeado | — | — |
 | C1 · App Tauri                 | B1     | 🟡 en curso | sonnet | — | — |
 | D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
@@ -281,4 +281,29 @@ daemon. El PCM crudo viaja por frames binarios, pero el opus de archivo no tiene
 en `docs/DECISIONS.md`. **Decidilo con la cabeza fresca**: o se agrega un mensaje al contrato,
 o el daemon reconstruye el opus desde `raw/audio.pcm` con ffmpeg (que es lo que B1 ya hace en
 D-B1-08, así que probablemente la brecha sea sólo aparente).
+- `2026-09-05 02:26` — **B4 ✅** mergeada. **190 tests de Rust.** `report.md` verificado
+  byte a byte contra `fixtures/session-full.json`, `reprocess` probado idempotente a 3 pasadas.
+
+### Cuidado: la unión por clave NO sirve para TOML entre secciones
+
+Mi resolver de `Cargo.toml` deduplica por nombre de clave sin mirar en qué sección está.
+`whisper-rs` aparece dos veces a propósito —una por target macOS con `metal`, otra sin— y el
+resolver borró la segunda y metió `image` en su lugar. Compiló en rojo con
+`unresolved import image`. **Los `Cargo.toml` con secciones `[target.'cfg(...)']` se
+reescriben a mano.**
+
+### Deuda nueva y seria: colisión de clave primaria en `issues`
+
+**D-B4-07.** El esquema de F0 declara `issues.id TEXT PRIMARY KEY` **global**, pero los ids de
+issue son correlativos *por sesión* (`i01`, `i02`…). La segunda sesión pisa los issues de la
+primera. Para una herramienta cuyo propósito es **acumular** hallazgos, eso es pérdida de datos
+silenciosa. Arreglo: clave compuesta `(session_id, id)`, o id realmente único
+`{session_id}:{id}`. Toca `schema.sql`, los triggers de FTS5, `idx_pending` y las consultas
+de `qua-mcp`. **Es lo primero que hay que hacer a la mañana.**
+
+### Pendiente inmediato: cablear el correlador real en `reprocess`
+
+**D-B4-09.** B4 trabajó desde un commit anterior a B2 y B3, así que `reprocess` quedó como
+passthrough. B4 dejó documentado el cableado exacto. Sin esto, el pipeline no produce issues
+de verdad.
 
