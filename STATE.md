@@ -28,9 +28,9 @@
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
 | F1 · Generador sintético       | F0     | ✅ hecho (ver F1c pendiente) | codex luna | `6e1e0b2` | `d28620d` |
-| A1 · Content script            | F0     | 🟡 en curso | sonnet | — |
+| A1 · Content script            | F0     | ✅ hecho | sonnet | `99aec5b` | — |
 | A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
-| A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
+| A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
@@ -139,3 +139,16 @@ correr sus tests, F1b violando el contrato de eventos. **Opus** en F0 fue impeca
 primera. Cada rechazo cuesta más que lo que ahorra la cuota barata: revisión del coordinador
 más el relanzamiento. **Recomendación: reservar Luna para tareas mecánicas con criterio
 verificable de una sola línea, y mandar a Claude todo lo que exija leer spec con cuidado.**
+- `2026-09-05 23:42` — **A1 ✅** (`99aec5b`) verificada y mergeada. 57 tests propios; `main` queda
+  con **127 tests** verdes. Reportó dos hallazgos sin aplicarlos, que es la disciplina correcta:
+  **D-09**, que un content script genuinamente no puede escuchar `chrome.tabs.*`, así que
+  `tab_switch`/`tab_close` quedan como builders puros para que A2 los dispare (análisis correcto);
+  y **D-10**, un bug real de F0.
+- `2026-09-05 23:42` — **Arreglé D-10 en `main`.** `packages/protocol/tsconfig.json` usa
+  `rootDir: "."`, así que `tsc` emite en `dist/src/`, pero el `package.json` declaraba
+  `main`/`exports`/`types` apuntando a `dist/` — un archivo que nunca se generaba. No lo notó
+  nadie porque los tests del propio paquete importan por ruta relativa; A1 fue el primero en
+  consumirlo como `@qua/protocol` desde otro paquete. Corregí los tres campos a `dist/src/`.
+  Los alias que A1 puso en `extension/` siguen siendo válidos y se pueden borrar cuando alguien
+  quiera; no urge.
+- `2026-09-05 23:42` — Largué **A3** en el slot liberado.
