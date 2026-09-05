@@ -1,4 +1,5 @@
 import {
+
   DAEMON_HOST,
   DEFAULT_DAEMON_PORT,
   PAIR_PATH,
@@ -7,6 +8,11 @@ import {
   type PairResponse,
 } from "@qua/protocol";
 
+import { TOKEN_STORAGE_KEY } from "../../../shared/storage-keys.js";
+
+/** Alias histórico. La clave real vive en `shared/storage-keys.ts` — importala de ahí. */
+export const PAIR_TOKEN_STORAGE_KEY = TOKEN_STORAGE_KEY;
+
 /**
  * Pairing de 6 dígitos (§04): options.html hace `POST /pair` con `{code}`;
  * el daemon devuelve un token de 32 bytes que se guarda en
@@ -14,7 +20,7 @@ import {
  * posterior. El `Origin: chrome-extension://<id>` que el daemon valida lo
  * pone el navegador solo — no hace falta setearlo a mano.
  */
-export const PAIR_TOKEN_STORAGE_KEY = "quaPairToken";
+
 
 export interface StorageLike {
   set(items: Record<string, unknown>): Promise<void>;

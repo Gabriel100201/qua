@@ -17,11 +17,12 @@ import {
   toAudioFrameBytes,
   type OffscreenInboundMessage,
 } from "../offscreen/lib/messages.js";
+import { TOKEN_STORAGE_KEY } from "../../shared/storage-keys.js";
 
 const OFFSCREEN_URL = "offscreen.html";
 const OFFSCREEN_JUSTIFICATION = "Captura audio del micrófono durante la sesión (§05.4).";
 
-const TOKEN_STORAGE_KEY = "qua:daemon-token";
+
 
 async function getToken(): Promise<string> {
   const stored = await browser.storage.local.get(TOKEN_STORAGE_KEY);
