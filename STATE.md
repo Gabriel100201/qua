@@ -34,7 +34,7 @@
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
-| B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
+| B4 · Renderer y CLI            | F0, F1 | ✅ hecho | sonnet | `309682c` | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
@@ -156,6 +156,20 @@ verificable de una sola línea, y mandar a Claude todo lo que exija leer spec co
   criterios duros con procesos reales: 100k eventos por WS sin pérdida ni duplicados, y
   `kill -9` a mitad de sesión con `qua recover` reconstruyendo desde otro proceso.
   Nueve decisiones propias documentadas (D-B1-01..09).
+
+- `2026-09-05` — **B4 ✅** (`309682c`, en el worktree `b4` — todavía sin mergear a
+  `main`). `qua_core::render` completo (report.md exacto a §8.1 verificado byte a byte
+  contra `fixtures/session-full.json`, issues.json, transcript.txt, recorte de PNG con
+  `image`) y los siete subcomandos de §6.2 sobre `quad::cli`. 28 tests nuevos entre
+  `qua-core` y `quad`, todos verdes; `reprocess` probado idempotente a 3 pasadas.
+  Diez decisiones en D-B4-01..10 — la que más importa para el merge: **B2 y B3 ya
+  están en `main`** (este worktree seguía basado en el commit de antes de esas dos
+  tareas, porque la dependencia declarada de B4 es F0/F1, no B2/B3), así que
+  `reprocess` hoy re-renderiza sobre los `issues` que ya tenía en vez de correr el
+  correlador real — el cableado concreto a `qua_core::correlate::correlate` queda
+  anotado en D-B4-09 para quien mergee `b4` a `main`. Evalué rebasear acá mismo pero
+  `qua-core` de `main` ya arrastra `whisper-rs` (compila whisper.cpp con Metal) de B2,
+  y ese costo de compilación no correspondía meterlo en esta tarea.
 
 ### Cuidado al mergear: `docs/DECISIONS.md` se resuelve por UNIÓN
 
