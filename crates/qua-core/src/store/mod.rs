@@ -3,15 +3,24 @@
 //! **F0 solo entrega el esquema y la función que lo aplica.** El store completo
 //! (ingesta, append de ndjson, recover) lo implementa la tarea B1.
 
-use rusqlite::Connection;
+use std::path::Path;
+
+use rusqlite::{params, Connection};
+
+use qua_protocol::{Session, SessionStatus};
 
 /// El esquema de §03, embebido en el binario para que no dependa del cwd.
 pub const SCHEMA_SQL: &str = include_str!("schema.sql");
+
+/// Nombre del archivo SQLite dentro del directorio de datos (`~/.qua/qua.db`).
+pub const DB_FILE_NAME: &str = "qua.db";
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
     #[error("SQLite: {0}")]
     Sqlite(#[from] rusqlite::Error),
+    #[error("IO: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 /// Aplica el esquema de §03 sobre una conexión abierta.
@@ -20,6 +29,57 @@ pub enum StoreError {
 /// del daemon sin chequear nada antes.
 pub fn apply_schema(conn: &Connection) -> Result<(), StoreError> {
     conn.execute_batch(SCHEMA_SQL)?;
+    Ok(())
+}
+
+/// Abre (creando el directorio y el archivo si hace falta) el SQLite de `data_dir` con
+/// el esquema de §03 ya aplicado. Cada llamador abre su propia conexión — WAL permite
+/// que el daemon escriba mientras `qua-mcp` lee (§01).
+pub fn open(data_dir: &Path) -> Result<Connection, StoreError> {
+    std::fs::create_dir_all(data_dir)?;
+    let conn = Connection::open(data_dir.join(DB_FILE_NAME))?;
+    apply_schema(&conn)?;
+    Ok(conn)
+}
+
+fn status_str(status: SessionStatus) -> &'static str {
+    match status {
+        SessionStatus::Recording => "recording",
+        SessionStatus::Processing => "processing",
+        SessionStatus::Ready => "ready",
+        SessionStatus::Failed => "failed",
+    }
+}
+
+/// Inserta o actualiza la fila de `sessions` (§03) para una `Session`. `dir` es la
+/// ruta absoluta de `~/.qua/sessions/<id>/`, que el esquema guarda para que `qua-mcp`
+/// no tenga que reconstruirla.
+///
+/// No toca `issues`: poblar esa tabla es de B3/B4, cuando el correlador produce algo
+/// que insertar. B1 solo deja la fila de la sesión en pie desde que arranca.
+pub fn upsert_session(conn: &Connection, session: &Session, dir: &str) -> Result<(), StoreError> {
+    conn.execute(
+        "INSERT INTO sessions (id, status, project, started_at, duration_ms, issue_count, dir, git_sha)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT(id) DO UPDATE SET
+           status = excluded.status,
+           project = excluded.project,
+           started_at = excluded.started_at,
+           duration_ms = excluded.duration_ms,
+           issue_count = excluded.issue_count,
+           dir = excluded.dir,
+           git_sha = excluded.git_sha",
+        params![
+            session.id,
+            status_str(session.status),
+            session.project.label,
+            session.started_at,
+            session.duration_ms,
+            session.stats.issues,
+            dir,
+            session.git.as_ref().map(|g| g.sha.clone()),
+        ],
+    )?;
     Ok(())
 }
 
