@@ -32,11 +32,11 @@
 | A2 · Service worker            | F0     | ✅ hecho | sonnet | `679c64f` | — | — |
 | A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
-| B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
+| B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — | — |
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
 | B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
-| D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
+| D1 · Servidor MCP              | F0     | 🟡 en curso | sonnet | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
@@ -222,4 +222,18 @@ Regla por archivo al mergear:
 - `docs/DECISIONS.md` → unión (`scratchpad/union.py`)
 - `pnpm-lock.yaml` / `Cargo.lock` → `--theirs` y después `pnpm install`
 - configs (`package.json`, `tsconfig.json`, `vitest.config.ts`) → **a mano**
+- `2026-09-05 02:07` — **B2 ✅** (`2ed220b`) verificada y mergeada. El test end-to-end es real,
+  no un mock: `wav_en_espanol_produce_una_utterance_con_timestamps_por_palabra` corre VAD silero
+  y whisper de verdad sobre `fixtures/audio/es-hover-sidebar.wav` y tarda ~10-16 s. Usa
+  `ggml-base` (148 MB) en vez de `large-v3-turbo` para no hacer CI de 574 MB — decisión
+  documentada. Conflicto en `crates/qua-core/src/lib.rs` entre B1 y B2 resuelto por unión de
+  módulos. **63 tests de Rust + 165 de TS = 228 en total.**
+- `2026-09-05 02:07` — Largué **D1** (servidor MCP), que es el puente a Linear.
+
+### Cuidado: no hagas `git add` de un archivo que necesita revisión manual
+
+En el merge de B2 mi loop de resolución hizo `git add` incluso del archivo que marcó como
+"necesita revisión", y commiteé `lib.rs` con marcadores `<<<<<<<` adentro. Compiló en rojo.
+Al resolver conflictos: los casos conocidos se resuelven y se agregan; **el resto se deja sin
+agregar y se revisa antes de commitear.**
 
