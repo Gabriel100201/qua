@@ -30,4 +30,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 rand = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+regex = "1"
 toml = "0.8"
