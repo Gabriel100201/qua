@@ -16,7 +16,7 @@ pub fn render_report_md(session: &Session) -> String {
 
     let mut out = String::new();
     out.push_str(&format!("# QUA — {}\n", session.project.label));
-    out.push_str(&meta_line(session));
+    out.push_str(&meta_line(session, anchored.len(), unanchored.len()));
     out.push_str("\n\n");
     out.push_str(&summary_table(&anchored));
 
@@ -64,7 +64,11 @@ fn split_by_confidence(issues: &[Issue]) -> (Vec<&Issue>, Vec<&Issue>) {
     (anchored, unanchored)
 }
 
-fn meta_line(session: &Session) -> String {
+/// El conteo del encabezado cuenta lo mismo que ve la tabla resumen: los issues
+/// anclados, más los de "Sin anclar" aparte. `session.issues.len()` a secas queda mal —
+/// es la suma de ambos, pero la tabla solo lista los anclados, así que un lector cuenta 3
+/// filas contra un encabezado que dice "4 issues" (D-B6-02, ver `docs/DECISIONS.md`).
+fn meta_line(session: &Session, anchored: usize, unanchored: usize) -> String {
     let mut parts = vec![
         date_time(&session.started_at),
         duration(session.duration_ms),
@@ -76,7 +80,11 @@ fn meta_line(session: &Session) -> String {
         }
         parts.push(clause);
     }
-    parts.push(format!("{} issues", session.issues.len()));
+    parts.push(if unanchored > 0 {
+        format!("{anchored} issues + {unanchored} sin anclar")
+    } else {
+        format!("{anchored} issues")
+    });
     parts.join(" · ")
 }
 
