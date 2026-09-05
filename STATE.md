@@ -37,9 +37,8 @@
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
-| E1 · Source mapping            | F0     | ❌ tests rojos → E1b | codex luna | `5173056` | — |
+| E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | F1b· Fortalecer harness        | F1     | 🟡 en curso | codex luna | — |
-| E1b· Arreglar source mapping   | E1     | 🟡 en curso | codex luna | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada

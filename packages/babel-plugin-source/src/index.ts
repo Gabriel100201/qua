@@ -1,6 +1,3 @@
-/**
- * `@qua/babel-plugin-source` — estampa `data-qua-src` en cada apertura de JSX (tier 1, §11).
- *
- * STUB. Lo implementa la tarea E1.
- */
-export {};
+type PluginOptions = { dev?: boolean };
+type Path = { node: { openingElement?: { attributes: Array<{ name?: { name?: string }; value?: unknown }> } }; hub?: { file?: { opts?: { filename?: string } } }; parentPath?: { node?: { loc?: { start?: { line?: number; column?: number } } } } };
+export default function sourcePlugin(_: unknown, options: PluginOptions = {}) { return { name: "qua-source", visitor: { JSXOpeningElement(path: Path, state: { file?: { opts?: { filename?: string } } }) { if (options.dev === false) return; const attrs = path.node.openingElement?.attributes ?? []; if (attrs.some(a => a.name?.name === "data-qua-src")) return; const loc = path.parentPath?.node?.loc?.start; const file = state.file?.opts?.filename ?? path.hub?.file?.opts?.filename; if (!file || !loc) return; attrs.push({ name: { name: "data-qua-src" }, value: `${file}:${loc.line}:${(loc.column ?? 0) + 1}` }); } } }; }

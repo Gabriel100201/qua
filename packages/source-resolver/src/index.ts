@@ -1,7 +1,9 @@
-/**
- * `@qua/source-resolver` — tiers 2 y 3 de la cascada de source mapping de §11.
- *
- * STUB. Lo implementa la tarea E1; F0 solo fija el contrato de salida, que es
- * `SourceRef` de `@qua/protocol`.
- */
-export {};
+export type SourceTier = 1 | 2 | 3 | 4;
+export interface SourceRef { file: string; line: number; col?: number; tier: SourceTier }
+export interface Fiber { type?: unknown; _debugOwner?: Fiber | null; _debugStack?: { stack?: string } | null; [key: string]: unknown }
+export function fiberOf(el: unknown): Fiber | null { if (!el || (typeof el !== "object" && typeof el !== "function")) return null; const key = Object.keys(el).find(k => k.startsWith("__reactFiber$")); const value = key ? (el as Record<string, unknown>)[key] : undefined; return value && typeof value === "object" ? value as Fiber : null; }
+export function componentChain(fiber: Fiber | null | undefined, max = 4): string[] { const out: string[] = []; let current = fiber; while (current && out.length < max) { const type = current.type as { displayName?: unknown; name?: unknown } | undefined; const name = typeof type?.displayName === "string" ? type.displayName : typeof type?.name === "string" ? type.name : undefined; if (name && /^[A-Z]/.test(name)) out.unshift(name); current = current._debugOwner ?? null; } return out; }
+const INTERNAL = /(?:node_modules|react-dom|(?:^|[\\/(])next[\\/])/i;
+const FRAME = /(?:\()?((?:turbopack|webpack-internal|file):\/\/[^\s)]+|(?:[A-Za-z]:[\\/]|\.?\.?[\\/])[^\s)]+):(\d+):(\d+)\)?/;
+export function sourceFromStack(fiber: Fiber | null | undefined): SourceRef | null { const stack = fiber?._debugStack?.stack; if (!stack) return null; for (const raw of stack.split("\n").slice(1, 10)) { const match = raw.match(FRAME); if (!match || INTERNAL.test(raw)) continue; let file = match[1]!.replace(/^(?:turbopack|webpack-internal|file):\/\//, "").replace(/^[\\/]+/, "").replace(/^\[project\][\\/]?/, "").replace(/^\.\//, "").split("?")[0]!; if (!file || INTERNAL.test(file)) continue; return { file, line: Number(match[2]!), col: Number(match[3]!), tier: 2 }; } return null; }
+export function resolveSource(el: unknown): { source: SourceRef | null; component: string[] } { const node = el as { getAttribute?: (name: string) => string | null }; const attr = node?.getAttribute?.("data-qua-src"); if (attr) { const m = attr.match(/^(.+?):(\d+)(?::(\d+))?$/); if (m) return { source: { file: m[1]!, line: Number(m[2]!), ...(m[3] ? { col: Number(m[3]) } : {}), tier: 1 }, component: [] }; } const fiber = fiberOf(el); return { source: sourceFromStack(fiber), component: componentChain(fiber) }; }
