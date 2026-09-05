@@ -512,3 +512,32 @@ correlador ancla → renderer escribe `report.md` → MCP lo expone a los agente
 | Ejemplo de salida | `docs/ejemplos/report-ejemplo.md` |
 | Bitácora de la noche | este archivo, más arriba |
 
+---
+
+## 2026-09-05, mañana — Gabriel lo usó por primera vez
+
+**El bug que lo bloqueaba todo.** `options/lib/pairing.ts` guardaba el token en `"quaPairToken"`
+y `background/session-manager.ts` lo leía de `"qua:daemon-token"`. Nunca coincidían: el
+emparejamiento se completaba, el daemon guardaba el token, la página decía "Conectado" — y
+`openTransport()` fallaba siempre. El popup se tragaba el error y el contador quedaba en cero.
+**447 tests verdes y un E2E con Chrome real no lo detectaron**, porque A2 y A3 mockeaban cada
+uno su propio storage. La constante ahora vive en `extension/shared/storage-keys.ts` con un test
+que falla si vuelven a divergir.
+
+**Segundo problema del mismo tipo:** la build de WXT resolvía `@qua/protocol` contra `dist/`, así
+que agregar una constante al protocolo y compilar la extensión sin reconstruir el paquete antes
+fallaba con `"X is not exported"`. `vitest.config.ts` ya aliaseaba al fuente; ahora
+`wxt.config.ts` también.
+
+**Lección:** dos entrypoints que comparten un valor necesitan que la constante sea UNA, en
+`shared/`, con un test de igualdad. Mockear cada lado por separado da verde y miente.
+
+### En curso: la UX, que Gabriel calificó de "horrible"
+
+- **U1 ✅** — emparejar en un click. `POST /pair/auto` con trust-on-first-use: acepta sólo con
+  Origin de extensión válido y `paired_extensions` vacío; 409 después. Verificado: 401 sin
+  Origin, 401 con Origin falso, empareja con lista vacía, 409 en el segundo intento.
+- **U2** — que los errores se vean. El `catch { return undefined }` del popup es lo que convirtió
+  un bug de una línea en horas de diagnóstico.
+- **U3** — rediseño visual de popup y opciones.
+
