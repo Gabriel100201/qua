@@ -1894,3 +1894,152 @@ doesn't exist``. No lo causa el merge — `apps/qua-app/src-tauri/binaries/` est
 **Cómo se destraba.** `bash apps/qua-app/scripts/build-sidecars.sh` antes del primer
 `cargo test --workspace` en cada worktree. Se anota acá porque el error apunta a un
 recurso faltante y no al script que lo genera.
+
+## Z1 · Pase final de pulido
+
+### D-Z1-01 · El reporte anclaba a "(ruta desconocida)": el `nav` de arranque se
+descartaba, no se perdía en el correlador ni en el renderer
+
+**Síntoma.** `node e2e/session.e2e.mjs` producía un `report.md` válido, con
+transcripción real, pero el único issue anclaba a `` `(ruta desconocida)` `` en vez de
+a la URL real de la página de prueba — a pesar de que
+`extension/entrypoints/content/main.ts:51` sí emite un `nav` con `kind: "load"` y
+`url: win.location.href` en cuanto el content script arranca.
+
+**Dónde NO estaba el bug.** `qua-core::correlate::route_context`
+(`crates/qua-core/src/correlate/mod.rs`) busca el último `Event::Nav`/`TabSwitch`
+`<= t` en la lista de eventos de la sesión y ya tenía tests que cubrían exactamente
+ese camino (`el_ancla_siempre_lleva_pestaña_y_url` en `correlate/anchor.rs`). El
+renderer (`render/report.rs`) solo formatea lo que el `Anchor` trae — no hay nada que
+"arreglar" ahí sin que sea un parche cosmético sobre datos que ya llegaron mal.
+
+**Causa real.** El content script corre en `document_start` sobre `<all_urls>`
+(`extension/entrypoints/content/index.ts`) — emite su `nav` de carga **siempre**,
+haya o no una sesión abierta, porque no tiene forma de saberlo. Ese evento llega al
+service worker por `qua:event` → `SessionManager.enqueue` → `onEvent`, y
+`onEvent` (`session-manager.ts`) descarta cualquier evento si
+`fsm.current.phase !== "recording"`:
+
+```ts
+private onEvent(event: Event): void {
+  if (this.fsm.current.phase !== "recording") return;
+  this.ws?.enqueue(event);
+}
+```
+
+En el caso común — y en el E2E — la página ya está cargada cuando se manda
+`qua:start-session`: el `nav` salió minutos u horas antes, mientras la fase todavía
+era `idle`, y `onEvent` lo tiró. `baseUrl` sí llegaba bien al daemon (viaja aparte, en
+el mensaje `session.start`, y queda correcto en `session.json`), pero eso es solo
+metadata de la sesión — nunca se sintetiza como un `Event::Nav` que el correlador
+pueda leer. Sin ningún `nav` en la lista de eventos, `route_context` no tiene de
+dónde sacar la URL y devuelve `url: None` — de ahí "(ruta desconocida)", exactamente
+como predice el fallback de `anchor_label`/`route_line` en `report.rs`.
+
+**Fix.** `SessionManager.start()` (`extension/entrypoints/background/session-manager.ts`)
+reconstruye el `nav` de arranque él mismo, inmediatamente después de
+`fsm.confirmRecording()` — o sea, ya en fase `recording`, así que `onEvent` no lo
+descarta — con la misma `baseUrl` que ya se resolvió para `session.start`. Para que
+lleve `tab` (necesario para que `derive_tabs` en `qua-core::ingest::session_builder`
+arme bien `tabs[]`, y para sesiones multi-pestaña en general), los dos caminos que
+llaman a `start()` ahora resuelven también el id y el título de la pestaña activa:
+`resolveActiveTabSessionInfo()` en `index.ts` (arranque desde el popup/`qua:start-session`)
+y `activeTabContext()` en `session-manager.ts` (arranque por `session.control` del
+hotkey global, D-P1-01). Sin pestaña conocida, el `nav` sintético sale igual, solo
+que sin `tab` — `route_context` ya tolera eso (cae al primer `tab` conocido en la
+sesión, o a ningún filtro de pestaña si no hay ninguno).
+
+No es un parche general de "no descartar nada antes de recording": el resto de
+eventos pre-sesión (viewport, hovers, etc.) se sigue descartando a propósito — no
+hay nada útil que grabar de algo que pasó antes de que el usuario apretara grabar.
+Lo único que se reconstruye es la ubicación de arranque, porque es la única pieza de
+contexto pre-sesión que el correlador necesita y que además ya se conoce (viene de
+la misma resolución de pestaña activa que arma `baseUrl`).
+
+**Test.** `session-manager.test.ts` — describe `"nav sintético al arrancar (D-Z1-01)"`,
+dos casos: con pestaña conocida (`tab`/`title` en el evento) y sin ella (mismo `nav`,
+sin `tab`). Ambos fallan sin el fix (`daemon.allEvents()` no trae ningún `nav`) y
+pasan con él. Nota de implementación: el `nav` no fuerza flush inmediato del
+`WsClient` (§04: solo `mark` y `console.error` lo hacen), así que el test llama
+`manager.stop()` para vaciar el buffer antes de inspeccionar lo que llegó al daemon
+falso — igual que haría un flush por el timer de 500 ms en producción. El test
+preexistente de `mark` (que si fuerza flush y de paso arrastra el `nav` ya
+buffereado) se ajustó para filtrar por `k === "mark"`, en vez de comparar el batch
+completo, porque no es su responsabilidad verificar el `nav`.
+
+**Verificado end-to-end.** `node e2e/session.e2e.mjs` ahora ancla al `/` real de la
+página de prueba (`` `Ancla` `/` `` en vez de `` `(ruta desconocida)` ``) — mismo
+`report.md` de siempre, ruta correcta.
+
+### D-Z1-02 · README.md desactualizado: decía "no hay app de bandeja" con C1+P1+M1 ya
+mergeadas en `main`
+
+**Síntoma.** `README.md` decía *"No hay todavía una app de bandeja (Tauri, C1 en
+`STATE.md` — sin cerrar)"*. Falso desde `88deeca` (C1 mergeada, `2026-09-05 02:38`,
+ver `STATE.md`): `apps/qua-app` existe, compila como parte del workspace, y tiene
+tray + sidecar + hotkeys globales + onboarding + ventana de sesiones. G1 escribió esa
+línea del README antes de que C1 se mergeara y nadie la tocó después.
+
+**Qué se verificó, corriendo cada comando documentado (no solo leyendo el código):**
+- `pnpm install`, `pnpm --filter @qua/protocol --filter @qua/source-resolver run
+  build`, `pnpm --filter @qua/extension run build` — los tres, verdes.
+- `apps/qua-app/scripts/build-sidecars.sh` — compila y copia los dos sidecars; sin
+  esto `cargo test --workspace` muere (D-M1-03, ya documentado arriba).
+- `pnpm tauri --version` (`apps/qua-app`) resuelve el CLI de Tauri. **No** se lanzó
+  `pnpm tauri dev` de punta a punta: abre una ventana real y pide pairing manual, así
+  que no es automatizable en este entorno sin intervención humana — el README ahora
+  lo dice explícitamente en vez de dar a entender que se probó.
+- `./packaging/macos/build-dmg.sh` — corre limpio, produce
+  `target/dist/qua-cli-macos-0.1.0.dmg` con `hdiutil`. Su comentario interno todavía
+  decía "C1 no cerró" — corregido de paso (apunta ahora a `pnpm tauri build` como el
+  equivalente con la app real).
+- `~/.cargo/bin/cargo build --release -p quad` + `./target/release/quad` — arranca,
+  `GET /health` responde `{"ok":true,...}`.
+- `qua sessions` / `qua show <id>` / `qua show <id> --format json` / `qua reprocess
+  <id>` — ejercitados contra el `QUA_HOME` que dejó el E2E de D-Z1-01, los cuatro
+  funcionan como los describe el README.
+- `pnpm gen:schema` — regenera `fixtures/schema/*.json` sin diff (esquemas ya al día).
+- `pnpm test` y `~/.cargo/bin/cargo test --workspace` — verdes (ver el resumen al pie
+  de este archivo / `STATE.md`).
+- `pnpm --filter @qua/e2e run e2e` resuelve al mismo `node session.e2e.mjs` que ya se
+  corrió completo para D-Z1-01.
+
+**Decisión de contenido.** El README ahora presenta las dos formas de usar QUA (app de
+bandeja vs. daemon+extensión a mano) sin que ninguna sea "la de mentira", con una
+sección de arranque rápido nueva que es honesta sobre qué se corrió de punta a punta en
+este pase (el camino sin la app, vía `e2e/`) y qué no (`pnpm tauri dev`, que necesita
+una ventana real). El `Layout` y el link a `apps/qua-app/README.md` se actualizaron
+para no seguir arrastrando "(C1 — sin cerrar)".
+
+### D-Z1-03 · `qua refine`: el archivo no avisaba que es un placeholder, solo el stdout
+
+**Contexto.** D-B4-10 ya había decidido correctamente que `qua refine` es un
+placeholder determinístico sin LLM real (§8.3 pide mandar `issues.json` a un LLM que
+agrupe duplicados y reescriba cada issue como ticket; este repo no tiene credenciales
+ni cliente de ningún proveedor, y no hay ninguna forma limpia de configurar uno sin
+pedírselas a Gabriel — sigue sin haberla). Revisé si valía la pena cablear un LLM de
+verdad en este pase: no hay decisión de proveedor, ni variable de entorno, ni sección
+`[llm]` en `config.toml` en ningún lado del repo — inventar una acá, a las 4 de la
+mañana, sin que Gabriel eligiera proveedor ni pusiera una API key, sería peor que dejar
+el placeholder explícito. Se mantiene la decisión de D-B4-10 de no llamar a nada.
+
+**El defecto real.** El aviso de "esto es un placeholder" solo vivía en el string que
+`refine()` devuelve por stdout (`crates/quad/src/cli.rs`, la función `qua refine`
+imprime). Eso lo ve quien corre `qua refine <id>` a mano en una terminal — pero no
+quien abre `report.refined.md` directamente días después, ni quien le pega al botón
+"refine" de la ventana de sesiones de la app Tauri (`apps/qua-app`), que dispara el
+mismo binario `qua` pero nunca muestra su stdout. Sin nada dentro del archivo, un
+título truncado a 72 caracteres + el texto completo del issue se lee exactamente como
+lo que produciría un LLM barato — no hay forma de distinguirlos a simple vista.
+
+**Fix.** `refine()` ahora escribe una nota fija arriba del todo de `report.refined.md`
+(constante `NO_LLM_NOTICE` en `cli.rs`): deja explícito que no pasó por ningún
+proveedor, qué transformación determinística sí se aplicó (título + cuerpo, sin
+agrupar duplicados), y dónde está la decisión completa. El mensaje de stdout se deja
+como estaba — es una segunda señal, no un reemplazo de la de adentro del archivo.
+
+**Test.** `crates/quad/src/cli.rs`, módulo `refine_tests`:
+`report_refined_md_deja_explicito_que_no_hay_llm` arma una `Session` mínima con un
+issue, corre `refine()`, y verifica que `report.refined.md` contenga el aviso y el
+texto del issue. Falla sin el fix (el archivo no tenía ningún string con "LLM" antes de
+este cambio — no existía ningún test de `refine` en el repo).

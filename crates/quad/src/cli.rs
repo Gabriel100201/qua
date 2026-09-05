@@ -206,12 +206,23 @@ pub fn reprocess(data_dir: &Path, id: &str) -> anyhow::Result<String> {
 /// determinística de "título + cuerpo" por issue, sin agrupar duplicados, para que el
 /// comando exista y el archivo tenga la forma correcta en cuanto alguien cablee el
 /// LLM de verdad.
+/// Encabezado de aviso de D-Z1-03: tiene que estar en el archivo mismo, no solo en el
+/// mensaje de stdout de la CLI — quien abre `report.refined.md` días después (o le pega
+/// el botón "refine" de la app Tauri, que nunca ve la salida de este comando) no debería
+/// poder confundir esto con una reescritura de verdad.
+const NO_LLM_NOTICE: &str = "> **Sin LLM todavía.** Esto NO pasó por ningún proveedor: es \
+un título (primeros 72 caracteres) + el texto completo de cada issue, sin agrupar \
+duplicados. `qua refine` va a llamar a un LLM de verdad el día que este repo tenga \
+credenciales de un proveedor configuradas — ver D-B4-10/D-Z1-03 en `docs/DECISIONS.md`.";
+
 pub fn refine(data_dir: &Path, id: &str) -> anyhow::Result<String> {
     let dir = session_dir(data_dir, id);
     let session = load_session_json(&dir)?;
 
     let mut out = String::new();
     out.push_str(&format!("# QUA — {} (refinado)\n\n", session.project.label));
+    out.push_str(NO_LLM_NOTICE);
+    out.push_str("\n\n");
     if session.issues.is_empty() {
         out.push_str("_sin issues que refinar._\n");
     }
@@ -226,4 +237,91 @@ pub fn refine(data_dir: &Path, id: &str) -> anyhow::Result<String> {
         "{} (placeholder sin LLM real — ver D-B4-10 en docs/DECISIONS.md)",
         path.display()
     ))
+}
+
+#[cfg(test)]
+mod refine_tests {
+    use super::*;
+    use qua_protocol::*;
+
+    fn sample_session_with_issue(id: &str, text: &str) -> Session {
+        Session {
+            schema: SessionSchemaTag,
+            id: id.into(),
+            status: SessionStatus::Ready,
+            t0_wall: 0,
+            started_at: "2026-01-01T00:00:00.000Z".into(),
+            ended_at: Some("2026-01-01T00:00:01.000Z".into()),
+            duration_ms: Some(1_000),
+            project: ProjectRef {
+                label: "Test".into(),
+                repo: None,
+            },
+            git: None,
+            env: EnvInfo {
+                ua: "ua".into(),
+                chrome: "1".into(),
+                platform: "macOS".into(),
+                viewport: ViewportInfo { w: 1, h: 1, dpr: 1.0 },
+                ext: "1".into(),
+            },
+            audio: AudioInfo {
+                path: "audio.opus".into(),
+                sample_rate: 16_000,
+                gaps_ms: 0,
+            },
+            stats: SessionStats {
+                events_raw: 0,
+                events_kept: 0,
+                utterances: 0,
+                issues: 1,
+            },
+            tabs: vec![],
+            events: vec![],
+            utterances: vec![],
+            issues: vec![Issue {
+                id: "i01".into(),
+                utterance_ids: vec![],
+                t: 0,
+                text: text.into(),
+                anchor: Anchor {
+                    kind: AnchorKind::Session,
+                    target: None,
+                    tab: None,
+                    url: None,
+                    confidence: 0.0,
+                    reason: vec![],
+                },
+                evidence: Evidence::default(),
+                category: IssueCategory::Idea,
+                severity: Severity::Low,
+                exported_to: None,
+            }],
+        }
+    }
+
+    /// D-Z1-03: sin esto, `report.refined.md` no se distingue a simple vista de un
+    /// refinamiento real hecho por un LLM.
+    #[test]
+    fn report_refined_md_deja_explicito_que_no_hay_llm() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let session_id = "s1";
+        let session = sample_session_with_issue(session_id, "algo se rompió");
+        let dir = session_dir(tmp.path(), session_id);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        std::fs::write(
+            dir.join("session.json"),
+            serde_json::to_vec(&session).expect("serialize"),
+        )
+        .expect("write session.json");
+
+        refine(tmp.path(), session_id).expect("refine");
+        let refined = std::fs::read_to_string(dir.join("report.refined.md")).expect("read");
+
+        assert!(
+            refined.contains("Sin LLM todavía"),
+            "report.refined.md no avisa que es un placeholder: {refined}"
+        );
+        assert!(refined.contains("algo se rompió"));
+    }
 }

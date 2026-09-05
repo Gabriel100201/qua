@@ -46,7 +46,9 @@ async function activeTabId(): Promise<number | undefined> {
  * una página donde no se puede inyectar (`chrome://`, tienda de extensiones, etc.) —
  * en ese caso no hay nada razonable que grabar.
  */
-async function activeTabContext(): Promise<{ baseUrl: string; viewport: ViewportInfo } | undefined> {
+async function activeTabContext(): Promise<
+  { baseUrl: string; viewport: ViewportInfo; tab: SessionTab } | undefined
+> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab?.id || !tab.url) return undefined;
   try {
@@ -56,10 +58,16 @@ async function activeTabContext(): Promise<{ baseUrl: string; viewport: Viewport
     });
     const viewport = injection?.result as ViewportInfo | undefined;
     if (!viewport) return undefined;
-    return { baseUrl: tab.url, viewport };
+    return { baseUrl: tab.url, viewport, tab: { id: tab.id, title: tab.title ?? "" } };
   } catch {
     return undefined; // página no inyectable (§05 host_permissions no alcanza ahí)
   }
+}
+
+/** Identidad de la pestaña sobre la que arranca la sesión — ver D-Z1-01. */
+export interface SessionTab {
+  id: number;
+  title: string;
 }
 
 /**
@@ -115,7 +123,7 @@ export class SessionManager {
     return this.ws?.getStatus();
   }
 
-  async start(baseUrl: string, viewport: ViewportInfo): Promise<void> {
+  async start(baseUrl: string, viewport: ViewportInfo, tab?: SessionTab): Promise<void> {
     if (this.fsm.current.phase !== "idle") {
       throw new Error("SessionManager: ya hay una sesión en curso");
     }
@@ -141,6 +149,26 @@ export class SessionManager {
       throw err;
     }
     await this.fsm.confirmRecording();
+
+    // El primer `nav` (kind: "load") de la página lo emite el content script al
+    // cargar, en `document_start` (`extension/entrypoints/content/main.ts`) — pero
+    // eso pasa casi siempre ANTES de que la sesión llegue a "recording" (el caso
+    // común: el usuario ya está parado en la página y recién ahí aprieta grabar), y
+    // `onEvent` descarta todo evento que llegue mientras la fase no es "recording".
+    // Sin esto el correlador nunca ve un `nav`/`tab_switch` para esta pestaña y
+    // `route_context` (`qua-core/src/correlate/mod.rs`) resuelve a `url: None` — el
+    // reporte ancla a "(ruta desconocida)" aunque `baseUrl` esté perfecto en
+    // `session.json`. Se reconstruye acá, ahora que sí es "recording", con la misma
+    // URL que ya se resolvió para `session.start` (D-Z1-01, docs/DECISIONS.md).
+    this.enqueue({
+      t: t0Wall,
+      tab: tab?.id,
+      k: "nav",
+      url: baseUrl,
+      title: tab?.title ?? "",
+      kind: "load",
+    } as Event);
+
     this.tabs.start();
     this.screenshots.start();
 
@@ -218,7 +246,7 @@ export class SessionManager {
         const ctx = await activeTabContext();
         if (!ctx) return;
         try {
-          await this.start(ctx.baseUrl, ctx.viewport); // cierra `controlWs` de una
+          await this.start(ctx.baseUrl, ctx.viewport, ctx.tab); // cierra `controlWs` de una
         } catch {
           this.openControlChannel(); // no arrancó (ya había sesión) — seguí escuchando
         }

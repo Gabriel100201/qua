@@ -11,14 +11,53 @@ fuente y evidencia de consola y red.
 
 ## Instalación y uso
 
-No hay todavía una app de bandeja (Tauri, C1 en `STATE.md` — sin cerrar). Hasta que
-cierre, QUA se usa como daemon de línea de comandos + extensión de Chrome cargada sin
-empaquetar. Esto es real y funciona de punta a punta hoy (probado con Chrome real,
-sin intervención manual, en `e2e/`).
+Hay una app de bandeja (Tauri 2, `apps/qua-app`) con tray, hotkeys globales, onboarding y
+sidecar del daemon — y también se puede usar sin ella: `quad` corrido directo desde la
+terminal + la extensión de Chrome cargada sin empaquetar. Las dos formas comparten
+`~/.qua/` (sesiones, modelo de whisper, `config.toml`) y el mismo protocolo — ninguna es un
+fallback de la otra. Esto es real y funciona de punta a punta hoy: probado con Chrome real,
+sin intervención manual, en `e2e/` (el camino sin la app — ver más abajo por qué).
+
+### Arranque rápido: repo recién clonado → un `report.md`
+
+**Node 26 · pnpm 10 · Rust 1.98.** En esta máquina `rustup` se instaló con
+`--no-modify-path`, así que `cargo`/`rustc` no quedaron en el `PATH` de una shell nueva —
+por eso todos los comandos de Rust de este README (acá y en `docs/DECISIONS.md`) usan la
+ruta absoluta `~/.cargo/bin/cargo`.
+
+```bash
+pnpm install                                                          # una vez
+pnpm --filter @qua/protocol --filter @qua/source-resolver run build   # dependencias de la extensión
+pnpm --filter @qua/extension run build                                # → extension/.output/chrome-mv3
+apps/qua-app/scripts/build-sidecars.sh                                 # compila quad+qua release, los copia a src-tauri/binaries/
+~/.cargo/bin/cargo build --release -p quad
+./target/release/quad                                                  # daemon en 127.0.0.1:7331
+```
+
+`build-sidecars.sh` hace falta incluso si no vas a tocar la app: `apps/qua-app` es parte
+del workspace de Cargo, así que sin los binarios de sidecar ni `~/.cargo/bin/cargo test
+--workspace` compila (ver `docs/DECISIONS.md`, D-M1-03).
+
+Con el daemon corriendo:
+
+1. `chrome://extensions` → "Modo de desarrollador" → "Cargar descomprimida" → elegir
+   `extension/.output/chrome-mv3`.
+2. Abrí las opciones de la extensión (ícono → clic derecho → Opciones) y emparejá con el
+   código de 6 dígitos.
+3. Desde el popup de la extensión: "Grabar", hablá en voz alta sobre lo que ves, "Detener".
+   `quad` corre ASR + correlador + render solo al recibir `session.stop`.
+4. `qua sessions` / `qua show <id>` para ver el reporte.
+
+Este es el camino que verifiqué corriendo cada comando de este pase (build, daemon,
+`qua sessions`/`show`/`reprocess`, y el `e2e/` completo — ver §6 más abajo). **La app de
+bandeja (§3) no la relancé de punta a punta en este pase**: abre una ventana real y pide
+pairing a mano, así que no es automatizable sin intervención humana — `apps/qua-app/README.md`
+documenta que arranca y responde `/health` (verificado ahí), pero el flujo de grabación
+completo vía tray/hotkey no tiene una prueba automática todavía.
 
 ### 1. El daemon (`quad` + `qua`)
 
-**Opción A — `.dmg` precompilado:**
+**Opción A — `.dmg` precompilado (solo CLI, sin la app de bandeja):**
 
 ```bash
 ./packaging/macos/build-dmg.sh          # arma target/dist/qua-cli-macos-<version>.dmg
@@ -39,7 +78,7 @@ Los datos (sesiones, modelo de whisper, `config.toml`) quedan en `~/.qua/`. El
 modelo por default (`large-v3-turbo-q5_0`, ~574 MB) se baja solo la primera vez que
 termina una sesión con audio; para no esperar esa descarga en una prueba rápida,
 poné `model = "base"` bajo `[asr]` en `~/.qua/config.toml` (148 MB, el mismo que usa
-el test de aceptación de B2).
+el test de aceptación de B2 y el que usa `e2e/`).
 
 ### 2. La extensión de Chrome
 
@@ -53,16 +92,35 @@ pnpm --filter @qua/extension run build   # produce extension/.output/chrome-mv3
 En Chrome: `chrome://extensions` → activar "Modo de desarrollador" → "Cargar
 descomprimida" → elegir `extension/.output/chrome-mv3`.
 
-### 3. Emparejar y grabar
+### 3. La app de bandeja (opcional, pensada para uso diario)
 
-Con `quad` corriendo, abrí las opciones de la extensión (ícono → clic derecho →
-Opciones) y seguí el flujo de pairing (código de 6 dígitos). Después, desde el
-popup de la extensión: "Grabar" arranca la sesión, hablá en voz alta sobre lo que
-ves en la página, "Detener" la cierra. `quad` corre ASR + correlador + render
-automáticamente al recibir `session.stop` — no hace falta ningún paso manual
-después.
+`apps/qua-app` (Tauri 2) reemplaza el paso "correr `quad` a mano" del daemon: ícono en la
+barra de menú (sin ícono en el Dock), levanta y supervisa `quad` como sidecar con
+health-check y reinicio automático si se muere, hotkeys globales (⌘⇧R graba/para, ⌘⇧E deja
+un marcador — funcionan con cualquier app en foco, Chrome incluido), onboarding que baja el
+modelo de ASR con progreso real y pide permiso de micrófono, y una ventana de sesiones. Ver
+[`apps/qua-app/README.md`](apps/qua-app/README.md) para el detalle completo (estructura,
+qué hace cada módulo, build de producción).
 
-### 4. Ver el reporte
+```bash
+apps/qua-app/scripts/build-sidecars.sh   # una vez, y cada vez que cambie crates/quad o crates/qua-core
+cd apps/qua-app && pnpm tauri dev
+```
+
+**Límite conocido** (§09, D-P1-02): el hotkey global llega al daemon por `POST /control` y
+de ahí a la extensión por `session.control` — es best-effort; si el daemon no responde, el
+intento queda logueado en `~/.qua/logs/qua-app.log` en vez de fallar en silencio.
+
+### 4. Emparejar y grabar
+
+Con `quad` corriendo (a mano o vía la app), abrí las opciones de la extensión (ícono → clic
+derecho → Opciones) y seguí el flujo de pairing (código de 6 dígitos, `POST /pair/start`).
+Después, "Grabar" arranca la sesión — desde el popup de la extensión, o con el hotkey global
+si estás usando la app — hablá en voz alta sobre lo que ves en la página, "Detener" la
+cierra. `quad` corre ASR + correlador + render automáticamente al recibir `session.stop` —
+no hace falta ningún paso manual después.
+
+### 5. Ver el reporte
 
 ```bash
 qua sessions              # lista las sesiones grabadas, más recientes primero
@@ -71,14 +129,24 @@ qua show <id> --format json   # session.json completo
 qua reprocess <id>         # re-corre el pipeline (para tunear [correlator] en config.toml)
 ```
 
-### 5. Probarlo sin tocar nada a mano
+O, si estás usando la app de bandeja, desde su ventana de sesiones (`report.md` en texto
+plano, sin Markdown renderizado todavía).
 
-`e2e/` tiene un script que hace exactamente los pasos de arriba con Chrome real,
-sin ningún clic humano — ver [`e2e/README.md`](e2e/README.md):
+### 6. Probarlo sin tocar nada a mano
+
+`e2e/` tiene un script que hace exactamente los pasos 1, 2 y 4 de arriba con Chrome real
+(vía Playwright — no el Chrome de `/Applications`, ver D-G1-05 en `docs/DECISIONS.md`) y un
+daemon real, sin ningún clic humano: lanza la extensión cargada, arranca una sesión,
+hace un hover real sobre un botón mientras le inyecta a Chrome un `.wav` como si fuera el
+micrófono, para la sesión, y valida que el daemon produzca un `report.md` real con
+transcripción de whisper — ver [`e2e/README.md`](e2e/README.md):
 
 ```bash
 pnpm --filter @qua/e2e run e2e
 ```
+
+No usa la app de bandeja (§3): arranca `quad` directo, igual que la Opción B de §1 — es
+el camino que sí está probado de punta a punta sin intervención humana.
 
 ## Layout (§13)
 
@@ -94,10 +162,10 @@ crates/
   qua-core/              ingest · asr · correlate · render · store
   quad/                  binario axum (el daemon)
   qua-mcp/               binario MCP stdio
-apps/qua-app/            Tauri 2 (C1 — sin cerrar)
+apps/qua-app/            Tauri 2 — tray, sidecar, hotkeys globales, onboarding (C1)
 fixtures/                sesiones doradas — contrato compartido TS ↔ Rust
 e2e/                     sesión real de punta a punta (Chrome + daemon), G1
-packaging/macos/         build-dmg.sh — daemon + CLI, G1
+packaging/macos/         build-dmg.sh — daemon + CLI (sin la app de bandeja), G1
 ```
 
 ## Desarrollo
@@ -111,6 +179,10 @@ pnpm test                             # typecheck + vitest (incluye fixtures dor
 pnpm gen:schema                       # regenera fixtures/schema/ desde Zod
 ~/.cargo/bin/cargo test --workspace   # incluye las mismas fixtures del lado Rust
 ```
+
+`cargo test --workspace` compila `apps/qua-app` como parte del workspace, así que necesita
+los binarios de sidecar — corré `apps/qua-app/scripts/build-sidecars.sh` una vez por
+worktree antes del primer `cargo test --workspace` (ver `docs/DECISIONS.md`, D-M1-03).
 
 ## Las dos reglas
 
