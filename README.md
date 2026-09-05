@@ -42,8 +42,11 @@ Con el daemon corriendo:
 
 1. `chrome://extensions` → "Modo de desarrollador" → "Cargar descomprimida" → elegir
    `extension/.output/chrome-mv3`.
-2. Abrí las opciones de la extensión (ícono → clic derecho → Opciones) y emparejá con el
-   código de 6 dígitos.
+2. Abrí el popup de la extensión (ícono) y clickeá "Conectar" — un solo click, sin
+   terminal ni código (D-U1-01, `docs/DECISIONS.md`: emparejamiento automático mientras
+   el daemon no tenga ninguna extensión emparejada todavía). Si ya emparejaste una
+   extensión antes y necesitás re-emparejar, el popup te manda a las opciones para el
+   código de 6 dígitos (`POST /pair/start` + `POST /pair`, el flujo de siempre).
 3. Desde el popup de la extensión: "Grabar", hablá en voz alta sobre lo que ves, "Detener".
    `quad` corre ASR + correlador + render solo al recibir `session.stop`.
 4. `qua sessions` / `qua show <id>` para ver el reporte.
@@ -113,9 +116,12 @@ intento queda logueado en `~/.qua/logs/qua-app.log` en vez de fallar en silencio
 
 ### 4. Emparejar y grabar
 
-Con `quad` corriendo (a mano o vía la app), abrí las opciones de la extensión (ícono → clic
-derecho → Opciones) y seguí el flujo de pairing (código de 6 dígitos, `POST /pair/start`).
-Después, "Grabar" arranca la sesión — desde el popup de la extensión, o con el hotkey global
+Con `quad` corriendo (a mano o vía la app), abrí el popup de la extensión (ícono) y
+clickeá "Conectar" — un click alcanza si es el primer emparejamiento (D-U1-01,
+`docs/DECISIONS.md`; `POST /pair/auto`). Si el popup dice "El daemon no está corriendo",
+es porque `quad` no está arriba: te muestra el comando exacto para levantarlo. Si ya
+había una extensión emparejada, el popup te manda a las opciones para el código de 6
+dígitos (`POST /pair/start` + `POST /pair`). Después, "Grabar" arranca la sesión — desde el popup de la extensión, o con el hotkey global
 si estás usando la app — hablá en voz alta sobre lo que ves en la página, "Detener" la
 cierra. `quad` corre ASR + correlador + render automáticamente al recibir `session.stop` —
 no hace falta ningún paso manual después.

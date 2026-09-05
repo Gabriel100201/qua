@@ -20,6 +20,14 @@ export const WS_PATH = "/ws" as const;
 /** Endpoint de pairing (§04). */
 export const PAIR_PATH = "/pair" as const;
 
+/**
+ * Trust-on-first-use (D-U1-01, `docs/DECISIONS.md`): empareja sin código de 6
+ * dígitos cuando el daemon nunca emparejó con nadie (`paired_extensions` vacío).
+ * El popup lo usa para el botón "Conectar" de un solo click; con una extensión ya
+ * emparejada el daemon devuelve 409 y hay que caer al flujo de `PAIR_PATH`.
+ */
+export const PAIR_AUTO_PATH = "/pair/auto" as const;
+
 /** Endpoint de health que consulta la app Tauri cada 5 s (§09). */
 export const HEALTH_PATH = "/health" as const;
 

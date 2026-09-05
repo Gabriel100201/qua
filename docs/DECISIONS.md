@@ -2043,3 +2043,87 @@ como estaba — es una segunda señal, no un reemplazo de la de adentro del arch
 issue, corre `refine()`, y verifica que `report.refined.md` contenga el aviso y el
 texto del issue. Falla sin el fix (el archivo no tenía ningún string con "LLM" antes de
 este cambio — no existía ningún test de `refine` en el repo).
+
+## U1 · Emparejar en un click
+
+### D-U1-01 · `POST /pair/auto`: trust-on-first-use para saltar el código de 6 dígitos
+
+**El problema.** Emparejar la extensión era la peor fricción del producto: abrir una
+terminal, `curl -X POST localhost:7331/pair/start`, leer un código de 6 dígitos de la
+respuesta JSON, abrir `chrome://extensions` → Opciones de QUA, y tipearlo antes de que
+venza a los 60 s (`pairing::PAIRING_WINDOW`). Gabriel se frustró con esto — con razón:
+no hay ninguna razón de seguridad real para exigirle ese ritual a quien ya tiene la
+extensión cargada y el daemon corriendo en su propia máquina.
+
+**La decisión: trust-on-first-use, acotado al primer emparejamiento de la vida del
+daemon.** `POST /pair/auto` (`crates/quad/src/server.rs`, `pair_auto_handler`) entrega
+un token sin código de 6 dígitos si y solo si se cumplen las dos condiciones a la vez:
+
+1. El header `Origin` es `chrome-extension://<id>` bien formado (mismo chequeo que ya
+   usa `/pair`, `pairing::is_valid_extension_origin`) — un sitio web normal no puede
+   falsificar ese Origin, el navegador lo pone él solo.
+2. `paired_extensions` está vacío: nadie emparejó nunca con este daemon.
+
+Con la lista ya no vacía, `/pair/auto` devuelve 409 (`error_codes::ALREADY_PAIRED`) y
+el cliente cae al flujo existente de `/pair/start` + `/pair` (código de 6 dígitos) para
+re-emparejar — ese flujo no cambió, sigue siendo el mecanismo de recuperación si hay
+que reemplazar la extensión emparejada.
+
+**Por qué es razonable y no un agujero de seguridad.** QUA es una herramienta local de
+un solo usuario: el daemon bindea exclusivamente a 127.0.0.1 (§12, cero egreso de red,
+ver el comentario de `server.rs`), así que solo puede pegarle algo que ya corre en la
+misma máquina. El código de 6 dígitos de `/pair` defiende contra *otro proceso local*
+que intente emparejarse sin permiso — pero el primer emparejamiento no tiene ningún
+"otro" con quien competir: es, por definición, la primera vez que alguien habla con
+este daemon. Exigir el código ahí no agrega seguridad real, solo fricción. La ventana
+de exposición es exactamente una vez por instalación del daemon (`~/.qua/config.toml`
+recién creado, sin `[[paired_extensions]]`) — de ahí en más, cualquier otro intento de
+`/pair/auto` (extensión reinstalada, otro navegador, un script malicioso corriendo en
+la misma máquina) rebota con 409 y necesita el código de 6 dígitos como antes. Esto es
+el mismo modelo que SSH "TOFU" para host keys, o que un router doméstico que acepta el
+primer dispositivo que le habla por Ethernet sin PIN: confiar en "quién llegó primero"
+es razonable cuando el canal ya está acotado a un solo usuario/máquina, y es lo que
+hace que la herramienta sea usable en vez de un ritual de terminal.
+
+**Qué NO cambia.** El código de 6 dígitos (`/pair/start` + `/pair`) sigue existiendo
+tal cual, para re-emparejar cuando `paired_extensions` ya no está vacío. `PairedExtension`,
+`Config::add_paired_extension`, `Config::is_allowed` — nada de eso se tocó. `/pair/auto`
+es un tercer endpoint, no un reemplazo.
+
+**El popup (D-U1-02).** Antes: si no había token en `chrome.storage.local`, el popup
+mostraba igual el botón "Grabar" — clickearlo llamaba a `SessionManager.start()`, que
+tira porque no hay token, y el error se perdía en el `.catch()` silencioso de
+`StatusClient.start()` (fire-and-forget, ver `status-client.ts`). Cero señal visible:
+exactamente el bug de `TOKEN_STORAGE_KEY` que motivó este pase (ver el comentario de
+`extension/shared/storage-keys.ts`) — un daemon sin sesión que fallaba en silencio.
+
+Ahora (`extension/entrypoints/popup/main.ts`, `lib/connection.ts`, `lib/connect-controller.ts`):
+sin token, el popup muestra un estado explícito "Sin conectar al daemon" con un botón
+"Conectar" — un click hace `POST /pair/auto` (el `Origin` lo pone Chrome solo, no hace
+falta setearlo a mano) y guarda el token en `TOKEN_STORAGE_KEY` (la clave única de
+`shared/storage-keys.ts`, no una nueva). Si el daemon no responde a `GET /health`, dice
+"El daemon no está corriendo" con el comando exacto (`./target/release/quad`, el mismo
+del README) copiable con un click — nunca un error genérico. Si `/pair/auto` devuelve
+409, el popup ofrece abrir las opciones en vez de reintentar a ciegas, porque ese caso
+sí necesita el código de 6 dígitos.
+
+**Test.**
+- `crates/quad/tests/pair_auto_endpoint.rs`: acepta y devuelve un token válido con
+  `paired_extensions` vacío, 409 con la lista no vacía, 401 sin `Origin` o con uno
+  inválido, y el token emitido queda en la allowlist (`Config::is_allowed`).
+- `extension/entrypoints/popup/lib/connection.test.ts`: `autoPair`/`isDaemonRunning`
+  contra `fetchFn` inyectado — éxito guarda el token, 409 devuelve `already_paired`,
+  fetch que rechaza (daemon caído) devuelve `daemon_down`.
+- `extension/entrypoints/popup/lib/connect-controller.test.ts`: sin token muestra
+  "Conectar"; con el daemon caído muestra "El daemon no está corriendo" + comando;
+  éxito llama a `onConnected`; 409 ofrece "Abrir opciones" en vez de reintentar.
+- `extension/entrypoints/popup/main.test.ts`: integración de punta a punta contra el
+  DOM real del popup — sin token no se ve la UI de grabación, con token sí, un click en
+  "Conectar" pasa de uno a otro.
+
+**Sobre `shared/storage-keys.ts`.** `TOKEN_STORAGE_KEY` seguía siendo la única clave —
+tanto `options/lib/pairing.ts` (código de 6 dígitos) como `popup/lib/connection.ts`
+(`/pair/auto`) la importan del mismo lugar. No se agregó ninguna clave nueva de
+storage; el `connection.test.ts` de este pase la importa explícitamente en vez de
+hardcodear el string, siguiendo la regla ya establecida: si dos entrypoints comparten
+un valor, vive en `shared/` y se importa, nunca se duplica.

@@ -99,6 +99,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/health", get(health_handler))
         .route("/pair/start", post(pair_start_handler))
         .route("/pair", post(pair_handler))
+        .route("/pair/auto", post(pair_auto_handler))
         .route("/ws", get(ws_upgrade_handler))
         .route("/control", post(control_handler))
         .with_state(state)
@@ -217,6 +218,67 @@ async fn pair_handler(
             );
         }
     }
+
+    Json(PairResponse {
+        token,
+        daemon_version: state.daemon_version.to_string(),
+    })
+    .into_response()
+}
+
+/// `POST /pair/auto` (D-U1-01, trust-on-first-use): salta el código de 6 dígitos
+/// para el primer emparejamiento de la vida del daemon. Sin esto, "grabar" exige
+/// abrir una terminal (`POST /pair/start`), leer un código y tipearlo en options
+/// antes de que venza a los 60 s — inaceptable para un click desde el popup.
+///
+/// Solo se acepta si las dos condiciones se cumplen a la vez:
+/// - el `Origin` es `chrome-extension://<id>` bien formado (mismo chequeo que
+///   `/pair`, así que un sitio web normal no puede llamarlo — los navegadores no
+///   dejan que JS arbitrario mande ese Origin), y
+/// - `paired_extensions` está vacío: nadie emparejó nunca con este daemon.
+///
+/// Con una extensión ya emparejada, devuelve 409 y el cliente cae al flujo de
+/// `/pair/start` + `/pair` para re-emparejar. Ver D-U1-01 en `docs/DECISIONS.md`
+/// para el modelo de confianza completo.
+async fn pair_auto_handler(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let origin = headers
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+
+    let Some(origin) = origin else {
+        return err(
+            StatusCode::UNAUTHORIZED,
+            error_codes::ORIGIN_REJECTED,
+            "Falta el header Origin",
+        );
+    };
+    if !pairing::is_valid_extension_origin(&origin) {
+        return err(
+            StatusCode::UNAUTHORIZED,
+            error_codes::ORIGIN_REJECTED,
+            format!("Origin inválido para pairing: {origin}"),
+        );
+    }
+
+    let token = pairing::generate_token();
+    let mut cfg = state.config.lock().unwrap();
+    if !cfg.paired_extensions.is_empty() {
+        return err(
+            StatusCode::CONFLICT,
+            error_codes::ALREADY_PAIRED,
+            "Ya hay una extensión emparejada. Usá POST /pair/start + POST /pair (código de 6 dígitos) para re-emparejar.",
+        );
+    }
+    cfg.add_paired_extension(origin, token.clone());
+    if let Err(e) = cfg.save(&state.config_path) {
+        return err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            error_codes::STORAGE,
+            format!("no se pudo persistir config.toml: {e}"),
+        );
+    }
+    drop(cfg);
 
     Json(PairResponse {
         token,

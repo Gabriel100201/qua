@@ -136,6 +136,10 @@ pub mod error_codes {
     pub const ASR: &str = "asr";
     /// `POST /control` sin ningún cliente WS conectado para reenviarle la orden.
     pub const NO_CLIENT: &str = "no_client";
+    /// `POST /pair/auto` con `paired_extensions` ya no vacío (D-U1-01): el
+    /// trust-on-first-use solo vale para el primer emparejamiento de la vida del
+    /// daemon; a partir de ahí hay que re-emparejar con el código de 6 dígitos.
+    pub const ALREADY_PAIRED: &str = "already_paired";
     /// Cualquier otra.
     pub const INTERNAL: &str = "internal";
 }
