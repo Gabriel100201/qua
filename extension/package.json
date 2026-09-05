@@ -5,10 +5,18 @@
   "type": "module",
   "description": "Extensión Chrome MV3 (WXT). La implementan las tareas A1, A2 y A3.",
   "scripts": {
-    "build": "echo \"(stub — la implementan A1/A2/A3)\" && exit 0",
-    "test": "echo \"(stub — la implementan A1/A2/A3)\" && exit 0"
+    "build": "echo \"(stub — la implementan A1/A3: falta wxt.config.ts completo)\" && exit 0",
+    "typecheck": "tsc --noEmit --pretty",
+    "test": "vitest run"
   },
   "dependencies": {
     "@qua/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "fake-indexeddb": "^6.2.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "wxt": "^0.21.4"
   }
 }

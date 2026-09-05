@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    // WORKAROUND temporal — ver docs/DECISIONS.md (A2-04): el `build` de
+    // @qua/protocol emite a dist/src/* pero su package.json declara
+    // exports/types en dist/*, así que node/tsc no encuentran el paquete
+    // construido. Mientras F0 no lo arregla, resolvemos contra el fuente
+    // directo. Borrar este `paths` en cuanto el `exports` de esa package
+    // apunte al lugar correcto.
+    "paths": {
+      "@qua/protocol": ["../packages/protocol/src/index.ts"]
+    }
+  },
+  "include": ["entrypoints/**/*.ts"]
+}
