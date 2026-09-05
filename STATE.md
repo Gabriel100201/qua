@@ -306,4 +306,25 @@ de `qua-mcp`. **Es lo primero que hay que hacer a la mañana.**
 **D-B4-09.** B4 trabajó desde un commit anterior a B2 y B3, así que `reprocess` quedó como
 passthrough. B4 dejó documentado el cableado exacto. Sin esto, el pipeline no produce issues
 de verdad.
+- `2026-09-05 02:35` — **B5 ✅** mergeada. **191 tests de Rust, cero fallos.** El test
+  `dos_sesiones_con_el_mismo_id_local_i01_no_se_pisan` pasa: la pérdida de datos está muerta.
+  `reprocess` ahora corre el correlador de verdad manteniendo idempotencia byte a byte.
+
+## ✅ QUA FUNCIONA DE PUNTA A PUNTA
+
+Corrí el pipeline real sobre `fixtures/session-full.json` y produjo un `report.md` válido con
+4 issues. **La salida está guardada en `docs/ejemplos/report-ejemplo.md`.** Lo que funciona:
+anclaje a elemento con archivo fuente + clases de Tailwind + geometría + timing; deixis SCREEN
+degradando a ruta; deixis GLOBAL a sesión; y el bug sin ancla clara cayendo en "Sin anclar"
+con severidad alta.
+
+### Dos defectos que encontré mirando la salida real (→ B6)
+
+1. **Confianza mal calibrada.** El issue con hover 2,1s + click + deixis POINTER sale con
+   **0,48** — es el ancla más clara del reporte y se lee como moneda al aire, además de quedar
+   bajo el umbral de 0,5 que dispara el screenshot. Causa: el divisor `6.0` del paso 6 es el
+   máximo alcanzable sólo con deixis ACTION; con POINTER el techo real es 4,5, así que un match
+   perfecto nunca pasa de 0,75. Hay que normalizar por clase de deixis.
+2. **El encabezado dice "4 issues" y la tabla lista 3** — el de "Sin anclar" no entra en la
+   tabla. Inconsistencia visible en lo primero que se lee.
 
