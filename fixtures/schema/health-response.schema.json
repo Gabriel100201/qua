@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qua.local/schema/health-response.schema.json",
+  "$ref": "#/$defs/HealthResponse",
+  "$defs": {
+    "HealthResponse": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "daemon_version": {
+          "type": "string"
+        },
+        "uptime_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "session": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_ready": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok",
+        "daemon_version",
+        "uptime_ms",
+        "session",
+        "model_ready"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

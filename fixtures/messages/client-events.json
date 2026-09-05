@@ -1,0 +1,53 @@
+{
+  "v": 1,
+  "type": "events",
+  "seq": 12,
+  "items": [
+    {
+      "t": 4100,
+      "tab": 42,
+      "k": "hover",
+      "dwell_ms": 2100,
+      "target": {
+        "sel": "button[data-testid=\"nuevo-turno\"]",
+        "strategy": "testid",
+        "tag": "button",
+        "text": "Nuevo turno",
+        "role": "button",
+        "name": "Nuevo turno",
+        "rect": { "x": 1180, "y": 96, "w": 88, "h": 32 },
+        "visible": true,
+        "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800",
+        "component": ["AgendaHeader", "Button"],
+        "src": { "file": "src/components/AgendaHeader.tsx", "line": 42, "col": 11, "tier": 2 }
+      }
+    },
+    {
+      "t": 6200,
+      "tab": 42,
+      "k": "click",
+      "button": 0,
+      "mods": ["meta"],
+      "target": {
+        "sel": "button[data-testid=\"nuevo-turno\"]",
+        "strategy": "testid",
+        "tag": "button",
+        "text": "Nuevo turno",
+        "role": "button",
+        "name": "Nuevo turno",
+        "rect": { "x": 1180, "y": 96, "w": 88, "h": 32 },
+        "visible": true,
+        "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800"
+      }
+    },
+    {
+      "t": 12980,
+      "tab": 42,
+      "k": "net_fail",
+      "method": "POST",
+      "url": "http://localhost:3000/api/turnos",
+      "status": 500,
+      "duration_ms": 578
+    }
+  ]
+}

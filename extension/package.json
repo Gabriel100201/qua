@@ -1,0 +1,14 @@
+{
+  "name": "@qua/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Extensión Chrome MV3 (WXT). La implementan las tareas A1, A2 y A3.",
+  "scripts": {
+    "build": "echo \"(stub — la implementan A1/A2/A3)\" && exit 0",
+    "test": "echo \"(stub — la implementan A1/A2/A3)\" && exit 0"
+  },
+  "dependencies": {
+    "@qua/protocol": "workspace:*"
+  }
+}

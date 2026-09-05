@@ -1,0 +1,16 @@
+[package]
+name = "qua-mcp"
+description = "Servidor MCP stdio, solo lectura sobre SQLite. Lo implementa D1."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "qua-mcp"
+path = "src/main.rs"
+
+[dependencies]
+qua-protocol.workspace = true
+qua-core.workspace = true

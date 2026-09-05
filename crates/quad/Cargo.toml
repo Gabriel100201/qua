@@ -1,0 +1,16 @@
+[package]
+name = "quad"
+description = "Binario del daemon: axum WS, pairing, ingesta. Lo implementa B1."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "quad"
+path = "src/main.rs"
+
+[dependencies]
+qua-protocol.workspace = true
+qua-core.workspace = true

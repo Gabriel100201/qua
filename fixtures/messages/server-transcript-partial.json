@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "type": "transcript.partial",
+  "utterance": {
+    "id": "u02",
+    "t_start": 9600,
+    "t_end": 12100,
+    "text": "y además tarda un montón en abrir el modal",
+    "lang": "es",
+    "words": [
+      { "w": "y", "t": 9600, "d": 100, "p": 0.94 },
+      { "w": "además", "t": 9720, "d": 380, "p": 0.96 },
+      { "w": "tarda", "t": 10140, "d": 300, "p": 0.98 },
+      { "w": "un", "t": 10480, "d": 120, "p": 0.99 },
+      { "w": "montón", "t": 10620, "d": 340, "p": 0.97 },
+      { "w": "en", "t": 11000, "d": 120, "p": 0.98 },
+      { "w": "abrir", "t": 11140, "d": 280, "p": 0.97 },
+      { "w": "el", "t": 11460, "d": 110, "p": 0.99 },
+      { "w": "modal", "t": 11600, "d": 400, "p": 0.92 }
+    ],
+    "avg_logprob": -0.22,
+    "no_speech_prob": 0.01,
+    "marked": false
+  }
+}

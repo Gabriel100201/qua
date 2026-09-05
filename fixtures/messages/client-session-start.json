@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "type": "session.start",
+  "session": {
+    "t0_wall": 1788012731204,
+    "base_url": "http://localhost:3000/agenda/semana",
+    "env": {
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+      "chrome": "142.0",
+      "platform": "macOS 15.1",
+      "viewport": { "w": 1512, "h": 857, "dpr": 2 },
+      "ext": "1.0.0"
+    }
+  }
+}

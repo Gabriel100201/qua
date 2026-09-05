@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ts:
+    name: TypeScript · pnpm test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck y build
+        run: pnpm build
+
+      # El test de frescura de fixtures/schema ya corre dentro de `pnpm test`, pero esto
+      # deja el diff a la vista si alguien tocó un tipo sin regenerar.
+      - name: Los JSON Schema están al día
+        run: |
+          pnpm gen:schema
+          git diff --exit-code -- fixtures/schema \
+            || { echo "::error::fixtures/schema quedó viejo — corré 'pnpm gen:schema' y commiteá"; exit 1; }
+
+      - name: Tests (incluye las fixtures doradas)
+        run: pnpm test
+
+  rust:
+    name: Rust · cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Formato
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests (incluye las fixtures doradas)
+        run: cargo test --workspace
+
+  # Las fixtures son el contrato compartido: este job existe para que quede explícito
+  # en la UI de Actions que el criterio de F0 es que los DOS lenguajes las acepten.
+  contrato:
+    name: Contrato TS ↔ Rust
+    needs: [ts, rust]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Las fixtures doradas parsean idénticas en TypeScript y en Rust."

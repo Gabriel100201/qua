@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qua.local/schema/pair-request.schema.json",
+  "$ref": "#/$defs/PairRequest",
+  "$defs": {
+    "PairRequest": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^\\d{6}$"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

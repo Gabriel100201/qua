@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    { "path": "./packages/protocol" },
+    { "path": "./packages/source-resolver" },
+    { "path": "./packages/babel-plugin-source" },
+    { "path": "./packages/vite-plugin-source" }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@qua/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fuente de verdad de los tipos de QUA (§03) y del protocolo extensión ↔ daemon (§04).",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false --pretty",
+    "gen:schema": "tsx scripts/gen-schema.ts",
+    "test": "tsc -b --pretty && vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,1122 @@
+{
+  "schema": "qua/session@1",
+  "id": "2026-09-04T14-32-11Z-a3f9",
+  "status": "ready",
+  "t0_wall": 1788012731204,
+  "started_at": "2026-09-04T14:32:11.204Z",
+  "ended_at": "2026-09-04T14:39:03.512Z",
+  "duration_ms": 412308,
+  "project": {
+    "label": "Agendi",
+    "repo": "/Users/gabrielfunes/Projects/personal/agendi"
+  },
+  "git": {
+    "branch": "main",
+    "sha": "9f21ac3",
+    "dirty": true
+  },
+  "env": {
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    "chrome": "142.0",
+    "platform": "macOS 15.1",
+    "viewport": {
+      "w": 1512,
+      "h": 857,
+      "dpr": 2
+    },
+    "ext": "1.0.0"
+  },
+  "audio": {
+    "path": "audio.opus",
+    "sample_rate": 16000,
+    "gaps_ms": 2400
+  },
+  "stats": {
+    "events_raw": 3184,
+    "events_kept": 21,
+    "utterances": 6,
+    "issues": 4
+  },
+  "tabs": [
+    {
+      "tab": 42,
+      "url": "http://localhost:3000/agenda/semana",
+      "title": "Agenda · Semana — Agendi",
+      "first_ms": 0,
+      "last_ms": 412000
+    },
+    {
+      "tab": 43,
+      "url": "https://supabase.com/dashboard/project/agendi/editor",
+      "title": "Table editor | Supabase",
+      "first_ms": 31000,
+      "last_ms": 90000
+    }
+  ],
+  "events": [
+    {
+      "t": 0,
+      "tab": 42,
+      "k": "viewport",
+      "w": 1512,
+      "h": 857,
+      "dpr": 2
+    },
+    {
+      "t": 120,
+      "tab": 42,
+      "k": "nav",
+      "url": "http://localhost:3000/agenda/semana",
+      "title": "Agenda · Semana — Agendi",
+      "kind": "load"
+    },
+    {
+      "t": 2400,
+      "tab": 42,
+      "k": "scroll_settle",
+      "y": 320,
+      "pct": 0.18,
+      "top_target": {
+        "sel": "section[data-testid=\"grilla-semana\"]",
+        "strategy": "testid",
+        "tag": "section",
+        "text": "Lunes 1 Martes 2 Miércoles 3",
+        "role": "region",
+        "name": "Grilla de la semana",
+        "rect": {
+          "x": 240,
+          "y": 0,
+          "w": 1032,
+          "h": 1840
+        },
+        "visible": true,
+        "classes": "grid grid-cols-7 gap-px bg-zinc-200 dark:bg-zinc-800"
+      }
+    },
+    {
+      "t": 4100,
+      "tab": 42,
+      "k": "hover",
+      "dwell_ms": 2100,
+      "target": {
+        "sel": "button[data-testid=\"nuevo-turno\"]",
+        "strategy": "testid",
+        "tag": "button",
+        "text": "Nuevo turno",
+        "role": "button",
+        "name": "Nuevo turno",
+        "rect": {
+          "x": 1180,
+          "y": 96,
+          "w": 88,
+          "h": 32
+        },
+        "visible": true,
+        "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800",
+        "computed": {
+          "fontSize": "14px",
+          "padding": "6px 12px",
+          "color": "rgb(250, 250, 250)",
+          "backgroundColor": "rgb(24, 24, 27)"
+        },
+        "component": [
+          "AgendaHeader",
+          "Button"
+        ],
+        "src": {
+          "file": "src/components/AgendaHeader.tsx",
+          "line": 42,
+          "col": 11,
+          "tier": 2
+        }
+      }
+    },
+    {
+      "t": 6200,
+      "tab": 42,
+      "k": "click",
+      "button": 0,
+      "mods": [],
+      "target": {
+        "sel": "button[data-testid=\"nuevo-turno\"]",
+        "strategy": "testid",
+        "tag": "button",
+        "text": "Nuevo turno",
+        "role": "button",
+        "name": "Nuevo turno",
+        "rect": {
+          "x": 1180,
+          "y": 96,
+          "w": 88,
+          "h": 32
+        },
+        "visible": true,
+        "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800",
+        "computed": {
+          "fontSize": "14px",
+          "padding": "6px 12px",
+          "color": "rgb(250, 250, 250)",
+          "backgroundColor": "rgb(24, 24, 27)"
+        },
+        "component": [
+          "AgendaHeader",
+          "Button"
+        ],
+        "src": {
+          "file": "src/components/AgendaHeader.tsx",
+          "line": 42,
+          "col": 11,
+          "tier": 2
+        }
+      }
+    },
+    {
+      "t": 7612,
+      "tab": 42,
+      "k": "mutation_burst",
+      "count": 148,
+      "target": {
+        "sel": "[role=\"dialog\"]",
+        "strategy": "role-name",
+        "tag": "div",
+        "text": "Nuevo turno Paciente Profesional Fecha",
+        "role": "dialog",
+        "name": "Nuevo turno",
+        "rect": {
+          "x": 456,
+          "y": 148,
+          "w": 600,
+          "h": 520
+        },
+        "visible": true,
+        "classes": "fixed z-50 rounded-lg border border-zinc-200 bg-white p-6 shadow-lg",
+        "component": [
+          "NuevoTurnoModal",
+          "Dialog"
+        ]
+      }
+    },
+    {
+      "t": 7680,
+      "tab": 42,
+      "k": "long_task",
+      "duration_ms": 412
+    },
+    {
+      "t": 8900,
+      "tab": 42,
+      "k": "focus_change",
+      "target": {
+        "sel": "#paciente",
+        "strategy": "id",
+        "tag": "input",
+        "role": "combobox",
+        "name": "Paciente",
+        "rect": {
+          "x": 480,
+          "y": 244,
+          "w": 552,
+          "h": 36
+        },
+        "visible": true,
+        "classes": "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+      }
+    },
+    {
+      "t": 9700,
+      "tab": 42,
+      "k": "input",
+      "field": {
+        "name": "paciente",
+        "type": "text",
+        "label": "Paciente"
+      },
+      "target": {
+        "sel": "#paciente",
+        "strategy": "id",
+        "tag": "input",
+        "role": "combobox",
+        "name": "Paciente",
+        "rect": {
+          "x": 480,
+          "y": 244,
+          "w": 552,
+          "h": 36
+        },
+        "visible": true,
+        "classes": "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+      }
+    },
+    {
+      "t": 12400,
+      "tab": 42,
+      "k": "submit",
+      "target": {
+        "sel": "form[data-testid=\"form-turno\"]",
+        "strategy": "testid",
+        "tag": "form",
+        "role": "form",
+        "name": "Nuevo turno",
+        "rect": {
+          "x": 480,
+          "y": 196,
+          "w": 552,
+          "h": 424
+        },
+        "visible": true,
+        "classes": "flex flex-col gap-4"
+      }
+    },
+    {
+      "t": 12980,
+      "tab": 42,
+      "k": "net_fail",
+      "method": "POST",
+      "url": "http://localhost:3000/api/turnos",
+      "status": 500,
+      "duration_ms": 578
+    },
+    {
+      "t": 13010,
+      "tab": 42,
+      "k": "console",
+      "level": "error",
+      "text": "Error al crear el turno: PostgrestError { code: '23505', message: 'duplicate key value violates unique constraint \"turnos_profesional_inicio_key\"' }",
+      "stack": "at crearTurno (src/lib/api/turnos.ts:88:11)\n    at onSubmit (src/components/NuevoTurnoModal.tsx:134:7)"
+    },
+    {
+      "t": 15200,
+      "tab": 42,
+      "k": "mark",
+      "source": "hotkey"
+    },
+    {
+      "t": 18400,
+      "tab": 42,
+      "k": "layout_shift",
+      "value": 0.142,
+      "sources": [
+        {
+          "sel": "[role=\"dialog\"] [data-testid=\"error-banner\"]",
+          "strategy": "css-path",
+          "tag": "div",
+          "text": "No se pudo guardar el turno",
+          "role": "alert",
+          "rect": {
+            "x": 480,
+            "y": 196,
+            "w": 552,
+            "h": 44
+          },
+          "visible": true,
+          "classes": "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+        }
+      ]
+    },
+    {
+      "t": 21000,
+      "tab": 42,
+      "k": "net_slow",
+      "method": "GET",
+      "url": "http://localhost:3000/api/agenda?view=semana",
+      "status": 200,
+      "duration_ms": 1840
+    },
+    {
+      "t": 26500,
+      "tab": 42,
+      "k": "nav",
+      "url": "http://localhost:3000/agenda/mes",
+      "title": "Agenda · Mes — Agendi",
+      "kind": "spa"
+    },
+    {
+      "t": 31000,
+      "tab": 43,
+      "k": "tab_switch",
+      "from": 42,
+      "to": 43,
+      "url": "https://supabase.com/dashboard/project/agendi/editor"
+    },
+    {
+      "t": 44000,
+      "tab": 42,
+      "k": "tab_switch",
+      "from": 43,
+      "to": 42,
+      "url": "http://localhost:3000/agenda/mes"
+    },
+    {
+      "t": 45200,
+      "tab": 42,
+      "k": "nav",
+      "url": "http://localhost:3000/agenda/semana",
+      "title": "Agenda · Semana — Agendi",
+      "kind": "back"
+    },
+    {
+      "t": 61000,
+      "k": "audio_gap",
+      "duration_ms": 2400
+    },
+    {
+      "t": 90000,
+      "k": "tab_close",
+      "tab": 43
+    }
+  ],
+  "utterances": [
+    {
+      "id": "u01",
+      "t_start": 5100,
+      "t_end": 9200,
+      "text": "che, este botón de nuevo turno es re chico, en mobile casi no lo encontrás",
+      "lang": "es",
+      "words": [
+        {
+          "w": "che,",
+          "t": 5100,
+          "d": 240,
+          "p": 0.91
+        },
+        {
+          "w": "este",
+          "t": 5420,
+          "d": 200,
+          "p": 0.97
+        },
+        {
+          "w": "botón",
+          "t": 5640,
+          "d": 300,
+          "p": 0.98
+        },
+        {
+          "w": "de",
+          "t": 5960,
+          "d": 120,
+          "p": 0.99
+        },
+        {
+          "w": "nuevo",
+          "t": 6100,
+          "d": 260,
+          "p": 0.96
+        },
+        {
+          "w": "turno",
+          "t": 6380,
+          "d": 300,
+          "p": 0.97
+        },
+        {
+          "w": "es",
+          "t": 6720,
+          "d": 140,
+          "p": 0.99
+        },
+        {
+          "w": "re",
+          "t": 6880,
+          "d": 160,
+          "p": 0.88
+        },
+        {
+          "w": "chico,",
+          "t": 7060,
+          "d": 320,
+          "p": 0.95
+        },
+        {
+          "w": "en",
+          "t": 7480,
+          "d": 120,
+          "p": 0.98
+        },
+        {
+          "w": "mobile",
+          "t": 7620,
+          "d": 380,
+          "p": 0.86
+        },
+        {
+          "w": "casi",
+          "t": 8040,
+          "d": 240,
+          "p": 0.97
+        },
+        {
+          "w": "no",
+          "t": 8300,
+          "d": 140,
+          "p": 0.99
+        },
+        {
+          "w": "lo",
+          "t": 8460,
+          "d": 120,
+          "p": 0.99
+        },
+        {
+          "w": "encontrás",
+          "t": 8600,
+          "d": 600,
+          "p": 0.83
+        }
+      ],
+      "avg_logprob": -0.28,
+      "no_speech_prob": 0.02,
+      "marked": false
+    },
+    {
+      "id": "u02",
+      "t_start": 9600,
+      "t_end": 12100,
+      "text": "y además tarda un montón en abrir el modal",
+      "lang": "es",
+      "words": [
+        {
+          "w": "y",
+          "t": 9600,
+          "d": 100,
+          "p": 0.94
+        },
+        {
+          "w": "además",
+          "t": 9720,
+          "d": 380,
+          "p": 0.96
+        },
+        {
+          "w": "tarda",
+          "t": 10140,
+          "d": 300,
+          "p": 0.98
+        },
+        {
+          "w": "un",
+          "t": 10480,
+          "d": 120,
+          "p": 0.99
+        },
+        {
+          "w": "montón",
+          "t": 10620,
+          "d": 340,
+          "p": 0.97
+        },
+        {
+          "w": "en",
+          "t": 11000,
+          "d": 120,
+          "p": 0.98
+        },
+        {
+          "w": "abrir",
+          "t": 11140,
+          "d": 280,
+          "p": 0.97
+        },
+        {
+          "w": "el",
+          "t": 11460,
+          "d": 110,
+          "p": 0.99
+        },
+        {
+          "w": "modal",
+          "t": 11600,
+          "d": 400,
+          "p": 0.92
+        }
+      ],
+      "avg_logprob": -0.22,
+      "no_speech_prob": 0.01,
+      "marked": false
+    },
+    {
+      "id": "u03",
+      "t_start": 14200,
+      "t_end": 19400,
+      "text": "pará, cuando le doy a guardar tira un error y no me dice nada, se queda el modal abierto y listo",
+      "lang": "es",
+      "words": [
+        {
+          "w": "pará,",
+          "t": 14200,
+          "d": 300,
+          "p": 0.89
+        },
+        {
+          "w": "cuando",
+          "t": 14580,
+          "d": 320,
+          "p": 0.98
+        },
+        {
+          "w": "le",
+          "t": 14940,
+          "d": 120,
+          "p": 0.99
+        },
+        {
+          "w": "doy",
+          "t": 15080,
+          "d": 220,
+          "p": 0.98
+        },
+        {
+          "w": "a",
+          "t": 15340,
+          "d": 90,
+          "p": 0.99
+        },
+        {
+          "w": "guardar",
+          "t": 15460,
+          "d": 420,
+          "p": 0.97
+        },
+        {
+          "w": "tira",
+          "t": 15920,
+          "d": 240,
+          "p": 0.95
+        },
+        {
+          "w": "un",
+          "t": 16200,
+          "d": 110,
+          "p": 0.99
+        },
+        {
+          "w": "error",
+          "t": 16340,
+          "d": 380,
+          "p": 0.98
+        },
+        {
+          "w": "y",
+          "t": 16760,
+          "d": 90,
+          "p": 0.97
+        },
+        {
+          "w": "no",
+          "t": 16880,
+          "d": 140,
+          "p": 0.99
+        },
+        {
+          "w": "me",
+          "t": 17040,
+          "d": 120,
+          "p": 0.99
+        },
+        {
+          "w": "dice",
+          "t": 17180,
+          "d": 240,
+          "p": 0.98
+        },
+        {
+          "w": "nada,",
+          "t": 17440,
+          "d": 320,
+          "p": 0.97
+        },
+        {
+          "w": "se",
+          "t": 17800,
+          "d": 120,
+          "p": 0.98
+        },
+        {
+          "w": "queda",
+          "t": 17940,
+          "d": 280,
+          "p": 0.97
+        },
+        {
+          "w": "el",
+          "t": 18240,
+          "d": 100,
+          "p": 0.99
+        },
+        {
+          "w": "modal",
+          "t": 18360,
+          "d": 360,
+          "p": 0.93
+        },
+        {
+          "w": "abierto",
+          "t": 18740,
+          "d": 400,
+          "p": 0.96
+        },
+        {
+          "w": "y",
+          "t": 19160,
+          "d": 90,
+          "p": 0.97
+        },
+        {
+          "w": "listo",
+          "t": 19260,
+          "d": 140,
+          "p": 0.9
+        }
+      ],
+      "avg_logprob": -0.31,
+      "no_speech_prob": 0.03,
+      "marked": true
+    },
+    {
+      "id": "u04",
+      "t_start": 22400,
+      "t_end": 24100,
+      "text": "eh mm",
+      "lang": "es",
+      "words": [
+        {
+          "w": "eh",
+          "t": 22400,
+          "d": 400,
+          "p": 0.42
+        },
+        {
+          "w": "mm",
+          "t": 23200,
+          "d": 500,
+          "p": 0.31
+        }
+      ],
+      "avg_logprob": -1.24,
+      "no_speech_prob": 0.71,
+      "marked": false
+    },
+    {
+      "id": "u05",
+      "t_start": 27200,
+      "t_end": 31800,
+      "text": "otra cosa, esta pantalla del mes se siente vacía, le falta el resumen de arriba que tiene la semana",
+      "lang": "es",
+      "words": [
+        {
+          "w": "otra",
+          "t": 27200,
+          "d": 240,
+          "p": 0.96
+        },
+        {
+          "w": "cosa,",
+          "t": 27480,
+          "d": 300,
+          "p": 0.97
+        },
+        {
+          "w": "esta",
+          "t": 27840,
+          "d": 200,
+          "p": 0.98
+        },
+        {
+          "w": "pantalla",
+          "t": 28080,
+          "d": 420,
+          "p": 0.98
+        },
+        {
+          "w": "del",
+          "t": 28540,
+          "d": 140,
+          "p": 0.99
+        },
+        {
+          "w": "mes",
+          "t": 28720,
+          "d": 240,
+          "p": 0.97
+        },
+        {
+          "w": "se",
+          "t": 29000,
+          "d": 120,
+          "p": 0.98
+        },
+        {
+          "w": "siente",
+          "t": 29160,
+          "d": 300,
+          "p": 0.96
+        },
+        {
+          "w": "vacía,",
+          "t": 29500,
+          "d": 380,
+          "p": 0.94
+        },
+        {
+          "w": "le",
+          "t": 29920,
+          "d": 120,
+          "p": 0.99
+        },
+        {
+          "w": "falta",
+          "t": 30080,
+          "d": 260,
+          "p": 0.98
+        },
+        {
+          "w": "el",
+          "t": 30380,
+          "d": 100,
+          "p": 0.99
+        },
+        {
+          "w": "resumen",
+          "t": 30520,
+          "d": 420,
+          "p": 0.97
+        },
+        {
+          "w": "de",
+          "t": 30980,
+          "d": 110,
+          "p": 0.99
+        },
+        {
+          "w": "arriba",
+          "t": 31120,
+          "d": 300,
+          "p": 0.96
+        },
+        {
+          "w": "que",
+          "t": 31460,
+          "d": 120,
+          "p": 0.98
+        },
+        {
+          "w": "tiene",
+          "t": 31000,
+          "d": 240,
+          "p": 0.97
+        },
+        {
+          "w": "la",
+          "t": 31260,
+          "d": 100,
+          "p": 0.99
+        },
+        {
+          "w": "semana",
+          "t": 31380,
+          "d": 420,
+          "p": 0.95
+        }
+      ],
+      "avg_logprob": -0.26,
+      "no_speech_prob": 0.02,
+      "marked": false
+    },
+    {
+      "id": "u06",
+      "t_start": 46000,
+      "t_end": 50600,
+      "text": "en general en toda la app los botones primarios están medio apagados, deberían tener más contraste",
+      "lang": "es",
+      "words": [
+        {
+          "w": "en",
+          "t": 46000,
+          "d": 120,
+          "p": 0.98
+        },
+        {
+          "w": "general",
+          "t": 46160,
+          "d": 380,
+          "p": 0.97
+        },
+        {
+          "w": "en",
+          "t": 46580,
+          "d": 110,
+          "p": 0.98
+        },
+        {
+          "w": "toda",
+          "t": 46720,
+          "d": 220,
+          "p": 0.98
+        },
+        {
+          "w": "la",
+          "t": 46980,
+          "d": 100,
+          "p": 0.99
+        },
+        {
+          "w": "app",
+          "t": 47120,
+          "d": 240,
+          "p": 0.93
+        },
+        {
+          "w": "los",
+          "t": 47400,
+          "d": 140,
+          "p": 0.99
+        },
+        {
+          "w": "botones",
+          "t": 47580,
+          "d": 400,
+          "p": 0.98
+        },
+        {
+          "w": "primarios",
+          "t": 48020,
+          "d": 460,
+          "p": 0.95
+        },
+        {
+          "w": "están",
+          "t": 48520,
+          "d": 260,
+          "p": 0.98
+        },
+        {
+          "w": "medio",
+          "t": 48820,
+          "d": 240,
+          "p": 0.97
+        },
+        {
+          "w": "apagados,",
+          "t": 49100,
+          "d": 420,
+          "p": 0.91
+        },
+        {
+          "w": "deberían",
+          "t": 49560,
+          "d": 400,
+          "p": 0.96
+        },
+        {
+          "w": "tener",
+          "t": 50000,
+          "d": 240,
+          "p": 0.98
+        },
+        {
+          "w": "más",
+          "t": 50280,
+          "d": 160,
+          "p": 0.99
+        },
+        {
+          "w": "contraste",
+          "t": 50480,
+          "d": 120,
+          "p": 0.94
+        }
+      ],
+      "avg_logprob": -0.24,
+      "no_speech_prob": 0.02,
+      "marked": false
+    }
+  ],
+  "issues": [
+    {
+      "id": "i01",
+      "utterance_ids": [
+        "u01",
+        "u02"
+      ],
+      "t": 5100,
+      "text": "che, este botón de nuevo turno es re chico, en mobile casi no lo encontrás y además tarda un montón en abrir el modal",
+      "anchor": {
+        "kind": "element",
+        "tab": 42,
+        "url": "http://localhost:3000/agenda/semana",
+        "confidence": 0.91,
+        "reason": [
+          "hover 2.1s",
+          "deixis:este",
+          "click −0.9s"
+        ],
+        "target": {
+          "sel": "button[data-testid=\"nuevo-turno\"]",
+          "strategy": "testid",
+          "tag": "button",
+          "text": "Nuevo turno",
+          "role": "button",
+          "name": "Nuevo turno",
+          "rect": {
+            "x": 1180,
+            "y": 96,
+            "w": 88,
+            "h": 32
+          },
+          "visible": true,
+          "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800",
+          "computed": {
+            "fontSize": "14px",
+            "padding": "6px 12px",
+            "color": "rgb(250, 250, 250)",
+            "backgroundColor": "rgb(24, 24, 27)"
+          },
+          "component": [
+            "AgendaHeader",
+            "Button"
+          ],
+          "src": {
+            "file": "src/components/AgendaHeader.tsx",
+            "line": 42,
+            "col": 11,
+            "tier": 2
+          }
+        }
+      },
+      "evidence": {
+        "console": [],
+        "net": [],
+        "timings": [
+          {
+            "label": "click → primer render del modal",
+            "ms": 1412
+          }
+        ],
+        "screenshot": "assets/i01.png"
+      },
+      "category": "ui",
+      "severity": "low",
+      "exported_to": null
+    },
+    {
+      "id": "i02",
+      "utterance_ids": [
+        "u03"
+      ],
+      "t": 15200,
+      "text": "pará, cuando le doy a guardar tira un error y no me dice nada, se queda el modal abierto y listo",
+      "anchor": {
+        "kind": "element",
+        "tab": 42,
+        "url": "http://localhost:3000/agenda/semana",
+        "confidence": 0.74,
+        "reason": [
+          "mark",
+          "deixis:accion",
+          "submit −2.8s"
+        ],
+        "target": {
+          "sel": "form[data-testid=\"form-turno\"]",
+          "strategy": "testid",
+          "tag": "form",
+          "role": "form",
+          "name": "Nuevo turno",
+          "rect": {
+            "x": 480,
+            "y": 196,
+            "w": 552,
+            "h": 424
+          },
+          "visible": true,
+          "classes": "flex flex-col gap-4",
+          "component": [
+            "NuevoTurnoModal",
+            "Form"
+          ],
+          "src": {
+            "file": "src/components/NuevoTurnoModal.tsx",
+            "line": 118,
+            "tier": 3
+          }
+        }
+      },
+      "evidence": {
+        "console": [
+          {
+            "t": 13010,
+            "tab": 42,
+            "k": "console",
+            "level": "error",
+            "text": "Error al crear el turno: PostgrestError { code: '23505', message: 'duplicate key value violates unique constraint \"turnos_profesional_inicio_key\"' }",
+            "stack": "at crearTurno (src/lib/api/turnos.ts:88:11)\n    at onSubmit (src/components/NuevoTurnoModal.tsx:134:7)"
+          }
+        ],
+        "net": [
+          {
+            "t": 12980,
+            "tab": 42,
+            "k": "net_fail",
+            "method": "POST",
+            "url": "http://localhost:3000/api/turnos",
+            "status": 500,
+            "duration_ms": 578
+          }
+        ],
+        "timings": [],
+        "screenshot": "assets/i02.png"
+      },
+      "category": "bug",
+      "severity": "high",
+      "exported_to": "https://linear.app/gabriel/issue/AGE-142/no-se-informa-el-error-al-guardar-un-turno"
+    },
+    {
+      "id": "i03",
+      "utterance_ids": [
+        "u05"
+      ],
+      "t": 27200,
+      "text": "otra cosa, esta pantalla del mes se siente vacía, le falta el resumen de arriba que tiene la semana",
+      "anchor": {
+        "kind": "route",
+        "tab": 42,
+        "url": "http://localhost:3000/agenda/mes",
+        "confidence": 0.55,
+        "reason": [
+          "deixis:pantalla",
+          "nav spa −0.7s"
+        ]
+      },
+      "evidence": {
+        "console": [],
+        "net": [],
+        "timings": []
+      },
+      "category": "idea",
+      "severity": "low",
+      "exported_to": null
+    },
+    {
+      "id": "i04",
+      "utterance_ids": [
+        "u06"
+      ],
+      "t": 46000,
+      "text": "en general en toda la app los botones primarios están medio apagados, deberían tener más contraste",
+      "anchor": {
+        "kind": "session",
+        "confidence": 0.4,
+        "reason": [
+          "deixis:global"
+        ]
+      },
+      "evidence": {
+        "console": [],
+        "net": [],
+        "timings": []
+      },
+      "category": "ui",
+      "severity": "low",
+      "exported_to": null
+    }
+  ]
+}

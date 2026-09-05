@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qua.local/schema/pair-response.schema.json",
+  "$ref": "#/$defs/PairResponse",
+  "$defs": {
+    "PairResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "daemon_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "daemon_version"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

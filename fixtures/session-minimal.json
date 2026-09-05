@@ -1,0 +1,187 @@
+{
+  "schema": "qua/session@1",
+  "id": "2026-09-02T09-14-05Z-7b1e",
+  "status": "ready",
+  "t0_wall": 1787829245010,
+  "started_at": "2026-09-02T09:14:05.010Z",
+  "ended_at": "2026-09-02T09:15:32.470Z",
+  "duration_ms": 87460,
+  "project": {
+    "label": "Portfolio",
+    "repo": "/Users/gabrielfunes/Projects/personal/portfolio-2026"
+  },
+  "git": { "branch": "feat/proyectos", "sha": "1c4de07", "dirty": false },
+  "env": {
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    "chrome": "142.0",
+    "platform": "macOS 15.1",
+    "viewport": { "w": 1512, "h": 857, "dpr": 2 },
+    "ext": "1.0.0"
+  },
+  "audio": { "path": "audio.opus", "sample_rate": 16000, "gaps_ms": 0 },
+  "stats": { "events_raw": 214, "events_kept": 5, "utterances": 2, "issues": 2 },
+  "tabs": [
+    {
+      "tab": 17,
+      "url": "http://localhost:3001/proyectos",
+      "title": "Proyectos — Gabriel Funes",
+      "first_ms": 0,
+      "last_ms": 87000
+    }
+  ],
+  "events": [
+    { "t": 0, "tab": 17, "k": "viewport", "w": 1512, "h": 857, "dpr": 2 },
+    {
+      "t": 90,
+      "tab": 17,
+      "k": "nav",
+      "url": "http://localhost:3001/proyectos",
+      "title": "Proyectos — Gabriel Funes",
+      "kind": "load"
+    },
+    {
+      "t": 3200,
+      "tab": 17,
+      "k": "hover",
+      "dwell_ms": 1600,
+      "target": {
+        "sel": "a[data-testid=\"card-agendi\"]",
+        "strategy": "testid",
+        "tag": "a",
+        "text": "Agendi — turnos para consultorios",
+        "role": "link",
+        "name": "Agendi — turnos para consultorios",
+        "rect": { "x": 120, "y": 380, "w": 384, "h": 268 },
+        "visible": true,
+        "classes": "group block rounded-xl border border-zinc-200 p-5 transition hover:border-zinc-400",
+        "component": ["ProyectosGrid", "ProyectoCard"],
+        "src": { "file": "src/components/ProyectoCard.tsx", "line": 18, "col": 5, "tier": 2 }
+      }
+    },
+    {
+      "t": 5100,
+      "tab": 17,
+      "k": "click",
+      "button": 0,
+      "mods": [],
+      "target": {
+        "sel": "a[data-testid=\"card-agendi\"]",
+        "strategy": "testid",
+        "tag": "a",
+        "text": "Agendi — turnos para consultorios",
+        "role": "link",
+        "name": "Agendi — turnos para consultorios",
+        "rect": { "x": 120, "y": 380, "w": 384, "h": 268 },
+        "visible": true,
+        "classes": "group block rounded-xl border border-zinc-200 p-5 transition hover:border-zinc-400",
+        "component": ["ProyectosGrid", "ProyectoCard"],
+        "src": { "file": "src/components/ProyectoCard.tsx", "line": 18, "col": 5, "tier": 2 }
+      }
+    },
+    { "t": 40200, "tab": 17, "k": "scroll_settle", "y": 1840, "pct": 0.72 }
+  ],
+  "utterances": [
+    {
+      "id": "u01",
+      "t_start": 4200,
+      "t_end": 7900,
+      "text": "esta card tiene el borde re finito, no se nota que es clickeable",
+      "lang": "es",
+      "words": [
+        { "w": "esta", "t": 4200, "d": 220, "p": 0.97 },
+        { "w": "card", "t": 4460, "d": 260, "p": 0.9 },
+        { "w": "tiene", "t": 4760, "d": 240, "p": 0.98 },
+        { "w": "el", "t": 5040, "d": 100, "p": 0.99 },
+        { "w": "borde", "t": 5180, "d": 280, "p": 0.98 },
+        { "w": "re", "t": 5500, "d": 140, "p": 0.87 },
+        { "w": "finito,", "t": 5680, "d": 340, "p": 0.93 },
+        { "w": "no", "t": 6060, "d": 140, "p": 0.99 },
+        { "w": "se", "t": 6240, "d": 120, "p": 0.98 },
+        { "w": "nota", "t": 6400, "d": 240, "p": 0.98 },
+        { "w": "que", "t": 6680, "d": 120, "p": 0.99 },
+        { "w": "es", "t": 6840, "d": 120, "p": 0.99 },
+        { "w": "clickeable", "t": 7000, "d": 700, "p": 0.79 }
+      ],
+      "avg_logprob": -0.34,
+      "no_speech_prob": 0.03,
+      "marked": false
+    },
+    {
+      "id": "u02",
+      "t_start": 41000,
+      "t_end": 45200,
+      "text": "en general en toda la app el footer queda muy pegado al contenido",
+      "lang": "es",
+      "words": [
+        { "w": "en", "t": 41000, "d": 120, "p": 0.98 },
+        { "w": "general", "t": 41160, "d": 380, "p": 0.97 },
+        { "w": "en", "t": 41580, "d": 110, "p": 0.98 },
+        { "w": "toda", "t": 41720, "d": 220, "p": 0.98 },
+        { "w": "la", "t": 41980, "d": 100, "p": 0.99 },
+        { "w": "app", "t": 42120, "d": 240, "p": 0.92 },
+        { "w": "el", "t": 42400, "d": 100, "p": 0.99 },
+        { "w": "footer", "t": 42540, "d": 320, "p": 0.94 },
+        { "w": "queda", "t": 42900, "d": 260, "p": 0.98 },
+        { "w": "muy", "t": 43200, "d": 180, "p": 0.99 },
+        { "w": "pegado", "t": 43420, "d": 340, "p": 0.96 },
+        { "w": "al", "t": 43800, "d": 120, "p": 0.99 },
+        { "w": "contenido", "t": 43960, "d": 520, "p": 0.95 }
+      ],
+      "avg_logprob": -0.29,
+      "no_speech_prob": 0.02,
+      "marked": false
+    }
+  ],
+  "issues": [
+    {
+      "id": "i01",
+      "utterance_ids": ["u01"],
+      "t": 4200,
+      "text": "esta card tiene el borde re finito, no se nota que es clickeable",
+      "anchor": {
+        "kind": "element",
+        "tab": 17,
+        "url": "http://localhost:3001/proyectos",
+        "confidence": 0.83,
+        "reason": ["hover 1.6s", "deixis:esta", "click −0.9s"],
+        "target": {
+          "sel": "a[data-testid=\"card-agendi\"]",
+          "strategy": "testid",
+          "tag": "a",
+          "text": "Agendi — turnos para consultorios",
+          "role": "link",
+          "name": "Agendi — turnos para consultorios",
+          "rect": { "x": 120, "y": 380, "w": 384, "h": 268 },
+          "visible": true,
+          "classes": "group block rounded-xl border border-zinc-200 p-5 transition hover:border-zinc-400",
+          "component": ["ProyectosGrid", "ProyectoCard"],
+          "src": { "file": "src/components/ProyectoCard.tsx", "line": 18, "col": 5, "tier": 2 }
+        }
+      },
+      "evidence": {
+        "console": [],
+        "net": [],
+        "timings": [],
+        "screenshot": "assets/i01.png"
+      },
+      "category": "ui",
+      "severity": "low",
+      "exported_to": null
+    },
+    {
+      "id": "i02",
+      "utterance_ids": ["u02"],
+      "t": 41000,
+      "text": "en general en toda la app el footer queda muy pegado al contenido",
+      "anchor": {
+        "kind": "session",
+        "confidence": 0.38,
+        "reason": ["deixis:global"]
+      },
+      "evidence": { "console": [], "net": [], "timings": [] },
+      "category": "ui",
+      "severity": "low",
+      "exported_to": null
+    }
+  ]
+}

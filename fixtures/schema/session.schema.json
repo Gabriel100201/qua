@@ -1,0 +1,1437 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qua.local/schema/session.schema.json",
+  "$ref": "#/$defs/Session",
+  "$defs": {
+    "Session": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "qua/session@1"
+        },
+        "id": {
+          "$ref": "#/$defs/SessionId"
+        },
+        "status": {
+          "$ref": "#/$defs/SessionStatus"
+        },
+        "t0_wall": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "project": {
+          "$ref": "#/$defs/ProjectRef"
+        },
+        "git": {
+          "$ref": "#/$defs/GitInfo"
+        },
+        "env": {
+          "$ref": "#/$defs/EnvInfo"
+        },
+        "audio": {
+          "$ref": "#/$defs/AudioInfo"
+        },
+        "stats": {
+          "$ref": "#/$defs/SessionStats"
+        },
+        "tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TabInfo"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Event"
+          }
+        },
+        "utterances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Utterance"
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Issue"
+          }
+        }
+      },
+      "required": [
+        "schema",
+        "id",
+        "status",
+        "t0_wall",
+        "started_at",
+        "project",
+        "env",
+        "audio",
+        "stats",
+        "tabs",
+        "events",
+        "utterances",
+        "issues"
+      ],
+      "additionalProperties": false,
+      "title": "Session"
+    },
+    "SessionId": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z-[0-9a-f]{4}$"
+    },
+    "SessionStatus": {
+      "type": "string",
+      "enum": [
+        "recording",
+        "processing",
+        "ready",
+        "failed"
+      ]
+    },
+    "ProjectRef": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "GitInfo": {
+      "type": "object",
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "sha": {
+          "type": "string"
+        },
+        "dirty": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "branch",
+        "sha",
+        "dirty"
+      ],
+      "additionalProperties": false
+    },
+    "EnvInfo": {
+      "type": "object",
+      "properties": {
+        "ua": {
+          "type": "string"
+        },
+        "chrome": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "viewport": {
+          "$ref": "#/$defs/ViewportInfo"
+        },
+        "ext": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ua",
+        "chrome",
+        "platform",
+        "viewport",
+        "ext"
+      ],
+      "additionalProperties": false
+    },
+    "ViewportInfo": {
+      "type": "object",
+      "properties": {
+        "w": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "h": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "dpr": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "w",
+        "h",
+        "dpr"
+      ],
+      "additionalProperties": false
+    },
+    "AudioInfo": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sample_rate": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "gaps_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "path",
+        "sample_rate",
+        "gaps_ms"
+      ],
+      "additionalProperties": false
+    },
+    "SessionStats": {
+      "type": "object",
+      "properties": {
+        "events_raw": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "events_kept": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "utterances": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "issues": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "events_raw",
+        "events_kept",
+        "utterances",
+        "issues"
+      ],
+      "additionalProperties": false
+    },
+    "TabInfo": {
+      "type": "object",
+      "properties": {
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "first_ms": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "last_ms": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "tab",
+        "url",
+        "title",
+        "first_ms",
+        "last_ms"
+      ],
+      "additionalProperties": false
+    },
+    "Event": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NavEvent"
+        },
+        {
+          "$ref": "#/$defs/TabSwitchEvent"
+        },
+        {
+          "$ref": "#/$defs/TabCloseEvent"
+        },
+        {
+          "$ref": "#/$defs/ClickEvent"
+        },
+        {
+          "$ref": "#/$defs/HoverEvent"
+        },
+        {
+          "$ref": "#/$defs/FocusChangeEvent"
+        },
+        {
+          "$ref": "#/$defs/InputEvent"
+        },
+        {
+          "$ref": "#/$defs/SubmitEvent"
+        },
+        {
+          "$ref": "#/$defs/ScrollSettleEvent"
+        },
+        {
+          "$ref": "#/$defs/ViewportEvent"
+        },
+        {
+          "$ref": "#/$defs/ConsoleEvent"
+        },
+        {
+          "$ref": "#/$defs/NetFailEvent"
+        },
+        {
+          "$ref": "#/$defs/NetSlowEvent"
+        },
+        {
+          "$ref": "#/$defs/LongTaskEvent"
+        },
+        {
+          "$ref": "#/$defs/LayoutShiftEvent"
+        },
+        {
+          "$ref": "#/$defs/MutationBurstEvent"
+        },
+        {
+          "$ref": "#/$defs/MarkEvent"
+        },
+        {
+          "$ref": "#/$defs/AudioGapEvent"
+        }
+      ],
+      "title": "Event"
+    },
+    "NavEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "nav"
+        },
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "load",
+            "spa",
+            "back",
+            "forward"
+          ]
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "url",
+        "title",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "TabSwitchEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "tab_switch"
+        },
+        "from": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "to": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "from",
+        "to",
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "TabCloseEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "tab_close"
+        }
+      },
+      "required": [
+        "t",
+        "tab",
+        "k"
+      ],
+      "additionalProperties": false
+    },
+    "ClickEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "click"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        },
+        "button": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "mods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "shift",
+              "ctrl",
+              "alt",
+              "meta"
+            ]
+          }
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "target",
+        "button",
+        "mods"
+      ],
+      "additionalProperties": false
+    },
+    "TargetRef": {
+      "type": "object",
+      "properties": {
+        "sel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strategy": {
+          "$ref": "#/$defs/SelectorStrategy"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "classes": {
+          "type": "string"
+        },
+        "computed": {
+          "$ref": "#/$defs/ComputedStyle"
+        },
+        "component": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "src": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "required": [
+        "sel",
+        "strategy",
+        "tag"
+      ],
+      "additionalProperties": false,
+      "title": "TargetRef"
+    },
+    "SelectorStrategy": {
+      "type": "string",
+      "enum": [
+        "testid",
+        "id",
+        "role-name",
+        "css-path"
+      ],
+      "description": "Cascada de §5.2: primer match único gana."
+    },
+    "Rect": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number",
+          "minimum": 0
+        },
+        "h": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "additionalProperties": false,
+      "title": "Rect"
+    },
+    "ComputedStyle": {
+      "type": "object",
+      "properties": {
+        "fontSize": {
+          "type": "string"
+        },
+        "fontWeight": {
+          "type": "string"
+        },
+        "padding": {
+          "type": "string"
+        },
+        "margin": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "backgroundColor": {
+          "type": "string"
+        },
+        "borderRadius": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SourceRef": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "col": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "tier": {
+          "anyOf": [
+            {
+              "type": "number",
+              "const": 1
+            },
+            {
+              "type": "number",
+              "const": 2
+            },
+            {
+              "type": "number",
+              "const": 3
+            },
+            {
+              "type": "number",
+              "const": 4
+            }
+          ]
+        }
+      },
+      "required": [
+        "file",
+        "line",
+        "tier"
+      ],
+      "additionalProperties": false
+    },
+    "HoverEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "hover"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        },
+        "dwell_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "target",
+        "dwell_ms"
+      ],
+      "additionalProperties": false
+    },
+    "FocusChangeEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "focus_change"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "InputEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "input"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        },
+        "field": {
+          "$ref": "#/$defs/FieldRef"
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "target",
+        "field"
+      ],
+      "additionalProperties": false
+    },
+    "FieldRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SubmitEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "submit"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "ScrollSettleEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "scroll_settle"
+        },
+        "y": {
+          "type": "number"
+        },
+        "pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "top_target": {
+          "$ref": "#/$defs/TargetRef"
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "y",
+        "pct"
+      ],
+      "additionalProperties": false
+    },
+    "ViewportEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "viewport"
+        },
+        "w": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "h": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "dpr": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "w",
+        "h",
+        "dpr"
+      ],
+      "additionalProperties": false
+    },
+    "ConsoleEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "console"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "stack": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "level",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "NetFailEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "net_fail"
+        },
+        "method": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "method",
+        "url",
+        "status",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    },
+    "NetSlowEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "net_slow"
+        },
+        "method": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "method",
+        "url",
+        "status",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    },
+    "LongTaskEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "long_task"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    },
+    "LayoutShiftEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "layout_shift"
+        },
+        "value": {
+          "type": "number"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TargetRef"
+          }
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "MutationBurstEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "mutation_burst"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "MarkEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "mark"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "hotkey",
+            "popup"
+          ]
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "AudioGapEvent": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "string",
+          "const": "audio_gap"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "t",
+        "k",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    },
+    "Utterance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^u\\d{2,}$"
+        },
+        "t_start": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "t_end": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "text": {
+          "type": "string"
+        },
+        "lang": {
+          "type": "string",
+          "minLength": 2
+        },
+        "words": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Word"
+          }
+        },
+        "avg_logprob": {
+          "type": "number"
+        },
+        "no_speech_prob": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "marked": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "t_start",
+        "t_end",
+        "text",
+        "lang",
+        "words",
+        "avg_logprob",
+        "no_speech_prob",
+        "marked"
+      ],
+      "additionalProperties": false,
+      "title": "Utterance"
+    },
+    "Word": {
+      "type": "object",
+      "properties": {
+        "w": {
+          "type": "string"
+        },
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "d": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "w",
+        "t",
+        "d",
+        "p"
+      ],
+      "additionalProperties": false
+    },
+    "Issue": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^i\\d{2,}$"
+        },
+        "utterance_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^u\\d{2,}$"
+          }
+        },
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "text": {
+          "type": "string"
+        },
+        "anchor": {
+          "$ref": "#/$defs/Anchor"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "category": {
+          "$ref": "#/$defs/IssueCategory"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "exported_to": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "utterance_ids",
+        "t",
+        "text",
+        "anchor",
+        "evidence",
+        "category",
+        "severity",
+        "exported_to"
+      ],
+      "additionalProperties": false,
+      "title": "Issue"
+    },
+    "Anchor": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AnchorKind"
+        },
+        "target": {
+          "$ref": "#/$defs/TargetRef"
+        },
+        "tab": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "url": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "confidence",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "AnchorKind": {
+      "type": "string",
+      "enum": [
+        "element",
+        "route",
+        "session"
+      ],
+      "description": "Las 3 clases de §07 paso 6. Regla de oro: ante duda, degradar a `route`."
+    },
+    "Evidence": {
+      "type": "object",
+      "properties": {
+        "console": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConsoleEvent"
+          }
+        },
+        "net": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/NetFailEvent"
+              },
+              {
+                "$ref": "#/$defs/NetSlowEvent"
+              }
+            ]
+          }
+        },
+        "timings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Timing"
+          }
+        },
+        "screenshot": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "console",
+        "net",
+        "timings"
+      ],
+      "additionalProperties": false
+    },
+    "Timing": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "label",
+        "ms"
+      ],
+      "additionalProperties": false
+    },
+    "IssueCategory": {
+      "type": "string",
+      "enum": [
+        "ui",
+        "bug",
+        "perf",
+        "copy",
+        "idea"
+      ],
+      "description": "Precedencia de §07 paso 8: bug > perf > copy > ui > idea. Default: ui."
+    },
+    "Severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "med",
+        "high"
+      ]
+    }
+  }
+}
