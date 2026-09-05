@@ -1,14 +1,15 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-// Mismo alias que `tsconfig.json`: resolvemos `@qua/protocol` contra el fuente
-// TS para no depender de que el paquete esté construido antes de los tests.
-const protocolSrc = fileURLToPath(new URL("../packages/protocol/src/index.ts", import.meta.url));
+// Mismos alias que `tsconfig.json`: contra el fuente TS, no contra `dist/`, para no
+// depender del orden de build. Ver el comentario de ahí.
+const src = (p: string) => fileURLToPath(new URL(`../packages/${p}/src/index.ts`, import.meta.url));
 
 export default defineConfig({
   resolve: {
     alias: {
-      "@qua/protocol": protocolSrc,
+      "@qua/protocol": src("protocol"),
+      "@qua/source-resolver": src("source-resolver"),
     },
   },
   test: {

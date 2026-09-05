@@ -6,7 +6,7 @@
   "description": "Extensión Chrome MV3 (WXT). Content script: A1. Service worker: A2. Offscreen/UI: A3.",
   "scripts": {
     "typecheck": "tsc --noEmit --pretty",
-    "build": "echo \"(stub — falta el wiring completo de wxt.config.ts, lo cierra G1)\" && exit 0",
+    "build": "echo \"(stub — el wiring de wxt.config.ts lo cierra G1)\" && exit 0",
     "test": "tsc --noEmit && vitest run"
   },
   "dependencies": {

@@ -1,0 +1,98 @@
+/**
+ * Contrato interno offscreen doc ↔ service worker (§5.4). No es el protocolo
+ * de §04 (eso viaja por WS entre la extensión y el daemon) — son mensajes de
+ * `chrome.runtime` entre dos contextos de la propia extensión.
+ *
+ * El service worker (A2, en curso al escribir esto — ver `docs/DECISIONS.md`
+ * D-11) es quien tiene el WebSocket. El offscreen doc nunca abre el WS
+ * directamente: junta bytes ya empaquetados con el layout de §04 y se los
+ * pasa al service worker, que los manda tal cual por el canal binario.
+ */
+
+/** SW → offscreen. Arranca `getUserMedia` + worklet + `MediaRecorder` (§5.4). */
+export interface StartCaptureMessage {
+  type: "qua:start-capture";
+  /** Origen del reloj de audio (§02) — mismo valor que `session.start.t0_wall`. */
+  t0Wall: number;
+  /** `seq` inicial del primer frame (0 salvo que se esté retomando tras un recover). */
+  startSeq?: number;
+}
+
+/** SW → offscreen. Suelta el micrófono y detiene el `MediaRecorder`. */
+export interface StopCaptureMessage {
+  type: "qua:stop-capture";
+}
+
+/**
+ * SW → offscreen. Refleja si el WS está conectado. Mientras `connected` es
+ * `false`, el offscreen doc bufferea frames en memoria (hasta 30 s, §04
+ * "Resiliencia") en vez de tirarlos al vacío.
+ */
+export interface ConnectionStateMessage {
+  type: "qua:connection-state";
+  connected: boolean;
+}
+
+export type OffscreenInboundMessage = StartCaptureMessage | StopCaptureMessage | ConnectionStateMessage;
+
+/** Offscreen → SW. Un frame binario ya codificado con el layout de §04, listo para el WS. */
+export interface AudioFrameMessage {
+  type: "qua:audio-frame";
+  bytes: Uint8Array;
+}
+
+/**
+ * Offscreen → SW. El buffer de 30 s se llenó durante una desconexión y hubo
+ * que descartar audio viejo (§04 "Resiliencia"). El SW arma el `Event`
+ * `audio_gap` — el offscreen doc no construye `Event`s de §03, esa
+ * responsabilidad es del content script / service worker (ver D-11).
+ */
+export interface AudioGapMessage {
+  type: "qua:audio-gap";
+  duration_ms: number;
+}
+
+/** Offscreen → SW. La captura arrancó: mic concedido, worklet corriendo. */
+export interface CaptureStartedMessage {
+  type: "qua:capture-started";
+}
+
+/** Offscreen → SW. `getUserMedia` u otro paso de arranque falló. */
+export interface CaptureErrorMessage {
+  type: "qua:capture-error";
+  message: string;
+}
+
+/**
+ * Offscreen → SW. El archivo de respaldo (`MediaRecorder` opus, §5.4) cerró
+ * un chunk. Ver D-12: todavía no hay un mensaje de §04 para subir este
+ * archivo al daemon, así que por ahora solo se entrega al SW para que decida
+ * qué hacer (guardarlo, exponerlo a `qua doctor`, etc.).
+ */
+export interface RecordingChunkMessage {
+  type: "qua:recording-chunk";
+  blob: Blob;
+}
+
+export type OffscreenOutboundMessage =
+  | AudioFrameMessage
+  | AudioGapMessage
+  | CaptureStartedMessage
+  | CaptureErrorMessage
+  | RecordingChunkMessage;
+
+export function isStartCaptureMessage(msg: unknown): msg is StartCaptureMessage {
+  return isRecord(msg) && msg.type === "qua:start-capture" && typeof msg.t0Wall === "number";
+}
+
+export function isStopCaptureMessage(msg: unknown): msg is StopCaptureMessage {
+  return isRecord(msg) && msg.type === "qua:stop-capture";
+}
+
+export function isConnectionStateMessage(msg: unknown): msg is ConnectionStateMessage {
+  return isRecord(msg) && msg.type === "qua:connection-state" && typeof msg.connected === "boolean";
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object";
+}

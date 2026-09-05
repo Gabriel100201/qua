@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>QUA — offscreen</title>
+  </head>
+  <body>
+    <!--
+      Documento invisible (chrome.offscreen, reason USER_MEDIA, §5.4). No
+      tiene UI: solo hospeda el AudioContext/AudioWorkletNode/MediaRecorder
+      mientras dura la sesión, para sobrevivir cambios y cierres de pestaña.
+    -->
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>QUA</title>
+    <style>
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 12px;
+        font: 13px/1.4 system-ui, sans-serif;
+        color: #18181b;
+        background: #fafafa;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      #qua-status {
+        font-weight: 600;
+      }
+      #qua-duration {
+        font-variant-numeric: tabular-nums;
+        color: #52525b;
+      }
+      .qua-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      button {
+        flex: 1;
+        padding: 6px 10px;
+        border: 1px solid #d4d4d8;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .qua-meta {
+        display: flex;
+        justify-content: space-between;
+        color: #52525b;
+        margin-bottom: 8px;
+      }
+      #qua-transcript {
+        height: 160px;
+        overflow-y: auto;
+        border: 1px solid #e4e4e7;
+        border-radius: 6px;
+        padding: 6px 8px;
+        background: #fff;
+      }
+      .qua-transcript-line {
+        padding: 2px 0;
+        border-bottom: 1px solid #f4f4f5;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span id="qua-status">Inactivo</span>
+      <span id="qua-duration">00:00</span>
+    </header>
+    <div class="qua-actions">
+      <button id="qua-toggle" type="button">Grabar</button>
+      <button id="qua-mark" type="button" disabled>Marcar</button>
+    </div>
+    <div class="qua-meta">
+      <span>Eventos: <span id="qua-events-count">0</span></span>
+    </div>
+    <div id="qua-transcript"></div>
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

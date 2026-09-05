@@ -7,12 +7,13 @@
     "declaration": false,
     "declarationMap": false,
     "baseUrl": ".",
-    // D-10 ya está arreglado en `packages/protocol` (su `exports` apunta a
-    // `dist/src/`). Este alias se mantiene igual porque resuelve contra el
-    // fuente TS y evita tener que construir el paquete antes de correr los
-    // tests — es conveniencia, ya no un workaround.
+    // Resolvemos los paquetes del workspace contra su fuente TS en vez de contra
+    // `dist/`. `dist/` está en .gitignore, así que depender de él obliga a construir
+    // antes de testear y rompe en cualquier checkout limpio — que es justo lo que le
+    // pasó a A3 (4 archivos de test sin poder cargar @qua/source-resolver).
     "paths": {
-      "@qua/protocol": ["../packages/protocol/src/index.ts"]
+      "@qua/protocol": ["../packages/protocol/src/index.ts"],
+      "@qua/source-resolver": ["../packages/source-resolver/src/index.ts"]
     }
   },
   "include": ["entrypoints/**/*.ts", "test/**/*.ts"]
