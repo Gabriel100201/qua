@@ -89,10 +89,11 @@ pub fn specs() -> Vec<ToolSpec> {
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "issue_id": {"type": "string", "description": "Id del issue, ej. i03."},
+                    "session_id": {"type": "string", "description": "Id de la sesión dueña del issue (campo `session_id` que trae cada issue de qua_issues_pending/qua_issues_search). El id de issue es correlativo por sesión, así que hace falta el par para identificarlo sin ambigüedad (docs/DECISIONS.md, D-B4-07)."},
+                    "issue_id": {"type": "string", "description": "Id del issue *dentro de esa sesión*, ej. i03."},
                     "ticket_url": {"type": "string", "description": "URL del ticket creado, ej. https://linear.app/..."}
                 },
-                "required": ["issue_id", "ticket_url"],
+                "required": ["session_id", "issue_id", "ticket_url"],
                 "additionalProperties": false
             }),
         },
@@ -257,6 +258,8 @@ fn parse_issue_rows(
 }
 
 fn issue_mark_exported(conn: &Connection, args: &Value) -> ToolResult {
+    let session_id = get_str(args, "session_id")
+        .ok_or_else(|| ToolError::BadParams("falta session_id".into()))?;
     let issue_id =
         get_str(args, "issue_id").ok_or_else(|| ToolError::BadParams("falta issue_id".into()))?;
     let ticket_url = get_str(args, "ticket_url")
@@ -266,11 +269,16 @@ fn issue_mark_exported(conn: &Connection, args: &Value) -> ToolResult {
     // `qua_session_get` posterior mostraría el issue como no exportado aunque
     // `qua_issues_pending` ya lo haya dejado de listar. Se hace en Rust (en vez de
     // `json_set` de SQLite) para no depender de que la build de SQLite tenga JSON1.
+    //
+    // `id` es correlativo por sesión (D-B4-07): hace falta el par (session_id, id) para
+    // no pisar el issue equivocado si dos sesiones comparten el mismo id local.
     let raw: String = conn
-        .query_row("SELECT json FROM issues WHERE id = ?1", [issue_id], |r| {
-            r.get(0)
-        })
-        .map_err(|_| ToolError::NotFound(format!("issue {issue_id}")))?;
+        .query_row(
+            "SELECT json FROM issues WHERE session_id = ?1 AND id = ?2",
+            [session_id, issue_id],
+            |r| r.get(0),
+        )
+        .map_err(|_| ToolError::NotFound(format!("issue {session_id}/{issue_id}")))?;
     let mut issue: Value = serde_json::from_str(&raw)
         .map_err(|e| ToolError::BadParams(format!("issues.json de fila inválido: {e}")))?;
     if let Some(obj) = issue.as_object_mut() {
@@ -280,10 +288,10 @@ fn issue_mark_exported(conn: &Connection, args: &Value) -> ToolResult {
         .map_err(|e| ToolError::BadParams(format!("no se pudo serializar el issue: {e}")))?;
 
     conn.execute(
-        "UPDATE issues SET exported_to = ?1, json = ?2 WHERE id = ?3",
-        rusqlite::params![ticket_url, updated_json, issue_id],
+        "UPDATE issues SET exported_to = ?1, json = ?2 WHERE session_id = ?3 AND id = ?4",
+        rusqlite::params![ticket_url, updated_json, session_id, issue_id],
     )?;
-    Ok(json!({ "ok": true, "issue_id": issue_id, "ticket_url": ticket_url }))
+    Ok(json!({ "ok": true, "session_id": session_id, "issue_id": issue_id, "ticket_url": ticket_url }))
 }
 
 pub fn resolve_db_path(explicit: Option<&str>) -> std::path::PathBuf {

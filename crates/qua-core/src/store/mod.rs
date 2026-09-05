@@ -97,10 +97,9 @@ fn anchor_kind_str(kind: AnchorKind) -> &'static str {
 /// correlador. Es de B4/B3 — B1 solo deja la fila de `sessions` en pie (ver el
 /// comentario de [`upsert_session`]).
 ///
-/// `INSERT OR REPLACE` por `id`: nota la limitación real de este esquema en
-/// `docs/DECISIONS.md` (D-B4-07) — `issues.id` es la clave primaria global, no
-/// compuesta con `session_id`, así que dos sesiones distintas con un `i01` chocan. No
-/// es un problema que B4 pueda resolver sin tocar el esquema de F0.
+/// Upsert por la clave compuesta `(session_id, id)` (D-B4-07): dos sesiones distintas
+/// pueden tener cada una su propio `i01` sin pisarse — solo un reprocess de la *misma*
+/// sesión pisa sus propios issues, que es lo que se busca.
 pub fn upsert_issues(
     conn: &Connection,
     session_id: &str,
@@ -111,8 +110,7 @@ pub fn upsert_issues(
         conn.execute(
             "INSERT INTO issues (id, session_id, t, text, category, severity, confidence, anchor_kind, sel, url, src_file, src_line, exported_to, json)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-             ON CONFLICT(id) DO UPDATE SET
-               session_id = excluded.session_id,
+             ON CONFLICT(session_id, id) DO UPDATE SET
                t = excluded.t,
                text = excluded.text,
                category = excluded.category,

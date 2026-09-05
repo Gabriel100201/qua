@@ -1141,3 +1141,68 @@ placeholder.
 (§8.2: `report.refined.md`, "sin pisar el original") para que el resto del flujo (una
 futura tarea que sí cablee un LLM) tenga algo sobre qué iterar, sin fingir una
 integración que no existe.
+
+## B5 · Cierra las dos deudas que dejó B4
+
+### D-B5-01 · `qua reprocess` ya corre el correlador real (cierra D-B4-09)
+
+**Contexto.** D-B4-09 dejó `reprocess` como passthrough (recarga `session.json`,
+re-renderiza) porque B4 arrancó desde un commit anterior al merge de B2/B3, y documentó
+el cableado exacto para cuando alguien retomara el trabajo con `qua_core::correlate` ya
+disponible. Este worktree (`b5`) parte de después de esos merges: `qua_core::correlate`
+y `CorrelatorConfig::from_path` ya existen y están probados.
+
+**Decisión.** `quad::cli::reprocess` (`crates/quad/src/cli.rs`) reemplaza el passthrough
+por: leer `[correlator]` de `config.toml` con `CorrelatorConfig::from_path`, correr
+`qua_core::correlate::correlate(&session.events, &session.utterances, &cfg)`, reemplazar
+`session.issues` por `correlation.issues` y actualizar `session.stats.issues` con la
+cuenta nueva antes de escribir `session.json` y renderizar. Exactamente el cableado que
+D-B4-09 dejó anotado — no se tocó la firma de `reprocess` ni la convención de capturas de
+D-B4-05 (el renderer ya resuelve `raw/frames/<issue_id>.*` solo).
+
+`correlation.captures` (los `CaptureRequest` del paso 9) no se usan: pedirle un frame
+nuevo a la extensión requiere una conexión WS en vivo, que `reprocess` no tiene por
+diseño (corre offline sobre lo que ya está en `raw/`). Cablear ese round-trip es del
+alcance de quien conecte el paso 9 de punta a punta (ver D-B4-05), no de esta tarea.
+
+**Por qué.** Sin esto, `qua reprocess` no producía issues de verdad — el pipeline
+completo (§02: `ingest → asr → correlate → render`) quedaba roto en su paso central. El
+test de idempotencia de B4 (`reprocess_es_idempotente_byte_a_byte`) sigue en verde
+porque `correlate` es una función pura de `events`/`utterances`, que no cambian entre
+pasadas de `reprocess`.
+
+### D-B5-02 · `issues.id` pasa a ser `(session_id, id)` (cierra D-B4-07)
+
+**Contexto.** D-B4-07 documentó el bug: `issues.id TEXT PRIMARY KEY` es una clave
+global, pero los ids son correlativos por sesión (`i01`, `i02`, ...), así que una
+segunda sesión pisaba en silencio los issues de la primera — pérdida de datos real en
+una herramienta cuyo propósito es acumular hallazgos entre sesiones.
+
+**Decisión.** Clave primaria compuesta `PRIMARY KEY (session_id, id)` en
+`crates/qua-core/src/store/schema.sql`, no el id sintético `{session_id}:{id}`. Cambios:
+
+- `schema.sql`: `issues.id` deja de ser `PRIMARY KEY` propio; la tabla declara
+  `PRIMARY KEY (session_id, id)`. `idx_pending` no cambia (no referencia `id`). Los
+  triggers de FTS5 tampoco cambian: usan `rowid`, la columna oculta que SQLite sigue
+  manteniendo porque la clave compuesta (y antes, la clave `TEXT` simple) nunca la
+  alias-ea — eso solo pasa con una columna sola declarada `INTEGER PRIMARY KEY`.
+- `store::upsert_issues`: `ON CONFLICT(id)` → `ON CONFLICT(session_id, id)`.
+- `qua-mcp`: `qua_issues_pending` y `qua_issues_search` no necesitaron cambios — ya
+  hacían `JOIN sessions` por `session_id` y ya devuelven `session_id` junto a cada
+  issue. `qua_issue_mark_exported` ahora pide `session_id` además de `issue_id`
+  (los dos salen del mismo objeto que devolvió `pending`/`search`, así que el agente
+  nunca arma el par a mano) — ver `crates/qua-mcp/README.md`.
+
+**Por qué compuesta y no `{session_id}:{id}`.** Un id sintético concatenado obliga a
+parsear/escapar un string en cada punto de entrada (y a confiar en que ningún id de
+sesión lleve el separador elegido) solo para reconstruir algo que SQLite ya modela
+nativamente con una clave de dos columnas. La clave compuesta además no rompe el
+formato de `Issue.id` que ya vive en `session.json`/`issues.json` (`i01`, sin prefijo) —
+`session_id` sigue siendo una columna aparte, exactamente como ya la trataban las
+consultas de `qua-mcp` antes de este fix.
+
+**Prueba de que el bug murió.** `crates/qua-mcp/tests/mcp_protocol.rs`,
+`dos_sesiones_con_el_mismo_id_local_i01_no_se_pisan`: siembra dos sesiones con su propio
+`i01` cada una, confirma que `qua_issues_pending` devuelve las dos (antes del fix, la
+segunda pisaba a la primera y solo aparecía un issue), y que `qua_issue_mark_exported`
+con `(session_id, issue_id)` afecta solo a la sesión correcta.

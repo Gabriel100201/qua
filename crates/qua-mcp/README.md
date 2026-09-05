@@ -15,10 +15,16 @@ cambie sin darse cuenta.
 | `qua_session_get` | `id`, `include_events?` (default `false`) | `report.md` + `issues.json`; si `include_events` es `true`, agrega `session.json` completo |
 | `qua_issues_pending` | `project?`, `min_confidence?`, `category?` | Issues con `exported_to IS NULL`, ordenados por severidad y luego confianza |
 | `qua_issues_search` | `query`, `project?` | Búsqueda FTS5 sobre el texto de todos los issues (incluye los ya exportados) |
-| `qua_issue_mark_exported` | `issue_id`, `ticket_url` | `{ok: true}` — única escritura, idempotente |
+| `qua_issue_mark_exported` | `session_id`, `issue_id`, `ticket_url` | `{ok: true}` — única escritura, idempotente |
 
 Cada issue devuelto es el objeto `Issue` de §03 tal cual quedó en la columna `json`, más
 `session_id` para que el agente sepa de qué sesión salió.
+
+`issues.id` es correlativo *por sesión* (`i01`, `i02`, ...), no global — la clave real de
+un issue es el par `(session_id, id)` (`docs/DECISIONS.md`, D-B4-07). Por eso
+`qua_issue_mark_exported` pide `session_id` además de `issue_id`: los dos salen directo
+de un issue que ya devolvió `qua_issues_pending`/`qua_issues_search`, así que el agente
+nunca tiene que armar el par a mano.
 
 ## Cómo lo enchufa Gabriel a Claude Code
 

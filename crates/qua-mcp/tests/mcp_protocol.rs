@@ -271,7 +271,7 @@ fn ejerce_las_5_herramientas_por_el_protocolo_mcp() {
     // qua_issue_mark_exported: la única escritura.
     let marked = client.call_tool(
         "qua_issue_mark_exported",
-        json!({ "issue_id": "i01", "ticket_url": "https://linear.app/agendi/issue/AG-99" }),
+        json!({ "session_id": "2026-09-04T14-32-11Z-a3f9", "issue_id": "i01", "ticket_url": "https://linear.app/agendi/issue/AG-99" }),
     );
     assert_eq!(marked["ok"], json!(true));
 
@@ -304,6 +304,108 @@ fn ejerce_las_5_herramientas_por_el_protocolo_mcp() {
     client.shutdown();
 }
 
+/// Siembra una sesión mínima (sin directorio real: solo lo que necesitan
+/// `qua_issues_pending`/`qua_issue_mark_exported`, que no tocan el filesystem) con un
+/// único issue local `i01`.
+fn seed_session_with_i01(conn: &Connection, session_id: &str, project: &str, text: &str) {
+    conn.execute(
+        "INSERT INTO sessions (id, status, project, started_at, duration_ms, issue_count, dir, git_sha)
+         VALUES (?1, 'ready', ?2, '2026-09-04T14:32:11.204Z', 1000, 1, '/tmp/no-existe', NULL)",
+        params![session_id, project],
+    )
+    .expect("insertar sesión");
+    conn.execute(
+        "INSERT INTO issues (id, session_id, t, text, category, severity, confidence, anchor_kind, sel, url, src_file, src_line, exported_to, json)
+         VALUES ('i01', ?1, 100, ?2, 'ui', 'low', 0.9, 'element', NULL, NULL, NULL, NULL, NULL, ?3)",
+        params![
+            session_id,
+            text,
+            json!({
+                "id": "i01",
+                "utterance_ids": [],
+                "t": 100,
+                "text": text,
+                "anchor": {
+                    "kind": "session",
+                    "target": null,
+                    "tab": null,
+                    "url": null,
+                    "confidence": 0.9,
+                    "reason": []
+                },
+                "evidence": {},
+                "category": "ui",
+                "severity": "low",
+                "exported_to": null
+            })
+            .to_string(),
+        ],
+    )
+    .expect("insertar issue i01");
+}
+
+/// D-B4-07: `issues.id` es correlativo *por sesión*, no global. Antes del fix, la
+/// clave primaria era `id` sola, así que la segunda sesión pisaba el `i01` de la
+/// primera en SQLite. Este test es la prueba de que el bug está muerto: dos sesiones
+/// con su propio `i01` sobreviven las dos, y `qua_issues_pending` las devuelve juntas.
+#[test]
+fn dos_sesiones_con_el_mismo_id_local_i01_no_se_pisan() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let db_path = tmp.path().join("qua.db");
+    {
+        let conn = Connection::open(&db_path).expect("abrir db para sembrar");
+        qua_core::store::apply_schema(&conn).expect("aplicar esquema");
+        seed_session_with_i01(&conn, "sesion-a", "Agendi", "el botón de sesión A es re chico");
+        seed_session_with_i01(&conn, "sesion-b", "Agendi", "el botón de sesión B tapa el header");
+    }
+
+    let mut client = McpClient::spawn(&db_path);
+    handshake(&mut client);
+
+    let pending = client.call_tool("qua_issues_pending", json!({}));
+    let issues = pending["issues"].as_array().unwrap();
+    assert_eq!(
+        issues.len(),
+        2,
+        "las dos sesiones tienen que sobrevivir, no pisarse: {issues:?}"
+    );
+
+    let session_ids: std::collections::BTreeSet<&str> = issues
+        .iter()
+        .map(|i| i["session_id"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        session_ids,
+        std::collections::BTreeSet::from(["sesion-a", "sesion-b"]),
+        "qua_issues_pending tiene que devolver el i01 de cada sesión"
+    );
+    for issue in issues {
+        assert_eq!(issue["id"], json!("i01"));
+    }
+
+    // Y cada una se puede marcar exportada por separado sin afectar a la otra.
+    let marked = client.call_tool(
+        "qua_issue_mark_exported",
+        json!({ "session_id": "sesion-a", "issue_id": "i01", "ticket_url": "https://x/1" }),
+    );
+    assert_eq!(marked["ok"], json!(true));
+
+    let pending_after = client.call_tool("qua_issues_pending", json!({}));
+    let after_ids: Vec<&str> = pending_after["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["session_id"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        after_ids,
+        vec!["sesion-b"],
+        "solo el i01 de sesion-a debería salir de pending, el de sesion-b sigue"
+    );
+
+    client.shutdown();
+}
+
 #[test]
 fn mark_exported_sobre_issue_inexistente_devuelve_error_de_herramienta_no_de_protocolo() {
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -315,7 +417,7 @@ fn mark_exported_sobre_issue_inexistente_devuelve_error_de_herramienta_no_de_pro
 
     let response = client.request(
         "tools/call",
-        json!({ "name": "qua_issue_mark_exported", "arguments": { "issue_id": "no-existe", "ticket_url": "https://x" } }),
+        json!({ "name": "qua_issue_mark_exported", "arguments": { "session_id": "2026-09-04T14-32-11Z-a3f9", "issue_id": "no-existe", "ticket_url": "https://x" } }),
     );
     let result = &response["result"];
     assert_eq!(result["isError"], json!(true));

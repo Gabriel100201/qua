@@ -21,8 +21,13 @@ CREATE TABLE IF NOT EXISTS sessions (
   git_sha      TEXT
 );
 
+-- `id` es correlativo *por sesión* (i01, i02, ...), no global: la clave primaria tiene
+-- que ser el compuesto (session_id, id), si no la segunda sesión pisa a la primera
+-- (docs/DECISIONS.md, D-B4-07). Es TEXT + TEXT, así que no alias-ea `rowid` (eso solo
+-- pasa con una columna `INTEGER PRIMARY KEY` sola) — `rowid` sigue siendo la columna
+-- oculta de siempre, que es lo que necesitan los triggers de FTS5 de más abajo.
 CREATE TABLE IF NOT EXISTS issues (
-  id           TEXT PRIMARY KEY,
+  id           TEXT,
   session_id   TEXT REFERENCES sessions(id),
   t            INTEGER,
   text         TEXT,
@@ -35,7 +40,8 @@ CREATE TABLE IF NOT EXISTS issues (
   src_file     TEXT,
   src_line     INTEGER,
   exported_to  TEXT,
-  json         TEXT
+  json         TEXT,
+  PRIMARY KEY (session_id, id)
 );
 
 -- Lo que consulta `qua_issues_pending` del MCP (§10): pendientes primero, más confiables arriba.

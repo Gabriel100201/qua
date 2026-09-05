@@ -168,7 +168,7 @@ pub fn reprocess(data_dir: &Path, id: &str) -> anyhow::Result<String> {
         anyhow::bail!("no existe la sesión {id} en {}", dir.display());
     }
 
-    let session = if dir.join("session.json").exists() {
+    let mut session = if dir.join("session.json").exists() {
         load_session_json(&dir)?
     } else {
         let meta = qua_core::read_meta(&dir)?;
@@ -176,6 +176,15 @@ pub fn reprocess(data_dir: &Path, id: &str) -> anyhow::Result<String> {
         let project = config.match_project(&meta.base_url);
         qua_core::recover_session(&dir, &meta, project)?
     };
+
+    // D-B4-09: B2/B3 ya mergearon a `main` — el correlador real reemplaza el passthrough
+    // que dejó B4. `[correlator]` sale del mismo `config.toml` que usa `qua recover`.
+    let correlator_cfg =
+        qua_core::correlate::CorrelatorConfig::from_path(&data_dir.join("config.toml"))?;
+    let correlation =
+        qua_core::correlate::correlate(&session.events, &session.utterances, &correlator_cfg);
+    session.issues = correlation.issues;
+    session.stats.issues = session.issues.len() as i64;
 
     std::fs::write(
         dir.join("session.json"),
