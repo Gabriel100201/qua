@@ -75,8 +75,12 @@ pub fn decide(
     };
     let domina = ratio.is_none_or(|r| r >= cfg.dominance_ratio);
 
+    // La confianza mide el **aporte individual más fuerte**, no el score fusionado: la
+    // corroboración de varios eventos ayuda a ganar la comparación, pero no puede inventar
+    // evidencia que no existe. Además mantiene honesta la escala del divisor 6.0, que es
+    // exactamente el score máximo de un candidato solo. Ver `docs/DECISIONS.md`, D-B3-07.
     let confidence = {
-        let base = best.map_or(0.0, |b| clamp01(b.score / cfg.confidence_divisor));
+        let base = best.map_or(0.0, |b| clamp01(b.max_contribution / cfg.confidence_divisor));
         if domina {
             base
         } else {
@@ -142,11 +146,13 @@ mod tests {
         }
     }
 
+    /// Un target de un solo aporte: `score` y `max_contribution` coinciden.
     fn st(sel: &str, score: f64) -> ScoredTarget {
         ScoredTarget {
             sel: sel.into(),
             target: target(sel, true),
             score,
+            max_contribution: score,
             contributions: vec![Candidate {
                 kind: CandidateKind::Click,
                 t: 9_100,
@@ -154,6 +160,15 @@ mod tests {
                 dwell_ms: None,
                 score,
             }],
+        }
+    }
+
+    /// Un target que llegó al score `score` acumulando aportes chicos: el más fuerte es
+    /// `max`.
+    fn st_acumulado(sel: &str, score: f64, max: f64) -> ScoredTarget {
+        ScoredTarget {
+            max_contribution: max,
+            ..st(sel, score)
         }
     }
 
@@ -241,6 +256,27 @@ mod tests {
             let anchor = decide(&[st("x", a), st("y", b)], &sin_deixis(), 10_000, &ruta(), &cfg());
             assert_eq!(anchor.kind, AnchorKind::Route, "best={a} second={b}");
         }
+    }
+
+    /// La decisión del coordinador sobre D-B3-07: un candidato que gana **por acumulación**
+    /// puede ganar la comparación, pero llega con la confianza de su mejor evidencia sola.
+    #[test]
+    fn la_confianza_mide_el_aporte_mas_fuerte_no_el_acumulado() {
+        let a = decide(
+            &[st_acumulado("ruidoso", 7.07, 2.83), st("real", 5.04)],
+            &sin_deixis(),
+            10_000,
+            &ruta(),
+            &cfg(),
+        );
+        assert_eq!(a.kind, AnchorKind::Element);
+        assert_eq!(a.target.expect("target").sel, "ruidoso");
+        // 2.83/6 = 0.47, no 7.07/6 = 1.0.
+        assert!((a.confidence - 2.83 / 6.0).abs() < 1e-12, "{}", a.confidence);
+        assert!(
+            a.confidence < 0.5,
+            "un ganador por acumulación no puede pasar el umbral de screenshot"
+        );
     }
 
     #[test]

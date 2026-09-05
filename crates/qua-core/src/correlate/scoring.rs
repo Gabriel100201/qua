@@ -71,8 +71,12 @@ pub struct ScoredTarget {
     pub sel: String,
     /// El `TargetRef` del evento más reciente: «se conserva el rect más reciente».
     pub target: TargetRef,
-    /// Suma de los scores de los candidatos que resuelven a este `sel`.
+    /// Score fusionado: `max + merge_extra_weight × (suma del resto)`. Es el que compite
+    /// contra `min_score` y contra el segundo candidato.
     pub score: f64,
+    /// El aporte individual más fuerte. Es el que mide la **confianza**: la corroboración
+    /// ayuda a ganar la comparación, pero no puede inventar evidencia que no existe.
+    pub max_contribution: f64,
     /// De mayor a menor aporte. Alimenta el `reason[]`.
     pub contributions: Vec<Candidate>,
 }
@@ -215,8 +219,10 @@ pub fn score_candidates(
 /// Paso 5, última línea: «los candidatos que resuelven al mismo `sel` se fusionan: se
 /// suman los scores y se conserva el rect más reciente».
 ///
-/// `cfg.merge_extra_weight` pesa los aportes que no son el más fuerte: `1.0` —el default—
-/// es la suma literal de la spec.
+/// `cfg.merge_extra_weight` pesa los aportes que **no** son el más fuerte:
+/// `score = max + w × (suma del resto)`. Con `1.0` es la suma literal de la spec; el
+/// default es `0.25`, que corrobora sin dejar que una tira de eventos débiles sobre un
+/// distractor le gane a la señal real. Ver `docs/DECISIONS.md`, D-B3-07.
 ///
 /// Devuelve los targets ordenados por score descendente; a igual score, el de evento más
 /// reciente primero, para que el orden sea determinístico.
@@ -235,6 +241,7 @@ pub fn merge_by_selector(candidates: Vec<Candidate>, cfg: &CorrelatorConfig) -> 
                 sel: c.target.sel.clone(),
                 target: c.target.clone(),
                 score: c.score,
+                max_contribution: c.score,
                 contributions: vec![c],
             }),
         }
@@ -243,6 +250,7 @@ pub fn merge_by_selector(candidates: Vec<Candidate>, cfg: &CorrelatorConfig) -> 
         s.contributions
             .sort_by(|a, b| b.score.total_cmp(&a.score).then(b.t.cmp(&a.t)));
         let fuerte = s.contributions.first().map_or(0.0, |c| c.score);
+        s.max_contribution = fuerte;
         s.score = fuerte + cfg.merge_extra_weight * (s.score - fuerte);
     }
     out.sort_by(|a, b| {
@@ -438,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    fn fusiona_por_selector_sumando_y_ordena_por_score() {
+    fn fusiona_por_selector_y_ordena_por_score() {
         let c = cfg();
         let mut cs = vec![
             Candidate {
@@ -464,11 +472,14 @@ mod tests {
             },
         ];
         score_candidates(&mut cs, 10_000, Deixis::None, &c);
-        let suma_a = cs[0].score + cs[1].score;
+        let (a1, a2) = (cs[0].score, cs[1].score);
+        let fuerte = a1.max(a2);
+        let esperado = fuerte + c.merge_extra_weight * (a1 + a2 - fuerte);
         let merged = merge_by_selector(cs, &c);
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].sel, "a");
-        assert!((merged[0].score - suma_a).abs() < 1e-12);
+        assert!((merged[0].score - esperado).abs() < 1e-12);
+        assert!((merged[0].max_contribution - fuerte).abs() < 1e-12);
         assert_eq!(merged[0].contributions.len(), 2);
     }
 
@@ -530,14 +541,17 @@ mod tests {
                 },
             ]
         };
-        assert_eq!(merge_by_selector(cs(), &cfg())[0].score, 4.0);
+        // El default corrobora al 25 %.
+        let d = merge_by_selector(cs(), &cfg());
+        assert_eq!(d[0].score, 3.25);
+        assert_eq!(d[0].max_contribution, 3.0, "la confianza mide el aporte más fuerte");
 
         let mut c = cfg();
+        c.merge_extra_weight = 1.0; // la suma literal de §07
+        assert_eq!(merge_by_selector(cs(), &c)[0].score, 4.0);
+
         c.merge_extra_weight = 0.0;
         assert_eq!(merge_by_selector(cs(), &c)[0].score, 3.0);
-
-        c.merge_extra_weight = 0.5;
-        assert_eq!(merge_by_selector(cs(), &c)[0].score, 3.5);
     }
 
     #[test]

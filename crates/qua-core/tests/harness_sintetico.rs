@@ -202,11 +202,11 @@ fn imprimir(titulo: &str, r: &[Resultado]) -> f64 {
     pct
 }
 
-/// Mide el correlador con la configuración por defecto (= los números literales de §07).
+/// Mide el correlador con la configuración por defecto.
 #[test]
 fn porcentaje_de_anclaje_sobre_el_harness() {
     let (r, rechazadas, saltadas) = correr(&CorrelatorConfig::default());
-    let pct = imprimir("config por defecto (§07 literal)", &r);
+    let pct = imprimir("config por defecto (merge_extra_weight = 0.25)", &r);
 
     println!(
         "\nlíneas que el contrato de §03 rechaza tal cual vienen del harness: {rechazadas}"
@@ -221,16 +221,19 @@ fn porcentaje_de_anclaje_sobre_el_harness() {
     );
 }
 
-/// El mismo harness con `merge_extra_weight = 0`: mide cuánto de la diferencia contra el
-/// ground truth de F1 viene de la fusión-por-suma de §07 paso 5.
+/// El mismo harness con los dos extremos de la perilla de fusión: `1.0` es la suma literal
+/// de §07 paso 5 y `0.0` deja solo el aporte más fuerte. Mide cuánto de la diferencia
+/// contra el ground truth de F1 viene de esa línea de la spec (D-B3-07).
 #[test]
-fn porcentaje_sin_sumar_los_aportes_secundarios() {
-    let cfg = CorrelatorConfig {
-        merge_extra_weight: 0.0,
-        ..CorrelatorConfig::default()
-    };
-    let (r, _, _) = correr(&cfg);
-    imprimir("merge_extra_weight = 0", &r);
+fn porcentaje_con_los_dos_extremos_de_la_fusion() {
+    for w in [1.0, 0.0] {
+        let cfg = CorrelatorConfig {
+            merge_extra_weight: w,
+            ..CorrelatorConfig::default()
+        };
+        let (r, _, _) = correr(&cfg);
+        imprimir(&format!("merge_extra_weight = {w}"), &r);
+    }
 }
 
 /// Ningún escenario puede terminar anclado a un elemento **equivocado** con confianza

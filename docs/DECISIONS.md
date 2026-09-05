@@ -215,27 +215,48 @@ serializado.
 `long_task` es justamente lo que sostiene la categoría `perf` del paso 8. **Si F0 agrega un
 tercer campo a `Evidence`, esto se revierte en una línea.**
 
-### D-B3-07 · La fusión por selector es una perilla, con el valor de la spec como default
+### D-B3-07 · La fusión por selector corrobora, pero no suma
 
 **Ambigüedad con consecuencias.** §07 paso 5 cierra con «los candidatos que resuelven al
 mismo `sel` se fusionan: se suman los scores». La suma es incondicional, y eso hace que una
 tira de eventos débiles sobre un mismo elemento (un `scroll_settle`, un `focus_change`, un
-`click` viejo y dos `hover`) supere a la señal real: cinco aportes chicos suman 7.07 contra
-los 5.04 de un hover sostenido más un click. Además rompe la escala de la confianza: el
-divisor 6.0 del propio paso 6 es exactamente el score máximo de **un** candidato
-(`click 3.0 × recency ≤1 × bias ACTION 2.0 × visibility 1.0`), así que con scores sumados
-la confianza satura en 1.0 seguido.
+`click` viejo y dos `hover`) supere a la señal real: en el escenario s23 del harness, cinco
+aportes chicos sobre el distractor suman **7,07** contra los **5,04** de un hover sostenido
+más un click sobre el elemento del que se estaba hablando. El ancla queda en el elemento
+equivocado y —peor— con confianza **1,00**.
 
-**Decisión.** Se implementa la suma literal de §07 y se deja como **default**. El peso de
-los aportes que no son el más fuerte se expone como `merge_extra_weight` (default `1.0` =
-la suma de la spec; `0.0` = solo el aporte más fuerte).
+Eso contradice dos cosas de la propia spec: la **regla de oro** del paso 6 y el criterio de
+aceptación de B3 en §14, «ningún caso ambiguo anclado a elemento con confianza > 0.5».
 
-**Por qué así y no cambiando la fórmula.** La spec es explícita y B3 no la modifica por su
-cuenta. Pero la consecuencia es medible y contradice dos cosas de la propia spec —la regla
-de oro del paso 6 y el criterio de aceptación de B3 en §14 («ningún caso ambiguo anclado a
-elemento con confianza > 0.5»)—, así que la perilla existe y está documentada. Sobre el
-harness de F1b: `1.0` da 46,2 % y `0.0` da 73,1 %, cambiando **una línea del
-`config.toml`**, sin recompilar. **Queda reportado para que lo decida el coordinador.**
+Hay una pista más de que la suma no estaba en el diseño: el divisor `6.0` de `confidence`
+es **exactamente el score máximo de un solo candidato**
+(`click 3.0 × recency ≤ 1 × bias ACTION 2.0 × visibility 1.0`). Con scores sumados la
+confianza satura en 1,0 seguido y la escala de §8.1 (0.91 · 0.74 · 0.88) deja de significar
+algo.
+
+**Decisión** (tomada por el coordinador; B3 la reportó en vez de aplicarla sola).
+La fusión se parte en dos:
+
+```
+score_final  = aporte_max + merge_extra_weight × (suma del resto)
+merge_extra_weight = 0.25          // nueva clave de [correlator]
+
+confidence   = clamp(aporte_max / 6.0, 0, 1)   // del MÁXIMO, no del score fusionado
+               × 0.7 si el ratio best/second < 1.3
+```
+
+**Por qué.** La corroboración de varios eventos ayuda a **ganar la comparación** contra
+otros candidatos, que es lo que la spec quería; pero la confianza sigue siendo honesta sobre
+qué tan fuerte es la mejor evidencia sola. Un candidato que gana por acumulación de ruido
+gana por poco y llega con confianza baja, así que se lo comen `min_score` o
+`dominance_ratio` y degrada a `route` — que es exactamente lo que pide la regla de oro.
+
+**Es una perilla, no una constante.** `merge_extra_weight` vive en `[correlator]`: `1.0`
+recupera la suma literal de §07 y `0.0` deja solo el aporte más fuerte, sin recompilar.
+Sobre los 26 escenarios de F1b: `1.0` da 46,2 %, `0.25` (el default) da 73,1 % y `0.0` da
+73,1 %. Con el default, **cero** desaciertos anclados a elemento con confianza > 0.5.
+
+**Pendiente fuera de B3.** El coordinador actualiza `docs/SPEC.md` §07 de su lado.
 
 ### D-B3-08 · Los candidatos se restringen a la pestaña de `t_ref`
 

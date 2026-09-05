@@ -124,28 +124,39 @@ worker.** Es lo que separó un merge sano de meter basura en `main`.
 - `2026-09-04 23:51` — Largué **B2** (audio + ASR). Es la de cola más larga: descarga el modelo
   de 574 MB y compila whisper.cpp con Metal, así que conviene que arranque temprano.
 
-- `2026-09-05` — **B3 (correlador) entregada** en la rama `b3`. Los 9 pasos de §07 en
+- `2026-09-05` — **B3 (correlador) hecha** en la rama `b3`. Los 9 pasos de §07 en
   `crates/qua-core/src/correlate/`, con **todos** los umbrales en `[correlator]` de
-  `config.toml` (D-B3-01) y 108 tests propios escritos contra la spec, independientes del
+  `config.toml` (D-B3-01) y 109 tests propios escritos contra la spec, independientes del
   harness. `cargo test --workspace` y `cargo clippy --all-targets` verdes.
 
-  **Lo que hay que decidir antes de dar B3 por cerrada.** Sobre los 26 escenarios de F1b,
-  con la configuración por defecto —que es §07 al pie de la letra— el anclaje da **46,2 %**,
-  lejos del ≥ 85 % de §14. La causa está identificada y es **una línea de la spec contra
-  otra**: §07 paso 5 manda sumar los scores de todos los candidatos que resuelven al mismo
-  selector, y eso hace que una tira de eventos débiles sobre un distractor (scroll + focus +
-  click viejo + dos hover = 7,07) supere a la señal real (hover sostenido + click = 5,04),
-  con confianza saturada en 1,0. Eso contradice la regla de oro del paso 6 y el criterio de
-  aceptación de B3 en §14 («ningún caso ambiguo anclado a elemento con confianza > 0.5»).
-  Se dejó como perilla: `merge_extra_weight` (default `1.0` = la suma literal de §07,
-  `0.0` = solo el aporte más fuerte). Con `0.0` el mismo harness da **73,1 %**, sin
-  recompilar. Ver `docs/DECISIONS.md` D-B3-07.
+  **Cambio de fórmula aprobado por el coordinador (D-B3-07).** §07 paso 5 manda sumar los
+  scores de los candidatos que resuelven al mismo selector, y eso hacía que una tira de
+  eventos débiles sobre un distractor (scroll + focus + click viejo + dos hover = 7,07) le
+  ganara a la señal real (hover sostenido + click = 5,04), anclando al elemento equivocado
+  con confianza 1,00 — contra la regla de oro del paso 6 y contra el criterio de §14.
+  Quedó: `score = aporte_max + merge_extra_weight × (suma del resto)` con
+  `merge_extra_weight = 0.25` configurable, y `confidence` calculada sobre el **aporte
+  máximo**, no sobre el score fusionado. **El coordinador actualiza §07 de su lado.**
 
-  **El harness tampoco es oráculo.** Además de lo ya sabido (usa un `scroll` que no existe
-  en el contrato y cubre 7 de los 18 tipos), 572 de sus 651 líneas de evento **no validan
-  contra §03**: a `nav` le faltan `title`/`kind`, a `click` `mods`, a `scroll_settle`
-  `y`/`pct`, a `mutation_burst` `count`. Y hay dos escenarios cuyo ground truth contradice
-  §07 con cualquier configuración: la plantilla POINTER (s01/05/09/13/17/21) espera
-  `element` donde el ratio best/second da 1,11 y el paso 6 manda degradar a `route`; y s24
-  («visibilidad penaliza candidato oculto») espera que gane justamente el candidato con
-  `visible: false`, que es lo contrario del factor 0.3 del paso 5.
+  **Harness de F1b: 73,1 % (19/26)**, no el ≥ 85 % de §14 — y los 7 desaciertos son todos
+  escenarios cuyo ground truth contradice §07, no fallas del correlador:
+  - **s01/05/09/13/17/21** (la plantilla POINTER, 6 copias del mismo caso): esperan
+    `element` donde el ratio best/second da **1,11 < 1,3** y el paso 6 manda degradar a
+    `route`. El escenario pide que el correlador viole la regla de oro.
+  - **s24** («visibilidad penaliza candidato oculto»): el único candidato con
+    `visible: false` es `nuevo-turno`, y el ground truth espera anclar **a ese**. El factor
+    0.3 del paso 5 hace lo contrario de lo que dice el nombre del escenario.
+
+  Con el default, **cero** desaciertos anclados a elemento con confianza > 0.5, que es el
+  otro criterio de aceptación de B3 en §14.
+
+  **Defecto más del harness, medido:** 572 de sus 651 líneas de evento **no validan contra
+  §03**. Además del `scroll` inexistente (234 líneas), a `nav` le faltan `title`/`kind`, a
+  `click` `mods`, a `scroll_settle` `y`/`pct`, a `mutation_burst` `count`. Solo `hover` (53)
+  y `focus_change` (26) parsean tal cual vienen. El test de harness las parcha en un shim
+  explícito; el correlador de producción las saltea y las reporta, nunca aborta (D-B3-09).
+
+  **Para F0:** `Evidence` (§03) tiene dos baldes (`console`, `net`) pero §07 paso 7 manda
+  adjuntar cinco tipos. `long_task` y `layout_shift` fueron a `net` antes que tirarlos
+  (D-B3-06). Si F0 agrega un tercer campo, revertirlo es una línea. **No se tocó
+  `packages/protocol` ni `crates/qua-protocol`.**

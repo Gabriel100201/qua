@@ -74,12 +74,15 @@ pub struct CorrelatorConfig {
     pub bias_action: f64,
     /// Factor cuando el target no es visible o tiene área 0.
     pub visibility_penalty: f64,
-    /// Peso de los aportes secundarios al fusionar candidatos del mismo `sel`.
+    /// Peso de los aportes secundarios al fusionar candidatos del mismo `sel`:
+    /// `score = max + w × (suma del resto)`.
     ///
-    /// §07 paso 5 dice «se suman los scores», que es `1.0` y es el default. Es la única
-    /// perilla del correlador que puede cambiar cuál de dos elementos gana, así que vive
-    /// acá y no en el código: con `0.0` el score fusionado pasa a ser el del aporte más
-    /// fuerte. Ver `docs/DECISIONS.md`, D-B3-07.
+    /// §07 paso 5 dice «se suman los scores», que sería `1.0`; el default es `0.25` porque
+    /// la suma literal deja que una tira de eventos débiles sobre un distractor le gane a
+    /// la señal real, contra la regla de oro del paso 6. Es la única perilla que puede
+    /// cambiar cuál de dos elementos gana, así que vive acá y no en el código: `1.0`
+    /// recupera la suma de la spec y `0.0` deja solo el aporte más fuerte. Ver
+    /// `docs/DECISIONS.md`, D-B3-07.
     pub merge_extra_weight: f64,
 
     // ---- Paso 6 · decisión de ancla ----
@@ -126,7 +129,7 @@ impl Default for CorrelatorConfig {
             bias_pointer: 1.5,
             bias_action: 2.0,
             visibility_penalty: 0.3,
-            merge_extra_weight: 1.0,
+            merge_extra_weight: 0.25,
 
             min_score: 2.0,
             dominance_ratio: 1.3,

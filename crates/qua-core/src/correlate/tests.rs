@@ -51,8 +51,8 @@ fn ancla_a_elemento_con_deixis_pointer() {
 fn la_ventana_ve_lejos_hacia_atras_y_cerca_hacia_adelante() {
     let events = vec![
         nav(0, 42, "/agenda/semana"),
-        hover(9_000, 42, "el-que-mire", 1_400),
-        click(9_100, 42, "el-que-mire"),
+        hover(10_900, 42, "el-que-mire", 1_400),
+        click(11_100, 42, "el-que-mire"),
         // 1,6 s después de hablar: con una ventana simétrica entraría y ganaría, pero el
         // límite hacia adelante es 1,5 s.
         click(13_600, 42, "lo-siguiente"),
