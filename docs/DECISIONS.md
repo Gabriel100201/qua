@@ -1342,3 +1342,51 @@ fix.**
 campo `t` sigue siendo `z.int()`, sin cambio de forma ni de schema. Lo que cambió es
 que `qua-core` (B1, no F0) por fin hace lo que el comentario del contrato siempre
 dijo que iba a hacer.
+
+### D-G1-07 · El AudioWorklet nunca compilaba: WXT no reconoce entrypoints anidados
+
+**Contexto.** Con G1 wireado de punta a punta, el hover real disparaba la sesión pero
+`raw/audio.pcm` quedaba en 0 bytes. `context.on("console")` en la extensión mostró el
+motivo: `AudioWorklet falló: Failed to load worklet module script:
+chrome-extension://.../worklet/pcm-tap-processor.js (Network error)` — ese archivo
+nunca se compilaba. `entrypoints/offscreen/worklet/pcm-tap-processor.ts` (A3) vivía
+dos niveles bajo `entrypoints/`; WXT solo escanea `entrypoints/*.ts` y
+`entrypoints/*/index.ts` (un archivo o un único nivel de carpeta) para decidir qué es
+un entrypoint — cualquier ruta más anidada es código fuente normal, importado por
+quien lo referencie con `import`, nunca su propio archivo de salida. Como
+`audio-capture.ts` lo carga por `chrome.runtime.getURL(...)` (un string en tiempo de
+ejecución, no un `import`), tampoco terminaba en ningún bundle: WXT simplemente no
+sabía que ese archivo existía. El comentario de A3 en el archivo original ya lo
+anticipaba: "el wiring de bundling con WXT... es del scaffold compartido con A2/G1".
+
+**Decisión.** Se movió a `extension/entrypoints/pcm-tap-processor.ts` (nivel superior,
+un solo segmento de ruta) como su propio "unlisted script" de WXT —
+`export default defineUnlistedScript(() => {...})` — y `audio-capture.ts` ahora pide
+`chrome.runtime.getURL("pcm-tap-processor.js")` (antes `"worklet/pcm-tap-processor.js"`).
+La clase `PcmTapProcessor extends AudioWorkletProcessor` quedó **adentro** de la
+función `main()`: WXT importa cada entrypoint en Node para leer su configuración antes
+de empaquetarlo para el navegador, y `AudioWorkletProcessor` no existe como global en
+Node — declararla a nivel de módulo revienta ese import con
+`AudioWorkletProcessor is not defined`. Las declaraciones ambiente
+(`declare class AudioWorkletProcessor`, `declare function registerProcessor`) se
+separaron a `offscreen/lib/audio-worklet-globals.d.ts` (un script ambiente sin
+`import`/`export`, dos niveles bajo `entrypoints/` así que no lo escanea como
+entrypoint) — vivían inline en el archivo, pero el analizador estático de WXT
+(`@babel/parser` sin soporte de TypeScript) no entiende `declare` y tira
+"Missing semicolon" al escanearlo.
+
+**Una rareza más, no resuelta a fondo por falta de tiempo:** un comentario JSDoc
+(`/** ... */`) largo con texto que incluye rutas con `*` entre backticks (p. ej.
+`` `entrypoints/*.ts` ``) hace que el mismo escaneo de WXT tire "Missing semicolon"
+en una posición de línea/columna que no corresponde al archivo fuente real — probé
+achicar el comentario, sacar backticks de patrones con `*`, y usar comentarios `//`
+en vez de `/** */`, y con eso deja de reproducirse. No aislé la causa exacta (puede
+ser el propio `@babel/parser` de WXT interpretando algo dentro del comentario, o un
+plugin de Rollup buscando anotaciones tipo `@__PURE__` en cualquier comentario del
+archivo — la build ya mostraba advertencias de ese estilo sobre comentarios de
+`zod`). El archivo de `pcm-tap-processor.ts` que quedó usa comentarios `//` en vez de
+`/** */` por eso — no es una preferencia de estilo, es lo que hace que compile.
+
+**Impacto verificado.** Con esto, una sesión E2E real con
+`--use-fake-device-for-media-stream` + `--use-file-for-fake-audio-capture` sobre
+`fixtures/audio/es-hover-sidebar.wav` deja de tener `raw/audio.pcm` en 0 bytes.
