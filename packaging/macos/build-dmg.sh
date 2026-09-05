@@ -2,13 +2,14 @@
 # G1 (§14, §09): empaqueta el daemon (`quad`) y el CLI (`qua`) en un .dmg de macOS.
 #
 # La spec (§09) ata el .dmg a la app Tauri (C1: tray, sidecar, onboarding, firma y
-# notarización) — C1 no cerró (queda como scaffold sin commitear, ver STATE.md). Sin
-# esa app no hay nada real que firmar ni notarizar (necesitaría un Developer ID de
-# Apple que este entorno tampoco tiene), así que este script empaqueta lo que SÍ
-# existe y funciona hoy: los dos binarios de línea de comandos. Es un .dmg real,
-# instalable, sin firmar — Gatekeeper va a pedir "clic derecho > Abrir" la primera
-# vez (documentado en README.md). Cuando C1 cierre, este script es el que hay que
-# reemplazar por `tauri build`.
+# notarización) — C1 ya cerró (`apps/qua-app`, ver STATE.md), pero firmar/notarizar
+# necesitaría un Developer ID de Apple que este entorno no tiene. Este script sigue
+# empaquetando lo que SÍ se puede distribuir sin eso: los dos binarios de línea de
+# comandos, sin la app de bandeja. Es un .dmg real, instalable, sin firmar —
+# Gatekeeper va a pedir "clic derecho > Abrir" la primera vez (documentado en
+# README.md). El equivalente con la app real es `pnpm tauri build --bundles app,dmg`
+# desde `apps/qua-app` (ver su README) — este script queda para quien solo quiera los
+# binarios de CLI.
 #
 # Uso: packaging/macos/build-dmg.sh [--release-dir <target/release>]
 

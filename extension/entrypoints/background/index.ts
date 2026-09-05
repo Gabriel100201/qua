@@ -1,7 +1,7 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { browser } from "wxt/browser";
 import type { ViewportInfo } from "@qua/protocol";
-import { SessionManager } from "./session-manager.js";
+import { SessionManager, type SessionTab } from "./session-manager.js";
 import { startKeepalive } from "./keepalive.js";
 import type { StatusResponse, ToBackgroundMessage } from "./internal-messages.js";
 
@@ -13,7 +13,11 @@ const DEFAULT_VIEWPORT: ViewportInfo = { w: 0, h: 0, dpr: 1 };
  * `baseUrl`/`viewport` contra la pestaña activa cuando llega `qua:start-session`
  * (ver D-G1-03 en `docs/DECISIONS.md`). `scripting` ya está en `wxt.config.ts`.
  */
-async function resolveActiveTabSessionInfo(): Promise<{ baseUrl: string; viewport: ViewportInfo }> {
+async function resolveActiveTabSessionInfo(): Promise<{
+  baseUrl: string;
+  viewport: ViewportInfo;
+  tab: SessionTab;
+}> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab?.id || !tab.url) {
     throw new Error("SessionManager: no hay pestaña activa para arrancar la sesión");
@@ -29,7 +33,7 @@ async function resolveActiveTabSessionInfo(): Promise<{ baseUrl: string; viewpor
     // Páginas donde `scripting.executeScript` no puede correr (chrome://, la Web
     // Store, etc.) — la sesión arranca igual con el viewport por defecto.
   }
-  return { baseUrl: tab.url, viewport };
+  return { baseUrl: tab.url, viewport, tab: { id: tab.id, title: tab.title ?? "" } };
 }
 
 export default defineBackground(() => {
@@ -65,8 +69,8 @@ export default defineBackground(() => {
         sessions.enqueue({ t: Date.now(), k: "mark", source: "popup" });
         return { ok: true };
       case "qua:start-session": {
-        const { baseUrl, viewport } = await resolveActiveTabSessionInfo();
-        await sessions.start(baseUrl, viewport);
+        const { baseUrl, viewport, tab } = await resolveActiveTabSessionInfo();
+        await sessions.start(baseUrl, viewport, tab);
         return { ok: true };
       }
       case "qua:stop-session":

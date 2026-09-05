@@ -46,7 +46,10 @@ describe("session.control: el hotkey global reenviado por el daemon", () => {
     socket.triggerMessage({ v: 1, type: "session.control", action: "mark", t: 123 });
     await sleep(15);
 
-    expect(daemon.allEvents()).toEqual([{ t: 123, k: "mark", source: "hotkey" }]);
+    // El buffer también trae el `nav` sintético de arranque (D-Z1-01, sin flush
+    // propio) — el `mark` es lo que este test verifica, así que se filtra el resto.
+    const markEvents = daemon.allEvents().filter((e) => e.k === "mark");
+    expect(markEvents).toEqual([{ t: 123, k: "mark", source: "hotkey" }]);
   });
 
   it("action mark en idle no hace nada (no hay sesión que marcar)", async () => {
@@ -105,5 +108,49 @@ describe("session.control: el hotkey global reenviado por el daemon", () => {
     expect(manager.getPhase()).toBe("recording");
     expect(daemon.sessionStartCount).toBe(1);
     expect(daemon.helloCount).toBe(2); // canal de control + canal de grabación
+  });
+});
+
+/**
+ * D-Z1-01: el `nav` (kind: "load") de la página lo emite el content script al
+ * cargar — casi siempre antes de que la sesión llegue a "recording" (el caso común:
+ * el usuario ya está parado en la página cuando aprieta grabar). `onEvent` descarta
+ * todo evento que llegue mientras la fase no es "recording", así que ese `nav`
+ * nunca cruza al daemon y `route_context` (`qua-core/src/correlate/mod.rs`) no
+ * tiene de dónde sacar la URL — el reporte ancla a "(ruta desconocida)" pese a que
+ * `baseUrl` está bien en `session.json`. `start()` tiene que reconstruir ese `nav`
+ * él mismo, ahora que la fase sí es "recording".
+ */
+describe("nav sintético al arrancar (D-Z1-01)", () => {
+  it("start() encola un nav kind:load con la baseUrl real, no solo en session.start", async () => {
+    const daemon = new FakeDaemonCtor({ responseDelayMs: 1 });
+    const manager = await setupManager(daemon);
+
+    await manager.start("https://agendi.app/agenda", VIEWPORT, { id: 7, title: "Agenda" });
+    await sleep(15);
+    expect(manager.getPhase()).toBe("recording");
+
+    // El `nav` no fuerza flush inmediato (§04: solo `mark` y `console.error` lo
+    // hacen) — `stop()` flushea lo que haya quedado en el buffer del `WsClient`.
+    await manager.stop();
+
+    const navEvents = daemon.allEvents().filter((e) => e.k === "nav");
+    expect(navEvents).toEqual([
+      { t: 1_700_000_000_000, tab: 7, k: "nav", url: "https://agendi.app/agenda", title: "Agenda", kind: "load" },
+    ]);
+  });
+
+  it("sin tab conocida igual encola el nav (sin tab id, pero con la url)", async () => {
+    const daemon = new FakeDaemonCtor({ responseDelayMs: 1 });
+    const manager = await setupManager(daemon);
+
+    await manager.start("https://agendi.app", VIEWPORT);
+    await sleep(15);
+    await manager.stop();
+
+    const navEvents = daemon.allEvents().filter((e) => e.k === "nav");
+    expect(navEvents).toEqual([
+      { t: 1_700_000_000_000, k: "nav", url: "https://agendi.app", title: "", kind: "load" },
+    ]);
   });
 });
