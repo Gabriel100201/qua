@@ -5,6 +5,7 @@
 
 #![deny(rust_2018_idioms)]
 
+pub mod cli;
 pub mod config;
 pub mod pairing;
 pub mod server;
