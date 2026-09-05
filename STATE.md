@@ -36,7 +36,7 @@
 | B3 · Correlador                | F0, F1 | ✅ hecho | **opus** | `2509595` | — | — |
 | B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
 | C1 · App Tauri                 | B1     | 🟡 en curso | sonnet | — | — |
-| D1 · Servidor MCP              | F0     | 🟡 en curso | sonnet | — | — |
+| D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
@@ -258,4 +258,9 @@ agregar y se revisa antes de commitear.**
 2. **El harness sigue roto.** 234 líneas con el evento inexistente `scroll`; con validación
    estricta B3 contó 572 de 651 inválidas. Falta **F1c**.
 3. **7 escenarios contradicen §07** (los 6 POINTER y s24). Arreglarlos sube el 73,1% real.
+- `2026-09-05 02:15` — **D1 ✅** verificada y mergeada. **172 tests de Rust.** El test de
+  aceptación levanta el binario real como subproceso, siembra una DB con el esquema real y
+  ejerce las 5 herramientas por el protocolo MCP verdadero. La escritura está impuesta a nivel
+  de flags de SQLite: `READ_ONLY` para todo salvo `qua_issue_mark_exported`.
+- `2026-09-05 02:15` — Largué **F1c** para sanear el harness, con el diagnóstico completo de B3.
 
