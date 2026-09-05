@@ -178,7 +178,10 @@ mod tests {
         std::fs::write(
             dir.path().join("raw/stop.json"),
             serde_json::to_string(&StopMarker {
-                t: 5000,
+                // `t` viaja en epoch-ms absoluto, igual que todo `t` de §02 (5s de
+                // sesión, no 5s desde el epoch): `build_session` lo normaliza contra
+                // `meta.t0_wall`.
+                t: meta.t0_wall + 5000,
                 ended_at: "2026-09-04T14:33:11.204Z".into(),
             })
             .unwrap(),

@@ -1269,3 +1269,76 @@ disparó ni recibió sus mensajes — `session-manager.ts` no conocía `qua:audi
 **Por qué.** Esto es literalmente "cablear la extensión" (§14, criterio de G1): sin esto,
 `wxt build` no produce nada cargable y ninguna sesión real habría llegado con audio al
 daemon aunque B2/B3/B4 estuvieran perfectos del otro lado.
+
+### D-G1-05 · El E2E lanza Chrome for Testing (vía Playwright), no el Chrome de /Applications
+
+**Contexto.** El criterio de G1 pide una instancia aparte de Chrome con
+`--load-extension`/`--user-data-dir`, sin activar el modo desarrollador a mano.
+Probé primero contra el Google Chrome real de `/Applications` (el mismo de
+STATE.md, "Chrome en /Applications" del toolchain verificado). No cargó nunca: el
+log de arranque (`--enable-logging=stderr --v=1`) muestra
+`--disable-extensions-except is not allowed in Google Chrome, ignoring` y
+`Extensions.NotAllowlistedDisabled2 recorded 1 samples` — Google Chrome (la build de
+consumo, no Chromium) bloquea cargar una extensión sin empaquetar salvo que el toggle
+"Modo de desarrollador" esté prendido **en el perfil**, y ese toggle no se puede
+setear por archivo de preferencias (Chrome lo protege con un hash anti-tamper —
+`PrefHashFilter` — que lo resetea solo si se edita a mano el `Preferences` del
+perfil).
+
+**Decisión.** El script (`e2e/session.e2e.mjs`) usa `playwright` (no
+`playwright-core`) y deja que maneje su propio binario ("Chrome for Testing",
+`npx playwright install chromium` una vez) en vez de apuntar a
+`executablePath` de `/Applications`. Es el mismo motor Blink/V8 real, motor real de
+Chrome, pero es la build que Google distribuye específicamente para
+automatización — sin la restricción de arriba. `ignoreDefaultArgs:
+["--disable-extensions", "--disable-component-extensions-with-background-pages"]`
+sigue haciendo falta (Playwright agrega `--disable-extensions` por default, que
+pisa el `--disable-extensions-except` de la extensión real).
+
+**Efecto secundario encontrado:** con `--disable-component-extensions-with-background-pages`
+ignorado, componentes internos de Chrome (`Google Network Speech`, id
+`fignfifoniblkonapihmkfakmlgkbkcf`) también registran su propio service worker, y
+pueden aparecer en `context.serviceWorkers()` antes que el nuestro. El script busca
+por `chrome.runtime.getManifest().name === "QUA"` en vez de tomar "el primero" o
+"el último" — ver `findExtensionServiceWorker` en `session.e2e.mjs`.
+
+**Por qué no es trampa.** El criterio dice "instancia aparte de Chrome", no
+"el Chrome instalado en /Applications" — y el punto central ("sin modo
+desarrollador a mano") se cumple mejor así: cero intervención humana, en vez de
+depender de un toggle que ni siquiera se puede automatizar con las herramientas
+disponibles.
+
+### D-G1-06 · Bug real encontrado por el E2E: nadie normalizaba `t` contra `t0_wall`
+
+**Contexto.** La primera corrida completa del E2E produjo un `report.md` válido pero
+con una duración absurda ("496829h 55m 41s"). `packages/protocol` (§02, comentario de
+`Event.t`, intocable por regla) es explícito: *"el content script lo emite como
+`performance.timeOrigin + performance.now()` y el daemon lo normaliza"* — pero
+`qua_core::ingest::session_builder::build_session` (B1) nunca restaba `t0_wall` de
+nada: ni de los `t` de cada `Event`, ni de `duration_ms` (que llega como el mismo
+epoch-ms absoluto de `SessionStop.t` / `StopMarker.t`). El bug es invisible a
+cualquier test que arme sus propios eventos con `t` chico a mano — que es lo que
+hacían **todos** los tests existentes de B1/B3/B4 (`t: 10`, `t: 100`, …) — porque un
+`t` "ya relativo" pasado sin normalizar simplemente queda como estaba. Solo aparece
+con un reloj real (`Date.now()`, ~1.7 billones de ms), que es exactamente lo que una
+sesión de verdad manda y ninguna fixture sintética reproduce.
+
+**Decisión.** `build_session` ahora normaliza: `duration_ms = duration_ms - t0_wall`,
+y cada `Event.t` pasa por `normalize_t` (un match exhaustivo que reconstruye cada una
+de las 18 variantes con `t - t0_wall` — `Event` no tiene un setter de `t`, y no vale
+la pena agregar uno en `qua-protocol` solo para esto). Es el único lugar donde hace
+falta: tanto `finalize()` en vivo como `recover_session` pasan por acá.
+
+**Impacto en tests existentes.** `ingest_100k.rs` y
+`recover.rs::con_stop_marker_queda_processing` mandaban eventos con `t` chico junto a
+un `t0_wall` grande (`1_800_000_000_000` / `1_788_012_731_204`) — inconsistente con
+lo que un content script real manda. Los ajusté para que los `t` simulados sean
+`t0_wall + relativo`, que es la forma real del contrato, y las aserciones ahora
+comparan contra el valor ya normalizado. `kill_and_recover.rs` no necesitó cambios
+(ya mandaba valores consistentes). **190 tests de Rust, todos verdes después del
+fix.**
+
+**Por qué esto no es un cambio de protocolo.** `packages/protocol` no se tocó: el
+campo `t` sigue siendo `z.int()`, sin cambio de forma ni de schema. Lo que cambió es
+que `qua-core` (B1, no F0) por fin hace lo que el comentario del contrato siempre
+dijo que iba a hacer.

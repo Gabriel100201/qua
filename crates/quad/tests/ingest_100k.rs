@@ -19,6 +19,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
+const T0_WALL: i64 = 1_800_000_000_000;
 const ORIGIN: &str = "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TOKEN: &str = "test-token-100k";
 
@@ -118,7 +119,7 @@ async fn ingesta_100k_eventos_sin_perdida() {
         &ClientMessage::SessionStart {
             v: ProtocolVersionTag,
             session: SessionStartPayload {
-                t0_wall: 1_800_000_000_000,
+                t0_wall: T0_WALL,
                 base_url: "http://localhost:3000/agenda".into(),
                 env: env_info(),
             },
@@ -133,7 +134,7 @@ async fn ingesta_100k_eventos_sin_perdida() {
     while sent < TOTAL {
         seq += 1;
         let n = BATCH.min(TOTAL - sent);
-        let items: Vec<Event> = (0..n).map(|i| mark_event(sent + i)).collect();
+        let items: Vec<Event> = (0..n).map(|i| mark_event(T0_WALL + sent + i)).collect();
         send(
             &mut write,
             &ClientMessage::Events {
@@ -164,7 +165,7 @@ async fn ingesta_100k_eventos_sin_perdida() {
         &mut write,
         &ClientMessage::SessionStop {
             v: ProtocolVersionTag,
-            t: TOTAL,
+            t: T0_WALL + TOTAL,
         },
     )
     .await;
