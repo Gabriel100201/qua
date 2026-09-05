@@ -31,7 +31,7 @@
 | A1 · Content script            | F0     | ✅ hecho | sonnet | `99aec5b` | — |
 | A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
 | A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
-| B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
+| B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
@@ -152,3 +152,15 @@ verificable de una sola línea, y mandar a Claude todo lo que exija leer spec co
   Los alias que A1 puso en `extension/` siguen siendo válidos y se pueden borrar cuando alguien
   quiera; no urge.
 - `2026-09-05 23:42` — Largué **A3** en el slot liberado.
+- `2026-09-05 23:45` — **B1 ✅** (`08520bd`) verificada y mergeada. 29 tests, incluidos los dos
+  criterios duros con procesos reales: 100k eventos por WS sin pérdida ni duplicados, y
+  `kill -9` a mitad de sesión con `qua recover` reconstruyendo desde otro proceso.
+  Nueve decisiones propias documentadas (D-B1-01..09).
+
+### Cuidado al mergear: `docs/DECISIONS.md` se resuelve por UNIÓN
+
+Resolví un conflicto en ese archivo con `--theirs` y **perdí D-09 y D-10 de A1**. Los
+recuperé a mano. Cada worker agrega sus propias entradas, así que el conflicto siempre es
+"ambos agregaron al final": hay que quedarse con las dos partes, nunca con un lado.
+`STATE.md` sí se resuelve con `--ours` (lo escribe el coordinador).
+
