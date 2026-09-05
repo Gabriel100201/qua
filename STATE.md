@@ -32,7 +32,7 @@
 | A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
-| B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
+| B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — |
 | B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
@@ -123,3 +123,29 @@ worker.** Es lo que separó un merge sano de meter basura en `main`.
   enteras en una sola línea. Funciona y está testeado, pero merece un pase de formato.
 - `2026-09-04 23:51` — Largué **B2** (audio + ASR). Es la de cola más larga: descarga el modelo
   de 574 MB y compila whisper.cpp con Metal, así que conviene que arranque temprano.
+- `2026-09-05 00:10` — **B2 ✅** (`2ed220b`). `crates/qua-core/src/asr/`: jitter buffer
+  (reordena por seq, ventana 200ms) → ring buffer f32 16kHz 60s → VAD silero (crate
+  `voice_activity_detector`, chunks de 512 muestras/32ms — el modelo silero v5 no acepta
+  30ms exactos, ver D-09) → cola acotada (cap 8) → worker de whisper (`whisper-rs`,
+  feature `metal` en macOS, compila sin Xcode completo porque `GGML_METAL_EMBED_LIBRARY`
+  embebe el shader y lo compila en runtime) con los parámetros exactos de la DECISIÓN de
+  §06.1. Gestión del modelo: descarga desde Hugging Face a `~/.qua/models/` con SHA-256
+  verificado contra el hash real de la API de HF, y callback de progreso. Priming del
+  prompt: `vocab.txt` sembrado por defecto + últimos 200 caracteres (no bytes) de la
+  utterance anterior. 35 tests unitarios + 1 test de integración de punta a punta, todos
+  verdes; `cargo fmt`/`clippy -D warnings` limpios en todo el workspace. Verificado por el
+  coordinador tras un corte de sesión: se corrieron los 47 tests del workspace de nuevo en
+  frío y pasaron los 47, incluida la transcripción real.
+  El test de aceptación (`crates/qua-core/tests/asr_pipeline.rs`) corre el pipeline real
+  —VAD silero real + whisper real, sin mocks— sobre `fixtures/audio/es-hover-sidebar.wav`,
+  voz sintetizada con `say -v Mónica` de macOS (no hay micrófono en el entorno, ver D-11),
+  y produce una `Utterance` con texto y timestamps por palabra: transcribe correctamente
+  "sidebar" y "componente" (vocabulario técnico del priming) aunque confunde "hover" con
+  "hago ver" porque el test usa `ggml-base` (148 MB) en vez del `large-v3-turbo-q5_0` de
+  producción (574 MB, demasiado pesado para bajar en cada corrida — ver D-10). Ocho
+  decisiones nuevas en `docs/DECISIONS.md` (D-09 a D-16), incluida una dependencia de
+  sistema que hubo que agregarle a CI: `whisper-rs-sys` necesita `cmake` y `libclang-dev`
+  para compilar en `ubuntu-latest`, que no los trae por default.
+  **Pendiente para quien retome:** el fan-out real de `--asr-workers N` (hoy es un campo
+  de config sin pool de hilos, ver D-15) y cachear `~/.qua/models` entre corridas de CI
+  (hoy baja 148 MB en cada run, ver D-16).
