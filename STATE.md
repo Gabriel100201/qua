@@ -37,7 +37,7 @@
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
-| E1 · Source mapping            | F0     | ✅ hecho | Codex | `c002fe9` |
+| E1 · Source mapping            | F0     | ✅ hecho | Codex | `87b4577` |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
