@@ -17,6 +17,7 @@ pub fn target(sel: &str, visible: bool) -> TargetRef {
         rect: None,
         visible: Some(visible),
         classes: None,
+        ancestor_text: None,
         computed: None,
         component: None,
         src: None,

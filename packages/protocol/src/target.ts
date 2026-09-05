@@ -80,6 +80,14 @@ export const TargetRefSchema = z
     visible: z.boolean().optional(),
     /** Cadena de clases COMPLETA, sin truncar: con Tailwind v4 la clase es el estilo (§03). */
     classes: z.string().optional(),
+    /**
+     * Solo cuando `strategy === "css-path"` (§5.2 nivel 4: sin testid/id/rol-nombre)
+     * y el elemento no tiene texto propio ni nombre accesible — texto (recortado a
+     * 80 chars, mismas reglas de redacción de §12) del ancestro legible más cercano,
+     * para que un reporte pueda describir el elemento ("el botón dentro de...")
+     * aunque `sel` sea un `css-path` ilegible.
+     */
+    ancestorText: z.string().optional(),
     computed: ComputedStyleSchema.optional(),
     /** Cadena de `_debugOwner`, de afuera hacia adentro. Tier 3 de §11. */
     component: z.array(z.string()).optional(),

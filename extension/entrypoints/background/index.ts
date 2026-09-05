@@ -77,7 +77,13 @@ export default defineBackground(() => {
         await sessions.stop();
         return { ok: true };
       case "qua:get-status":
-        return { phase: sessions.getPhase(), wsStatus: sessions.getWsStatus(), paired: await sessions.isPaired() };
+        return {
+          phase: sessions.getPhase(),
+          wsStatus: sessions.getWsStatus(),
+          paired: await sessions.isPaired(),
+          startedAtWall: sessions.getStartedAtWall(),
+          eventsCount: sessions.getEventsCount(),
+        };
       default:
         return { ok: false, error: "mensaje desconocido" };
     }

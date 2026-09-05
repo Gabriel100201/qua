@@ -28,6 +28,10 @@ interface BackgroundStatusResponse {
   phase: PopupStatus["state"];
   wsStatus?: "disconnected" | "connecting" | "connected";
   paired?: boolean;
+  /** Opcionales para no romper si un service worker viejo (recién actualizado,
+   * todavía no reciclado) responde sin estos campos (D-U3-01). */
+  startedAtWall?: number | null;
+  eventsCount?: number;
 }
 
 function isBackgroundStatusResponse(v: unknown): v is BackgroundStatusResponse {
@@ -58,8 +62,8 @@ export class StatusClient {
     }
     return {
       state: result.value.phase,
-      startedAtWall: IDLE_STATUS.startedAtWall,
-      eventsCount: IDLE_STATUS.eventsCount,
+      startedAtWall: result.value.startedAtWall ?? IDLE_STATUS.startedAtWall,
+      eventsCount: result.value.eventsCount ?? IDLE_STATUS.eventsCount,
       lastError: null,
       paired: result.value.paired,
       wsStatus: result.value.wsStatus,

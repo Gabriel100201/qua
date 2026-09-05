@@ -135,6 +135,9 @@
         "classes": {
           "type": "string"
         },
+        "ancestorText": {
+          "type": "string"
+        },
         "computed": {
           "$ref": "#/$defs/ComputedStyle"
         },

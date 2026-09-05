@@ -2226,3 +2226,187 @@ el workspace de Rust
 necesitó `apps/qua-app/scripts/build-sidecars.sh` primero (D-M1-03, ya documentado
 arriba: sin los sidecars compilados, `cargo test --workspace` ni siquiera compila
 `qua-app`).
+
+## V1 · Tres bugs de la primera sesión real de Gabriel
+
+La sesión se grabó y proceso bien (`report.md` válido, whisper transcribió, el
+correlador ancló), pero la experiencia de grabarla tuvo tres problemas concretos.
+Ninguno de los tres cambia protocolo ni cascadas ya cerradas — son fixes acotados.
+
+### D-V1-01 · El popup no reflejaba la sesión en curso: cierra el "queda para un pase siguiente" de D-U2-01
+
+**El bug.** "Le doy a Grabar y no se actualiza la UI de la extensión, le doy a
+Detener y pasa lo mismo." `background/index.ts` solo tenía
+`browser.runtime.onMessage.addListener` — responde cuando le preguntan, nunca
+empuja nada — y `popup/lib/controller.ts` llamaba a `client.getStatus()` una única
+vez al abrirse (`.then(applyStatus)`, antes de esta tarea) y de ahí en más solo
+corría un timer que redibujaba la duración con el `startedAtWall` que ya tenía. La
+sesión arrancaba de verdad del lado del daemon; el popup se quedaba en "Inactivo"
+para siempre porque nunca volvía a preguntar.
+
+**Decisión: opción (a) del enunciado — polling de `getStatus()` cada 500 ms
+mientras el popup está abierto, no (b).** `startPopupController`
+(`extension/entrypoints/popup/lib/controller.ts`) arranca un único timer al montar
+(`pollTimer`, inyectable vía `setIntervalFn`/`clearIntervalFn` como ya hacía el
+timer de duración viejo, que este reemplaza) que en cada tick llama
+`client.getStatus()` y `refreshDiagnostics()` — la MISMA franja de daemon/micrófono/
+pestaña de D-U2-01, que ese pase había dejado anotada como "no hay polling en vivo
+todavía, queda para un pase siguiente". Se descartó (b) — que `SessionManager`
+emita el estado por `chrome.runtime.sendMessage` en cada transición de la FSM — por
+lo que el propio enunciado adelantaba: un popup MV3 puede no estar vivo en el
+instante exacto de la transición (se cerró, se está reabriendo) y perdería el
+mensaje sin nadie escuchando; sin un fallback de poll, esa pérdida es permanente
+hasta el próximo cambio de estado. El scaffold de push (`client.onStatus`,
+`StatusPushMessage` en `popup/lib/messages.ts`) se deja cableado — no hace daño
+tenerlo — pero hoy nada del lado de `background/index.ts` lo emite; documentado acá
+para que quien lo agregue después sepa que sería un complemento del poll, no un
+reemplazo.
+
+**Efecto secundario que había que resolver para que el poll sirviera de algo:**
+`internal-messages.ts::StatusResponse` no traía `eventsCount` ni `startedAtWall` —
+`StatusClient.getStatus()` los rellenaba siempre con los valores de `IDLE_STATUS`
+(`null`/`0`), sin importar la fase real. `SessionManager` ahora expone
+`getStartedAtWall()` (el `t0Wall` de la sesión en `SessionFsm.current`, o `null` en
+`idle`) y `getEventsCount()` (contador propio, incrementado en `onEvent()` — cuenta
+al encolar en la FSM, no al `ack` del daemon: un contador que se queda congelado
+esperando la confirmación de red es peor que uno optimista que puede estar unos
+milisegundos adelantado). `background/index.ts` los agrega a la respuesta de
+`qua:get-status`.
+
+**`applyStatus` ya no puede pisar `lastError` a ciegas.** Antes de este pase, el
+único llamador de `applyStatus` era el push (nunca disparado) y el fetch inicial —
+pisar `status` entero no importaba. Con un poll cada 500 ms, un `getStatus()` que
+siempre trae `lastError: null` (porque un fallo de `start()`/`stop()` vive en el
+`CommandResult`, no en `StatusResponse`) hubiera borrado el banner de error de
+D-U2-01 casi apenas aparecía — el usuario ni llegaría a leerlo. `applyStatus` ahora
+mergea: `{ ...next, lastError: next.lastError ?? status.lastError ?? null }`. Como
+`getStatus()` real siempre manda `lastError: null` explícito (nunca `undefined`),
+`??` lo trata como nullish igual y conserva el error que ya estaba mostrado — sigue
+así hasta que un comando nuevo (`applyCommandResult`/`setError`) lo reemplace o lo
+limpie.
+
+**Se aprovechó para simplificar el timer de duración**, que antes vivía aparte
+(`syncDurationTimer`, arrancaba/paraba según `status.state`): ahora la duración se
+recalcula en `renderStatus()` en cada tick del mismo poll, sin un segundo timer.
+Con 500 ms de cadencia el segundero se ve tan fluido como antes (1000 ms) y hay un
+solo `setInterval` que cuidar en el teardown.
+
+**Tests** (`extension/entrypoints/popup/lib/controller.test.ts`, describe "la UI se
+actualiza sin cerrar el popup"): simula click en Grabar, no cierra el popup, dispara
+un tick manual del poll (`fakePollTimer` captura el callback que se le pasa a
+`setIntervalFn` en vez de depender de temporizadores reales) y verifica que la
+etiqueta pasa de "Inactivo" a "● Grabando" y el botón a "Detener" — el criterio
+exacto de esta tarea. Más: Detener sin cerrar el popup, la franja de diagnóstico se
+refresca en el mismo tick, y un error real mostrado por un comando sobrevive al
+siguiente tick del poll en vez de desaparecer solo. Los tests viejos de
+`setIntervalFn`/`clearIntervalFn` que asumían un timer dedicado a la duración se
+reescribieron para el timer único de poll; los del resto de D-U2-01 no cambiaron.
+
+### D-V1-02 · El daemon ya no crea el directorio de sesión en `hello` — revierte la "alternativa descartada" de D-P1-01
+
+**El bug.** `~/.qua/sessions/` acumulaba directorios como
+`2026-09-05T14-23-08Z-dec3/` con `raw/audio.pcm` y `raw/events.ndjson` de cero bytes
+y sin `session.json`: el canal de control ocioso de D-P1-01 (`SessionManager`
+reabre uno en cada `init()`/`stop()`) manda `hello` sin nunca mandar
+`session.start`, y `ActiveSession::create` (`crates/quad/src/session.rs`) creaba
+`raw/` y abría los dos logs crudos apenas llegaba el `hello`. D-P1-01 ya documentaba
+esto como "costo aceptado" y explícitamente descartó la alternativa perezosa citando
+riesgo de romper algo en medio de tres tareas en vuelo (G1, F1c, B6) — esas tres ya
+mergearon hace rato, y en la práctica el directorio huérfano confunde a cualquiera
+que mire `~/.qua/sessions/` a mano, que es exactamente lo que le pasó a Gabriel.
+
+**Decisión: la primera alternativa del enunciado — no crear basura, no barrerla
+después.** `ActiveSession::create(data_dir)` ahora solo mintea el `id` y calcula el
+`PathBuf` de `<data_dir>/sessions/<id>/` — cero I/O, ya no devuelve `Result`. El
+directorio, los dos `RawEventLog`/`RawAudioLog` (ahora `Option<...>`, `None` hasta
+que arranca) y `raw/meta.json` se crean recién en `ActiveSession::start()`, que es
+cuando de verdad hay algo que escribir (`t0_wall`, `env`, `base_url` llegan con
+`session.start`, no con `hello`). `ingest_events`/`ingest_audio`/`ingest_mark`
+asumen con `.expect(...)` que la sesión ya arrancó — invariante que `ws.rs` ya
+garantizaba filtrando por `is_started()` antes de llamarlos, así que el `expect`
+documenta la garantía en vez de forzar un `Result` que ningún caso real dispara.
+`sync()` devuelve `Ok(None)` sin tocar disco si todavía no hay logs. El `Hello` de
+`ws.rs` ya no tiene rama de error: crear la sesión en memoria no puede fallar.
+
+**Consecuencia aceptada (la misma que D-P1-01 ya había anticipado y descartó
+evitar):** si el proceso muere entre `hello` y `session.start`, ya no hay ningún
+directorio que inspeccionar — `qua recover <id>` cambia de mensaje ("no existe la
+sesión sin nada recuperable más allá del directorio vacío") a
+`crates/quad/src/cli.rs::recover`'s `if !dir.exists() { bail!("no existe la sesión
+{id} en {}") }`, que ya existía para el caso "nunca hubo ni `hello`". Es un mensaje
+más preciso, no uno peor — D-B1-09 sigue vigente para el rasgo que sí importa (sin
+`meta.json` no hay `t0_wall`/`env` que inventar), solo que ahora ese caso pasa por
+la rama de "no existe" en vez de la de "existe vacío".
+
+**Tests** (`crates/quad/tests/hello_no_crea_directorio_huerfano.rs`, nuevo):
+`hello` sin `session.start` no crea nada bajo `sessions/`, ni siquiera tras cerrar
+la conexión sin `session.stop` (el crash exacto del canal ocioso); un segundo test
+confirma que `session.start` de verdad sigue creando el directorio con
+`raw/meta.json` como siempre. `kill_and_recover.rs` e `ingest_100k.rs` (que sí
+mandan `session.start`) no necesitaron cambios — solo usan `session_dir` de
+`hello.ok` para extraer el id del path, nunca asumieron que el directorio ya
+existiera en ese punto.
+
+### D-V1-03 · `css-path` enriquece el `TargetRef` con contexto legible — sin tocar la cascada de §5.2
+
+**El bug.** Sobre `pediloapp.com` (sin `data-testid`) el builder cae a `css-path` y
+produce selectores como `div:nth-of-type(2) > main:nth-of-type(1) > section` —
+correcto según la cascada, pero inservible para que un reporte o un agente
+entiendan qué es el elemento. `report.rs::anchor_label` además solo mostraba el
+selector crudo entre backticks para CUALQUIER anchor `element`, sin importar que
+`TargetRef` ya traía `text`/`name`/`role`/`classes` calculados.
+
+**Decisión: no tocar la cascada de selectores — agregar contexto al `TargetRef` y
+usarlo en el reporte solo cuando hace falta.**
+
+1. **`extension/entrypoints/content/lib/target.ts`**: campo nuevo
+   `TargetRef.ancestorText` (`packages/protocol/src/target.ts` +
+   `crates/qua-protocol/src/target.rs`, `#[serde(rename = "ancestorText")]` porque el
+   resto de los campos de `TargetRef` no usa `rename_all = "camelCase"` — son todos
+   de una palabra). Se calcula SOLO cuando `strategy === "css-path"` y ni `text` ni
+   `name` identifican al elemento (con cualquiera de los dos ya hay algo legible, no
+   hace falta subir): `nearestAncestorText` sube hasta 5 niveles (mismo tope que
+   `cssPathSelector` en `selector.ts`) buscando el primer ancestro con texto propio,
+   pasado por `redactText` (mismas reglas de §12 que el texto del elemento). Un
+   elemento dentro de un subárbol privado nunca llega a intentar la subida: `name`
+   ya viene forzado a `"[redactado]"` en ese caso, así que la condición
+   `!target.name` es falsa y no hay ninguna puerta lateral por la que el fallback
+   filtre texto privado.
+2. **`crates/qua-core/src/render/report.rs`**: línea nueva `**Elemento**` en el
+   detalle de cada issue (`element_description_line`, antes de `**Fuente**`), SOLO
+   con `strategy == CssPath` — con testid/id/rol-nombre el selector de `**Ancla**`
+   ya es legible y esta línea sería ruido repetido. `human_description` arma la
+   frase en orden de confianza: texto propio → nombre accesible → texto del
+   ancestro más cercano (con el rol entre paréntesis si lo hay) → solo el rol. Con
+   texto propio ("Comprar") queda `el botón que dice "Comprar"` — el ejemplo
+   textual del enunciado — vía un mapeo chico tag→palabra en español
+   (`tag_word`: button/a/input/select/textarea/img/svg; cualquier otro tag entre
+   backticks). Las **Clases** (ya en el reporte, sin cambios) siguen siendo la
+   pieza más identificatoria con Tailwind, tal como pide el enunciado — no había
+   que agregar nada ahí, ya viajaban completas desde D-Z1/G1.
+3. No se tocó la cascada de `buildSelector` (`selector.ts`) ni el criterio de
+   unicidad — el pedido explícito era "agregá contexto", no cambiar cuándo se cae a
+   `css-path`.
+
+**Tests**: `extension/entrypoints/content/lib/target.test.ts` (describe
+"ancestorText en el fallback css-path") — sube al ancestro cuando no hay texto ni
+nombre, no sube si hay texto propio, no sube si hay `name` (aria-label) aunque el
+selector haya caído a css-path por duplicado, no calcula nada si la estrategia no
+es css-path, y confirma que un subárbol privado nunca expone `ancestorText`.
+`crates/qua-core/src/render/report.rs` (mod `element_description_tests`): las
+cuatro combinaciones de `human_description` más "otras estrategias no agregan
+línea". `fixtures/session-full.json` no tiene ningún anchor `css-path`, así que el
+golden de `report_fixture.rs` (`report_md_reproduce_exacto_el_formato_de_8_1`) no
+cambió — la línea nueva es aditiva y solo aparece cuando la estrategia lo pide.
+
+**Housekeeping de esquema**: `pnpm gen:schema` regenerado
+(`fixtures/schema/target-ref.schema.json` gana `ancestorText`); los tres
+call-sites de Rust que construían un `TargetRef` a mano
+(`qua-core/src/correlate/testkit.rs`, `qua-core/src/store/mod.rs`,
+`quad/tests/reprocess_idempotent.rs`) necesitaron el campo nuevo
+`ancestor_text: None`.
+
+**Tests de cierre de V1**: `pnpm test` (316 tests en el monorepo — 244 en
+`extension/`, 62 en `packages/protocol`, el resto en los paquetes chicos) y
+`~/.cargo/bin/cargo test --workspace` (todos los binarios, sidecars compilados
+primero vía `apps/qua-app/scripts/build-sidecars.sh` — D-M1-03) quedan verdes.

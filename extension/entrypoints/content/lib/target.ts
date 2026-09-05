@@ -35,6 +35,29 @@ function rawInnerText(el: Element): string | undefined {
   return text || undefined;
 }
 
+/** Bug U3/Q1 (docs/DECISIONS.md D-Q1-02): cuántos niveles subir buscando texto —
+ * mismo tope que `cssPathSelector` en `selector.ts`, no hay motivo para ir más lejos. */
+const MAX_ANCESTOR_TEXT_LEVELS = 5;
+
+/**
+ * Cuando `el` cae a `css-path` (§5.2 nivel 4: sin testid/id/rol-nombre) Y no tiene
+ * texto propio ni nombre accesible, el selector (`div:nth-of-type(2) > ...`) es lo
+ * único que lo identifica — inservible para un reporte o un agente. Sube hasta
+ * `MAX_ANCESTOR_TEXT_LEVELS` ancestros buscando el primero con texto propio, para
+ * que el reporte pueda decir "dentro de «texto del ancestro»" en vez de nada.
+ */
+function nearestAncestorText(el: Element, redaction: RedactionConfig): string | undefined {
+  let node = el.parentElement;
+  let levels = 0;
+  while (node && levels < MAX_ANCESTOR_TEXT_LEVELS) {
+    const text = redactText(node, rawInnerText(node), redaction);
+    if (text) return text;
+    node = node.parentElement;
+    levels++;
+  }
+  return undefined;
+}
+
 /**
  * Arma el `TargetRef` de §03 para `el`: selector (§5.2), rol/nombre accesible,
  * geometría, clases completas, estilo computado opcional y, si hay resolver,
@@ -60,6 +83,13 @@ export function buildTargetRef(el: Element, opts: BuildTargetRefOptions = {}): T
     visible: isVisible(el),
     classes: (el as HTMLElement).className || undefined,
   };
+
+  // D-Q1-02: solo vale la pena subir a buscar texto de ancestro cuando el selector
+  // ya cayó al último nivel de la cascada (§5.2) y ni `text` ni `name` identifican
+  // al elemento — con cualquiera de los dos presentes, el reporte ya tiene con qué.
+  if (strategy === "css-path" && !target.text && !target.name) {
+    target.ancestorText = nearestAncestorText(el, redaction);
+  }
 
   if (opts.withComputedStyle) {
     target.computed = computedStyleSubset(el);
