@@ -26,7 +26,7 @@
 
 | Tarea | Dep. | Estado | Agente | Commit |
 |---|---|---|---|---|
-| F0 · Scaffold + contratos      | —      | ⬜ pendiente | — | — |
+| F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
 | F1 · Generador sintético       | F0     | ⬜ pendiente | — | — |
 | A1 · Content script            | F0     | ⬜ pendiente | — | — |
 | A2 · Service worker            | F0     | ⬜ pendiente | — | — |
@@ -54,6 +54,14 @@ Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ blo
 
 - `2026-09-04 23:00` — Repo creado. `docs/SPEC.md` generada desde el artifact (693 líneas).
   Toolchain Rust + cmake instalado. Orquestación vía Orca.
+- `2026-09-04 23:15` — **F0 hecha.** Monorepo armado según §13. `packages/protocol` con Zod
+  (18 tipos de evento, los 13 mensajes de §04, layout del frame de audio) y su espejo a mano
+  en `crates/qua-protocol`. Fixtures doradas en `fixtures/` con el test que las parsea en los
+  dos lenguajes con round-trip. Esquema SQLite en `crates/qua-core/src/store/`. CI con
+  `pnpm test` + `cargo test`. 60 tests TS · 13 tests Rust, verdes. Siete ambigüedades reales
+  de la spec resueltas y anotadas en `docs/DECISIONS.md` (la más importante: **los tipos de
+  evento son 18, no 17** — la tabla de §03 tiene 18 filas y la prosa de §14 quedó vieja).
+  **Ola 1 desbloqueada:** F1 · A1 · A2 · A3 · B1 · B2 · D1 · E1 pueden arrancar en paralelo.
 
 ## Qué hacer si retomás en frío
 
