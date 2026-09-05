@@ -27,9 +27,9 @@
 | Tarea | Dep. | Estado | Agente | Commit |
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
-| F1 · Generador sintético       | F0     | ✅ hecho | codex luna | `d28620d` |
+| F1 · Generador sintético       | F0     | ✅ hecho (débil, ver F1b) | codex luna | `6e1e0b2` | `d28620d` |
 | A1 · Content script            | F0     | 🟡 en curso | sonnet | — |
-| A2 · Service worker            | F0     | ⬜ pendiente | — | — |
+| A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | ⬜ pendiente | — | — |
@@ -38,6 +38,7 @@
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
 | E1 · Source mapping            | F0     | 🟡 en curso | codex luna | — |
+| F1b· Fortalecer harness        | F1     | 🟡 en curso | codex luna | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
@@ -94,3 +95,14 @@ lockfiles. Se mergean a `main` a medida que cierran. Ruta: `~/orca/workspaces/qu
    El camino que funciona es de tres pasos: `worktree create` → `terminal create --command
    '<agente con su modelo>'` → `terminal wait --for tui-idle` → `worker-start --terminal`.
    Está scripteado en `<scratchpad>/launch.sh <ID> <task> '<cmd>' [retry_of]`.
+- `2026-09-04 23:35` — **F1 ✅** (`6e1e0b2`) pero **débil**. Verifiqué el entregable en vez de
+  creerle al worker: los 20 escenarios pasan 20/20, pero `s01` tiene 3 eventos y un solo
+  candidato. Con un único hover en la ventana, la fórmula de scoring de §07 paso 5, la regla
+  de dominancia y la degradación a `route` nunca se ejercitan — B3 sacaría 100% con una
+  implementación trivial. Lancé **F1b** para meter distractores, casos que distingan
+  implementaciones, y una prueba de que un correlador ingenuo saca <60%.
+  **B3 queda en espera hasta que F1b cierre**: no vale gastar Opus optimizando contra un
+  benchmark de juguete.
+- `2026-09-04 23:36` — También largué **A2**. Cinco workers concurrentes: A1, B1, E1, F1b, A2.
+- Aviso enviado a A1/B1/E1: trabajar en su propio worktree. F1 (Codex) commiteó en `main`
+  porque la spec menciona la ruta del repo principal como referencia y la tomó literal.
