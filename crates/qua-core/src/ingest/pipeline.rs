@@ -2,8 +2,9 @@
 //!
 //! B1 termina en `session.json` con `utterances: []` e `issues: []` — el resto del
 //! pipeline de §02 (`asr → correlate → render`) implementa estos traits sobre ese
-//! archivo, sin tocar el servidor ni el store. Ninguna de las tres se implementa acá
-//! a propósito: son los contratos, no el código.
+//! archivo, sin tocar el servidor ni el store. `AsrPipeline` y `Correlator` siguen
+//! siendo solo el contrato (B2/B3, en curso); `Renderer` ya tiene implementación
+//! concreta en `qua_core::render::DefaultRenderer` (B4).
 
 use std::error::Error;
 use std::path::Path;

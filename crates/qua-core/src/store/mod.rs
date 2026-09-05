@@ -5,9 +5,9 @@
 
 use std::path::Path;
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
-use qua_protocol::{Session, SessionStatus};
+use qua_protocol::{AnchorKind, Issue, Session, SessionStatus};
 
 /// El esquema de §03, embebido en el binario para que no dependa del cwd.
 pub const SCHEMA_SQL: &str = include_str!("schema.sql");
@@ -21,6 +21,8 @@ pub enum StoreError {
     Sqlite(#[from] rusqlite::Error),
     #[error("IO: {0}")]
     Io(#[from] std::io::Error),
+    #[error("JSON: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 /// Aplica el esquema de §03 sobre una conexión abierta.
@@ -81,6 +83,155 @@ pub fn upsert_session(conn: &Connection, session: &Session, dir: &str) -> Result
         ],
     )?;
     Ok(())
+}
+
+fn anchor_kind_str(kind: AnchorKind) -> &'static str {
+    match kind {
+        AnchorKind::Element => "element",
+        AnchorKind::Route => "route",
+        AnchorKind::Session => "session",
+    }
+}
+
+/// Puebla `issues` (§03) a partir de los issues de una `Session` ya corrida por el
+/// correlador. Es de B4/B3 — B1 solo deja la fila de `sessions` en pie (ver el
+/// comentario de [`upsert_session`]).
+///
+/// `INSERT OR REPLACE` por `id`: nota la limitación real de este esquema en
+/// `docs/DECISIONS.md` (D-B4-07) — `issues.id` es la clave primaria global, no
+/// compuesta con `session_id`, así que dos sesiones distintas con un `i01` chocan. No
+/// es un problema que B4 pueda resolver sin tocar el esquema de F0.
+pub fn upsert_issues(
+    conn: &Connection,
+    session_id: &str,
+    issues: &[Issue],
+) -> Result<(), StoreError> {
+    for issue in issues {
+        let json = serde_json::to_string(issue)?;
+        conn.execute(
+            "INSERT INTO issues (id, session_id, t, text, category, severity, confidence, anchor_kind, sel, url, src_file, src_line, exported_to, json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+             ON CONFLICT(id) DO UPDATE SET
+               session_id = excluded.session_id,
+               t = excluded.t,
+               text = excluded.text,
+               category = excluded.category,
+               severity = excluded.severity,
+               confidence = excluded.confidence,
+               anchor_kind = excluded.anchor_kind,
+               sel = excluded.sel,
+               url = excluded.url,
+               src_file = excluded.src_file,
+               src_line = excluded.src_line,
+               exported_to = excluded.exported_to,
+               json = excluded.json",
+            params![
+                issue.id,
+                session_id,
+                issue.t,
+                issue.text,
+                category_str(issue.category),
+                severity_str(issue.severity),
+                issue.anchor.confidence,
+                anchor_kind_str(issue.anchor.kind),
+                issue.anchor.target.as_ref().map(|t| t.sel.clone()),
+                issue.anchor.url,
+                issue
+                    .anchor
+                    .target
+                    .as_ref()
+                    .and_then(|t| t.src.as_ref())
+                    .map(|s| s.file.clone()),
+                issue
+                    .anchor
+                    .target
+                    .as_ref()
+                    .and_then(|t| t.src.as_ref())
+                    .map(|s| s.line),
+                issue.exported_to,
+                json,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+fn category_str(c: qua_protocol::IssueCategory) -> &'static str {
+    use qua_protocol::IssueCategory::*;
+    match c {
+        Ui => "ui",
+        Bug => "bug",
+        Perf => "perf",
+        Copy => "copy",
+        Idea => "idea",
+    }
+}
+
+fn severity_str(s: qua_protocol::Severity) -> &'static str {
+    use qua_protocol::Severity::*;
+    match s {
+        Low => "low",
+        Med => "med",
+        High => "high",
+    }
+}
+
+/// Una fila de `sessions` (§03), tal como la leen `qua sessions`/`qua show` sin tener
+/// que releer `session.json` solo para listar.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionRow {
+    pub id: String,
+    pub status: String,
+    pub project: String,
+    pub started_at: String,
+    pub duration_ms: Option<i64>,
+    pub issue_count: i64,
+    pub dir: String,
+    pub git_sha: Option<String>,
+}
+
+fn row_to_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
+    Ok(SessionRow {
+        id: row.get(0)?,
+        status: row.get(1)?,
+        project: row.get(2)?,
+        started_at: row.get(3)?,
+        duration_ms: row.get(4)?,
+        issue_count: row.get(5)?,
+        dir: row.get(6)?,
+        git_sha: row.get(7)?,
+    })
+}
+
+const SESSION_COLUMNS: &str =
+    "id, status, project, started_at, duration_ms, issue_count, dir, git_sha";
+
+/// `qua sessions [--project X] [--limit N]` (§6.2): más recientes primero.
+pub fn list_sessions(
+    conn: &Connection,
+    project: Option<&str>,
+    limit: Option<i64>,
+) -> Result<Vec<SessionRow>, StoreError> {
+    let limit = limit.unwrap_or(i64::MAX);
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {SESSION_COLUMNS} FROM sessions
+         WHERE ?1 IS NULL OR project = ?1
+         ORDER BY started_at DESC
+         LIMIT ?2"
+    ))?;
+    let rows = stmt
+        .query_map(params![project, limit], row_to_session_row)?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+/// `qua show <id>` (§6.2).
+pub fn get_session(conn: &Connection, id: &str) -> Result<Option<SessionRow>, StoreError> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {SESSION_COLUMNS} FROM sessions WHERE id = ?1"
+    ))?;
+    let row = stmt.query_row(params![id], row_to_session_row).optional()?;
+    Ok(row)
 }
 
 #[cfg(test)]
@@ -153,5 +304,146 @@ mod tests {
             )
             .expect("pendientes");
         assert_eq!(pendientes, 1);
+    }
+
+    fn sample_session(id: &str, project: &str, issues: Vec<qua_protocol::Issue>) -> Session {
+        use qua_protocol::*;
+        Session {
+            schema: SessionSchemaTag,
+            id: id.to_string(),
+            status: SessionStatus::Ready,
+            t0_wall: 0,
+            started_at: "2026-09-04T14:32:11.204Z".into(),
+            ended_at: Some("2026-09-04T14:39:03.512Z".into()),
+            duration_ms: Some(1000),
+            project: ProjectRef {
+                label: project.to_string(),
+                repo: None,
+            },
+            git: None,
+            env: EnvInfo {
+                ua: "ua".into(),
+                chrome: "142.0".into(),
+                platform: "macOS 15.1".into(),
+                viewport: ViewportInfo {
+                    w: 1512,
+                    h: 857,
+                    dpr: 2.0,
+                },
+                ext: "1.0.0".into(),
+            },
+            audio: AudioInfo {
+                path: "audio.opus".into(),
+                sample_rate: 16000,
+                gaps_ms: 0,
+            },
+            stats: SessionStats {
+                events_raw: 0,
+                events_kept: 0,
+                utterances: 0,
+                issues: issues.len() as i64,
+            },
+            tabs: vec![],
+            events: vec![],
+            utterances: vec![],
+            issues,
+        }
+    }
+
+    fn sample_issue(id: &str) -> qua_protocol::Issue {
+        use qua_protocol::*;
+        Issue {
+            id: id.to_string(),
+            utterance_ids: vec![],
+            t: 100,
+            text: "un texto de prueba".into(),
+            anchor: Anchor {
+                kind: AnchorKind::Element,
+                target: Some(TargetRef {
+                    sel: "button#x".into(),
+                    strategy: SelectorStrategy::Id,
+                    tag: "button".into(),
+                    text: None,
+                    role: None,
+                    name: None,
+                    rect: None,
+                    visible: None,
+                    classes: None,
+                    computed: None,
+                    component: None,
+                    src: Some(SourceRef {
+                        file: "src/x.tsx".into(),
+                        line: 1,
+                        col: None,
+                        tier: 2,
+                    }),
+                }),
+                tab: Some(1),
+                url: Some("http://localhost/x".into()),
+                confidence: 0.9,
+                reason: vec![],
+            },
+            evidence: Evidence::default(),
+            category: IssueCategory::Ui,
+            severity: Severity::Low,
+            exported_to: None,
+        }
+    }
+
+    #[test]
+    fn upsert_issues_es_idempotente_y_puebla_fts() {
+        let conn = Connection::open_in_memory().expect("memoria");
+        apply_schema(&conn).expect("esquema");
+        let session = sample_session("s1", "Agendi", vec![sample_issue("i01")]);
+        upsert_session(&conn, &session, "/tmp/s1").expect("session");
+
+        upsert_issues(&conn, &session.id, &session.issues).expect("primera vez");
+        upsert_issues(&conn, &session.id, &session.issues).expect("segunda vez: idempotente");
+
+        let count: i64 = conn
+            .query_row("SELECT count(*) FROM issues", [], |r| r.get(0))
+            .expect("count");
+        assert_eq!(count, 1, "un upsert repetido no puede duplicar filas");
+
+        let hits: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM issues_fts WHERE issues_fts MATCH 'prueba'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("fts");
+        assert_eq!(hits, 1);
+    }
+
+    #[test]
+    fn list_sessions_filtra_por_proyecto_y_respeta_limit() {
+        let conn = Connection::open_in_memory().expect("memoria");
+        apply_schema(&conn).expect("esquema");
+
+        let mut a = sample_session("s-a", "Agendi", vec![]);
+        a.started_at = "2026-09-01T00:00:00.000Z".into();
+        let mut b = sample_session("s-b", "Agendi", vec![]);
+        b.started_at = "2026-09-02T00:00:00.000Z".into();
+        let c = sample_session("s-c", "Otro", vec![]);
+        upsert_session(&conn, &a, "/tmp/a").unwrap();
+        upsert_session(&conn, &b, "/tmp/b").unwrap();
+        upsert_session(&conn, &c, "/tmp/c").unwrap();
+
+        let agendi = list_sessions(&conn, Some("Agendi"), None).expect("list");
+        assert_eq!(agendi.len(), 2);
+        assert_eq!(agendi[0].id, "s-b", "más reciente primero");
+
+        let all = list_sessions(&conn, None, None).expect("list sin filtro");
+        assert_eq!(all.len(), 3);
+
+        let limited = list_sessions(&conn, None, Some(1)).expect("list con limit");
+        assert_eq!(limited.len(), 1);
+    }
+
+    #[test]
+    fn get_session_devuelve_none_si_no_existe() {
+        let conn = Connection::open_in_memory().expect("memoria");
+        apply_schema(&conn).expect("esquema");
+        assert!(get_session(&conn, "no-existe").expect("query").is_none());
     }
 }

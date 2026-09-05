@@ -327,3 +327,191 @@ inventados.
 `Option`) — no hay un valor "vacío" honesto para ellos. Fallar es preferible a escribir
 un `session.json` con datos inventados que después alguien (B3, B4, un humano) toma
 como reales.
+
+### D-B4-01 · `report.md` no envuelve texto a un ancho de columna fijo
+
+**Ambigüedad.** El bloque de ejemplo de §8.1 muestra `**Dicho**` y la línea de
+`**Ancla**` cortados a la mitad de la oración ("... en mobile\ncasi no lo encuentro...",
+"... confianza 0.91\n  · hover 2.1s..."). La spec no dice a qué ancho de columna, y no
+hay ningún otro lugar del documento que mencione un wrap de 72/80 columnas.
+
+**Decisión.** Cada campo (`Dicho`, `Ancla`, `Ruta`, ...) se escribe en una sola línea
+lógica, sin cortar a mano. El corte del ejemplo de §8.1 es formateo del documento de
+spec para que quepa en la página, no un requisito del formato.
+
+**Por qué.** Envolver a un ancho arbitrario sin que la spec lo pida es inventar una
+regla que nadie va a poder verificar ("¿72? ¿80? ¿por palabra completa?") y que además
+le complica la vida a cualquier `grep`/diff sobre `report.md`. Una sola línea por campo
+es más fácil de testear byte a byte contra una fixture (el criterio de aceptación de
+B4) y más fácil de parsear para un agente.
+
+### D-B4-02 · Cómo se ve el campo **Ancla**/**Ruta** para anchors `route` y `session`
+
+**Ambigüedad.** §8.1 solo da un ejemplo con `anchor.kind = "element"`. §07 dice que
+`route` y `session` también llevan `confidence` y `reason`, pero no hay ningún ejemplo
+de cómo se ven en el reporte.
+
+**Decisión.**
+- **Ancla** (`element`): `` `{sel}` `` como en el ejemplo. (`route`): el *pathname* de
+  `anchor.url` entre backticks (`` `/agenda/mes` ``, sin esquema ni host). (`session`):
+  el texto literal `(sesión completa)`, sin backticks, porque no hay un identificador
+  real que mostrar.
+- **Ruta**: igual criterio para el "qué", más `(pestaña N)` si `anchor.tab` está
+  presente; para `session` (que no tiene tab ni url) es directamente
+  `(sesión completa)`.
+- La columna "Ancla" de la tabla resumen usa el mismo texto que el campo del detalle.
+
+**Por qué.** Es la lectura más literal del esquema (§03: `Anchor.url`/`Anchor.tab` son
+`Option`, y son justamente los que faltan en `route`/`session`) sin inventar campos
+nuevos. `url_path()` recorta `http://host:port/x` a `/x` con el mismo criterio que usa
+el ejemplo de §8.1 (`/agenda/semana`, sin `http://localhost:3000`).
+
+### D-B4-03 · La sección "Sin anclar" no tiene formato dado por la spec
+
+**Contexto.** §8.1 dice que los issues con `confidence < 0.35` van a una sección final
+"Sin anclar" "con el texto crudo y la ruta", pero no muestra un ejemplo.
+
+**Decisión.** Una lista de líneas `- (HH:MM:SS) categoría/severidad — "texto" · ruta
+`{path}`` (o `(sesión completa)` si no hay URL), ordenada cronológicamente por `t`
+(no por confianza: para releer la sesión en orden es lo único que tiene sentido acá).
+Estos issues no aparecen en la tabla resumen ni tienen bloque `## NN` propio.
+
+**Por qué.** Es la lectura más simple de "no ensucian la lista principal": quedan
+completamente fuera de la numeración y de la tabla, con la info mínima que pide la
+spec (texto crudo + ruta) y nada más (sin ancla detallada, porque por definición el
+ancla no es confiable).
+
+### D-B4-04 · `report.md` sin `git` omite la cláusula de rama entera
+
+**Contexto.** `Session.git` es `Option<GitInfo>` (§03) — una sesión puede grabarse
+fuera de un repo git.
+
+**Decisión.** Si `git` es `None`, la línea de metadatos de §8.1 salta directo de la
+duración a `"N issues"`, sin dejar un `· ·` vacío ni inventar `rama desconocida`.
+
+**Por qué.** Es consistente con cómo el resto del formato omite campos ausentes
+(`**Fuente**`, `**Clases**`, `**Timing**`, `**Captura**` también desaparecen del todo
+si no hay dato, en vez de imprimir un placeholder) — más fácil de leer y de testear que
+decidir un texto para "no sé".
+
+### D-B4-05 · El recorte de captura busca el frame crudo en `raw/frames/<issue_id>.{jpg,png}`
+
+**Contexto.** §07 paso 9 dice que el daemon pide `capture.request` a la extensión y
+recorta el frame que vuelve. Pero ese round-trip no está cableado todavía: B1
+(`crates/quad/src/ws.rs`) recibe `ClientMessage::Frame` y lo descarta explícitamente
+("interfaz para B3/B4"), y nadie manda `capture.request` desde el daemon.
+
+**Decisión.** B4 entrega la parte que sí le toca — recortar y guardar
+(`render::screenshot::crop_for_target`, testeada con imágenes sintéticas) — bajo una
+convención de archivo: si existe `raw/frames/<issue_id>.jpg` (o `.jpeg`/`.png`) al
+correr `render_session`, se recorta y se guarda en `assets/<issue_id>.png`. Si no
+existe (el caso de hoy, porque nada lo escribe todavía), el issue se renderiza sin
+captura, sin que sea un error.
+
+**Por qué.** Cablear el WS completo (pedir el frame, guardarlo crudo) es trabajo de
+quien conecte el paso 9 de punta a punta — probablemente B3 (que decide *cuándo* pedir
+la captura) o quien la reciba en el servidor. Inventar esa pieza en B4 sería un cambio
+de alcance no pedido y además necesitaría tocar `ws.rs`. La convención de nombre de
+archivo es el contrato mínimo que deja ambos lados desacoplados y testeables por
+separado.
+
+### D-B4-06 · La fecha de `report.md` no convierte de UTC a hora local
+
+**Contexto.** `Session.started_at` es un ISO-8601 en UTC (termina en `Z`). El ejemplo
+de §8.1 (`2026-09-04 14:32`) coincide exactamente con `started_at` de la fixture
+(`"2026-09-04T14:32:11.204Z"`) sin ningún corrimiento de huso horario.
+
+**Decisión.** `report.md` muestra el timestamp tal como viene en UTC (corta segundos y
+milisegundos, cambia `T` por espacio), sin convertir a la zona horaria de quien corre
+`qua show`/`qua reprocess`.
+
+**Por qué.** Es lo que el propio ejemplo de la spec hace, y además evita que
+`report.md` deje de ser reproducible byte a byte entre máquinas con distinto huso
+horario — un requisito real dado que el criterio de aceptación de B4 es una
+comparación exacta contra una fixture.
+
+### D-B4-07 · Bug conocido y no resuelto: `issues.id` es clave primaria global en SQLite
+
+**Contexto.** El esquema de F0 (`crates/qua-core/src/store/schema.sql`) declara
+`issues.id TEXT PRIMARY KEY` sin componerlo con `session_id`. Los ids de issue son
+correlativos *por sesión* (`i01`, `i02`, ...), así que dos sesiones distintas van a
+generar el mismo `id` tarde o temprano, y la segunda pisa a la primera en el índice.
+
+**Decisión.** B4 implementa `store::upsert_issues` contra el esquema tal como está
+(no lo toca — es un cambio de contrato de F0, fuera del alcance que las reglas
+comunes permiten aplicar unilateralmente) y deja esto anotado para que quien pueda
+tocar el esquema (probablemente junto con D1/qua-mcp, el primer consumidor real de
+`qua_issues_pending`/`qua_issues_search`) lo arregle con una clave compuesta
+`(session_id, id)` o un id verdaderamente único como `{session_id}:{id}`.
+
+**Por qué.** No es un problema que B4 haya introducido — ya existía en el esquema de
+F0 — y arreglarlo implica una migración de esquema que otras tareas en paralelo podrían
+estar asumiendo en su forma actual. Reportar y no tocar es la regla del proyecto para
+justamente este caso.
+
+### D-B4-08 · `qua export --format json` exporta `issues.json`, no `session.json`
+
+**Ambigüedad.** §6.2 solo dice `qua export <id> --format md|json`, sin aclarar si el
+JSON es la sesión completa o solo los issues. `qua show --json` sí tiene un target obvio
+(`session.json`, porque `show` es "mostrame todo sobre esta sesión").
+
+**Decisión.** `export --format json` escribe/imprime `issues.json`; `export --format
+md` es el mismo `report.md` que `show --md`. `show --json` sigue siendo `session.json`
+completo.
+
+**Por qué.** "Exportar" en el resto de la spec (§8.3 `refine`, §10 `qua_issue_mark_exported`)
+siempre habla de *issues* como la unidad que sale hacia otro sistema (un ticket, un
+LLM) — nunca de la sesión cruda con sus 3000 eventos. `show` es para inspeccionar una
+sesión propia; `export` es para llevarse lo que le importa a un consumidor externo.
+
+### D-B4-09 · `qua reprocess` no re-corre ASR ni correlador de verdad todavía
+
+**Contexto.** §6.2 describe `reprocess` como "re-corre VAD+ASR+correlador sin
+regrabar". B2 (ASR) y B3 (correlador) son tareas en curso en paralelo — sus crates no
+existen todavía en este worktree en una forma que B4 pueda invocar.
+
+**Decisión.** `quad::cli::reprocess` recarga `session.json` (o lo reconstruye desde
+`raw/` si falta, igual que `qua recover`), lo reescribe tal cual de forma determinística
+y vuelve a correr el renderer de B4 (`report.md`, `issues.json`, `transcript.txt`,
+capturas) sobre los `utterances`/`issues` que ya tenía. No inventa una implementación
+de juguete de ASR ni de correlador.
+
+**Por qué.** El criterio de aceptación de B4 es "test de idempotencia de reprocess" —
+que correrlo dos veces dé bytes idénticos — y eso se sostiene con la implementación
+real de `render` sin necesitar un ASR/correlador real. `ingest::pipeline::AsrPipeline`
+y `Correlator` quedan como los puntos de extensión: cuando B2/B3 mergeen, conectarlos
+acá es el único cambio que hace falta, sin tocar la interfaz de `qua reprocess`.
+
+**Actualización (este mismo worker, misma tarea).** A mitad de B4, `git log` mostró que
+B2 y B3 ya se mergearon a `main` (`qua_core::asr`, `qua_core::correlate::correlate`)
+mientras este worktree seguía basado en el commit de antes de esas dos tareas — B4
+declara dependencia de F0/F1, no de B2/B3, así que no era un prerequisito bloqueante
+para arrancar. Evalué rebasear `b4` sobre `main` para cablear el correlador de verdad
+acá mismo, pero `qua-core` de `main` ya arrastra `whisper-rs` (compila whisper.cpp con
+Metal) como dependencia de B2 — un rebase mete ese costo de compilación entero en esta
+tarea por un cambio que no es su criterio de aceptación, y agrega superficie de
+conflicto (Cargo.lock, `lib.rs`) sin necesidad. Dejo `reprocess` como quedó (recarga +
+re-renderiza) y anoto acá el cableado concreto para quien mergee `b4` a `main` después
+de B2/B3: en `crates/quad/src/cli.rs::reprocess`, reemplazar el passthrough de
+`session.issues` por `qua_core::correlate::correlate(&session.events, &session.utterances,
+&cfg)` (con `cfg: CorrelatorConfig` leído de `[correlator]` en `config.toml`, ya
+soportado por B3), tomar `Correlation.issues` como los issues nuevos, y usar
+`Correlation.captures` para saber a qué issues pedirles `capture.request` — que calza
+exactamente con la convención `raw/frames/<issue_id>.*` de D-B4-05.
+
+### D-B4-10 · `qua refine` es un placeholder determinístico, sin LLM real
+
+**Contexto.** §8.3 pide mandar `issues.json` a un LLM que agrupe duplicados y reescriba
+cada issue como ticket. Este repo no tiene credenciales, cliente HTTP a un proveedor de
+LLM, ni ninguna decisión tomada sobre cuál usar — y no es parte del alcance de B4
+(renderer + CLI) inventar esa integración.
+
+**Decisión.** `qua refine <id>` escribe `report.refined.md` con un título (primeros 72
+caracteres del texto del issue) y cuerpo (el texto completo) por cada issue, sin agrupar
+duplicados ni pasar por ningún LLM. El mensaje de salida deja explícito que es un
+placeholder.
+
+**Por qué.** El comando tiene que existir y producir un archivo con la forma correcta
+(§8.2: `report.refined.md`, "sin pisar el original") para que el resto del flujo (una
+futura tarea que sí cablee un LLM) tenga algo sobre qué iterar, sin fingir una
+integración que no existe.
