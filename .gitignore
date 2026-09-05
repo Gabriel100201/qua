@@ -8,12 +8,10 @@ dist/
 .env.local
 models/
 *.tsbuildinfo
-apps/qua-app/src-tauri/binaries/
-apps/qua-app/src-tauri/gen/
+.wxt/
 .impeccable/
 
 # Sidecars de Tauri: los genera apps/qua-app/scripts/build-sidecars.sh (54 MB, no van a git)
 apps/qua-app/src-tauri/binaries/
 apps/qua-app/dist/
 apps/qua-app/src-tauri/gen/
-.impeccable/

@@ -19,6 +19,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
+const T0_WALL: i64 = 1_800_000_000_000;
 const ORIGIN: &str = "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const TOKEN: &str = "test-token-100k";
 
@@ -118,7 +119,7 @@ async fn ingesta_100k_eventos_sin_perdida() {
         &ClientMessage::SessionStart {
             v: ProtocolVersionTag,
             session: SessionStartPayload {
-                t0_wall: 1_800_000_000_000,
+                t0_wall: T0_WALL,
                 base_url: "http://localhost:3000/agenda".into(),
                 env: env_info(),
             },
@@ -133,7 +134,7 @@ async fn ingesta_100k_eventos_sin_perdida() {
     while sent < TOTAL {
         seq += 1;
         let n = BATCH.min(TOTAL - sent);
-        let items: Vec<Event> = (0..n).map(|i| mark_event(sent + i)).collect();
+        let items: Vec<Event> = (0..n).map(|i| mark_event(T0_WALL + sent + i)).collect();
         send(
             &mut write,
             &ClientMessage::Events {
@@ -164,7 +165,7 @@ async fn ingesta_100k_eventos_sin_perdida() {
         &mut write,
         &ClientMessage::SessionStop {
             v: ProtocolVersionTag,
-            t: TOTAL,
+            t: T0_WALL + TOTAL,
         },
     )
     .await;
@@ -181,7 +182,10 @@ async fn ingesta_100k_eventos_sin_perdida() {
     else {
         panic!("se esperaba session.done");
     };
-    assert_eq!(issues, 0, "B1 no corre el correlador: siempre 0 issues");
+    assert_eq!(
+        issues, 0,
+        "sin audio no hay utterances, así que el correlador (G1) no arma ningún grupo"
+    );
     assert!(report_path.ends_with("report.md"));
 
     reader.await.expect("reader task");
@@ -206,7 +210,12 @@ async fn ingesta_100k_eventos_sin_perdida() {
         "no puede faltar ni sobrar ni un evento"
     );
     assert_eq!(session.stats.events_raw, TOTAL);
-    assert_eq!(session.status, SessionStatus::Processing);
+    assert_eq!(
+        session.status,
+        SessionStatus::Ready,
+        "G1 cablea ASR+correlate+render en finalize (D-B1-04, resuelta): sin errores, la \
+         sesión sale de session.stop ya en ready"
+    );
     assert!(session.ended_at.is_some());
 
     // Sin huecos ni duplicados en la secuencia lógica de los `t` de los eventos.

@@ -150,18 +150,17 @@ pub fn export(data_dir: &Path, id: &str, format: ExportFormat) -> anyhow::Result
     show(data_dir, id, show_format)
 }
 
-/// `qua reprocess <id>` (§6.2): re-corre el pipeline de render sobre una sesión ya
-/// grabada, sin volver a grabar audio ni eventos. Tiene que ser idempotente: es la
-/// función que le permite a alguien tunear `[correlator]` en `config.toml` y volver a
-/// correr sobre sesiones viejas hasta que el anclaje salga bien.
+/// `qua reprocess <id>` (§6.2): re-corre ASR (si hace falta) + el correlador + el
+/// renderer sobre una sesión ya grabada, sin volver a grabar audio ni eventos. Tiene
+/// que ser idempotente: es la función que le permite a alguien tunear `[correlator]`
+/// en `config.toml` y volver a correr sobre sesiones viejas hasta que el anclaje salga
+/// bien.
 ///
-/// **Alcance real de B4** (ver D-B4-09 en `docs/DECISIONS.md`): sin una implementación
-/// real de `AsrPipeline`/`Correlator` todavía mergeada (B2/B3 en curso), `reprocess` no
-/// puede re-transcribir audio ni re-correr el correlador de verdad — reescribe
-/// `session.json` tal cual (deterministamente) y vuelve a correr el renderer de B4
-/// sobre `utterances`/`issues` como estén. En cuanto B2/B3 aterricen, este es el único
-/// lugar que hay que tocar para que `reprocess` recalcule de punta a punta: la interfaz
-/// de CLI y la garantía de idempotencia no cambian.
+/// **G1 cablea B2 → B3 → B4** vía `quad::pipeline::process` (ver D-B1-04, D-B4-09 en
+/// `docs/DECISIONS.md`): si `session.utterances` ya tiene datos, no vuelve a
+/// transcribir (transcribir es lo caro); si está vacío y hay `raw/audio.pcm`, corre
+/// whisper de cero. El correlador siempre se re-corre — es lo barato y lo que de
+/// verdad sirve para tunear sin regrabar.
 pub fn reprocess(data_dir: &Path, id: &str) -> anyhow::Result<String> {
     let dir = session_dir(data_dir, id);
     if !dir.exists() {
@@ -177,14 +176,7 @@ pub fn reprocess(data_dir: &Path, id: &str) -> anyhow::Result<String> {
         qua_core::recover_session(&dir, &meta, project)?
     };
 
-    // D-B4-09: B2/B3 ya mergearon a `main` — el correlador real reemplaza el passthrough
-    // que dejó B4. `[correlator]` sale del mismo `config.toml` que usa `qua recover`.
-    let correlator_cfg =
-        qua_core::correlate::CorrelatorConfig::from_path(&data_dir.join("config.toml"))?;
-    let correlation =
-        qua_core::correlate::correlate(&session.events, &session.utterances, &correlator_cfg);
-    session.issues = correlation.issues;
-    session.stats.issues = session.issues.len() as i64;
+    crate::pipeline::process(&mut session, &dir, data_dir)?;
 
     std::fs::write(
         dir.join("session.json"),
