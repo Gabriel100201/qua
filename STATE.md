@@ -470,3 +470,45 @@ es opcional. La unión completa era la respuesta; yo lo estaba tratando como dis
    G1 lo escribiera.
 3. `qua refine` arma markdown local sin llamar a ningún LLM — que lo haga o que lo diga.
 
+---
+
+# ✅ TERMINADO — 2026-09-05 04:10
+
+**447 tests verdes** (197 Rust + 250 TS) · **86 commits** · **23.401 líneas** · **E2E pasa desde `main`**
+
+Todas las ramas mergeadas, ninguna quedó suelta.
+
+## Qué funciona hoy, verificado corriéndolo
+
+```bash
+node e2e/session.e2e.mjs
+```
+
+Lanza Chrome real con la extensión cargada (sin modo desarrollador manual), un daemon real,
+hace un hover real, le inyecta un WAV como micrófono falso, y produce un `report.md` con
+transcripción real de whisper y un issue anclado a la ruta correcta.
+
+El pipeline completo: **extensión captura → daemon ingiere → VAD + whisper transcriben →
+correlador ancla → renderer escribe `report.md` → MCP lo expone a los agentes.**
+
+## Lo que queda para vos
+
+1. **Probarlo con Agendi de verdad.** Todo lo verificado usa la página de prueba del E2E.
+   La primera sesión real sobre una app tuya es la que va a mostrar qué falta.
+2. **Firmar la app.** El `.dmg` sale sin firmar porque no hay Developer ID acá; el instalador
+   trae las instrucciones de Gatekeeper.
+3. **`qua refine`** avisa explícitamente que todavía no llama a ningún LLM. Cuando quieras que
+   lo haga, hay que decidir proveedor y credenciales.
+4. **Los umbrales del correlador** están todos en `[correlator]` de `~/.qua/config.toml`.
+   Tunealos sobre sesiones reales con `qua reprocess <id>`, sin regrabar.
+
+## Dónde está cada cosa
+
+| | |
+|---|---|
+| Cómo usarlo | `README.md` (verificado comando por comando por Z1) |
+| Especificación | `docs/SPEC.md` — corregida con lo aprendido |
+| Por qué cada decisión | `docs/DECISIONS.md` — ~60 entradas |
+| Ejemplo de salida | `docs/ejemplos/report-ejemplo.md` |
+| Bitácora de la noche | este archivo, más arriba |
+
