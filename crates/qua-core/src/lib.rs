@@ -1,22 +1,15 @@
 //! `qua-core` — ingest · asr · correlate · render · store (§02).
 //!
-<<<<<<< HEAD
-//! B1 entrega `ingest` (raw log crash-safe + recover) y `store` (esquema SQLite +
-//! persistencia de sesiones). `asr`, `correlate` y `render` los implementan B2, B3 y
-//! B4 respectivamente — `ingest::pipeline` deja sus interfaces.
-
-#![deny(rust_2018_idioms)]
-
-pub mod ingest;
-=======
-//! **F0 solo entrega `store::schema.sql` y `store::apply_schema`.** `asr` lo implementa
-//! B2 (pipeline de audio y ASR, §06.1). El resto de los módulos los implementan B1
-//! (servidor y store), B3 (correlador) y B4 (renderer).
+//! Estado de los módulos:
+//! - `ingest` (B1): raw log crash-safe + `recover`, y las interfaces que consumen los demás.
+//! - `store`  (F0/B1): esquema SQLite + persistencia de sesiones.
+//! - `asr`    (B2): jitter buffer, VAD silero y worker de whisper (§06.1).
+//! - `correlate` (B3) y `render` (B4): los agregan sus tareas.
 
 #![deny(rust_2018_idioms)]
 
 pub mod asr;
->>>>>>> b2
+pub mod ingest;
 pub mod store;
 
 pub use ingest::{
