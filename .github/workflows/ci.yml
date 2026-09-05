@@ -57,6 +57,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # whisper-rs-sys (B2, crates/qua-core/src/asr/) compila whisper.cpp con cmake y
+      # genera bindings con bindgen — bindgen necesita libclang. En ubuntu-latest no
+      # viene instalado por default.
+      - name: Dependencias de sistema para whisper-rs-sys (B2)
+        run: sudo apt-get update && sudo apt-get install -y cmake libclang-dev
+
       - name: Formato
         run: cargo fmt --all --check
 

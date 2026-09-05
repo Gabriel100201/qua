@@ -1,0 +1,3 @@
+Agendi, Supabase, Next.js, Tailwind, modal, hover, viewport, sidebar,
+endpoint, skeleton, toast, dropdown, padding, breakpoint, deploy, log,
+componente, estado, spinner, placeholder, responsive, tooltip

@@ -422,3 +422,140 @@ solo dice "`from`, `to`, `url`") y alguien podría asumir que Chrome lo da grati
 memoria: el primer `tab_switch` después de un reciclado sale con `from: null` aunque hubiera
 una pestaña activa previa. Es aceptable — es la misma pérdida de precisión que ya acepta D-02
 para sesiones a medio grabar.
+
+## B2 · Daemon: audio y ASR
+
+### D-09 · El VAD segmenta en ventanas de 32 ms, no de 30 ms
+
+**Ambigüedad.** §06.1 dice "VAD silero, ventanas de 30 ms".
+
+**Decisión.** Se usan ventanas de 512 muestras a 16 kHz = 32 ms.
+
+**Por qué.** El crate `voice_activity_detector` envuelve el modelo silero v5, y ese
+modelo **exige** `chunk_size = 512` a 16 kHz — es una restricción dura del propio modelo
+ONNX (`VadConfigError` si se pide otra cosa), no un parámetro que el crate deje elegir.
+30 ms no es un múltiplo entero de muestras a 16 kHz (480 muestras = 30 ms exactos, pero
+ese tamaño no es uno de los dos que el modelo acepta: 256 @ 8kHz u 512 @ 16kHz). La
+diferencia con la spec es redondeo del modelo upstream, no una decisión de diseño de B2.
+
+### D-10 · Los tests corren contra `ggml-base`, no `ggml-large-v3-turbo-q5_0`
+
+**Ambigüedad.** §14 no dice qué modelo usar en el test de aceptación, y el propio
+criterio de B2 anticipa el problema: "Si la descarga del modelo es muy lenta, testeá con
+ggml-base y dejalo anotado."
+
+**Decisión.** El test de integración (`crates/qua-core/tests/asr_pipeline.rs`) usa
+`ggml-base` (~148 MB, baja en ~30s). El default de producción en `AsrConfig` sigue
+siendo `large-v3-turbo-q5_0` (~574 MB), tal cual pide §06.1 — el test solo apunta
+`ensure_model` a otro `ModelSpec`, el camino de descarga/verificación es el mismo.
+
+**Por qué.** 574 MB en cada `cargo test` (y en cada corrida de CI, que no tiene caché
+entre runs para `~/.qua/models`) es demasiado. La calidad de transcripción baja con
+`base` — se ve en el propio output del test: transcribe "hover" como "hago ver" — pero
+alcanza para probar que el pipeline entero funciona y que el priming del prompt ayuda
+("sidebar" y "componente" sí salen bien gracias al `vocab.txt`). Queda anotado para quien
+retome esto: correr el mismo test apuntado a `LARGE_V3_TURBO_Q5_0` da mejor WER, pero es
+una corrida manual, no parte de la suite por defecto.
+
+### D-11 · El WAV de la fixture es voz sintetizada, no una grabación humana
+
+**Ambigüedad.** El criterio de B2 pide "un WAV corto en español commiteado en
+fixtures/audio/", pero el entorno de esta tarea no tiene micrófono ni una grabación de
+Gabriel a mano.
+
+**Decisión.** `fixtures/audio/es-hover-sidebar.wav` se generó con
+`say -v Mónica "El botón de nuevo turno no responde cuando hago hover en el sidebar del
+componente Agendi." -o sample.aiff` (TTS en español de macOS) y se bajó a 16 kHz mono
+con `ffmpeg -ar 16000 -ac 1`. La frase incluye a propósito vocabulario técnico de
+`vocab.txt` ("hover", "sidebar", "componente") para poder verificar que el priming del
+prompt de §06.1 hace lo que promete.
+
+**Por qué.** Es habla real (voz humana sintética, no un tono ni ruido), en español, y
+whisper la transcribe con un WER razonable — cumple el espíritu del criterio ("que
+produzca una Utterance con timestamps por palabra") sin depender de que exista una
+grabación previa. Si Gabriel quiere reemplazarla por una grabación suya real, el test de
+`crates/qua-core/tests/asr_pipeline.rs` no necesita cambios: solo lee el WAV de
+`fixtures/audio/`.
+
+### D-12 · Las palabras se arman agrupando tokens por espacio inicial
+
+**Ambigüedad.** El protocolo pide `Utterance.words: [{w, t, d, p}]`, pero whisper.cpp (y
+por lo tanto `whisper-rs`) no tiene un concepto nativo de "palabra": solo expone
+timestamps por **token** (subpalabras BPE) vía `token_timestamps`.
+
+**Decisión.** Se agrupan tokens consecutivos en una palabra hasta que aparece un token
+que arranca con un espacio — es la misma heurística que usa el propio CLI de
+whisper.cpp para `--word-timestamps`/`--split-on-word` río arriba. `t`/`d` de la palabra
+salen del `t0` del primer token y el `t1` del último; `p` es el mínimo de las
+probabilidades de sus tokens (el token más débil de la palabra).
+
+**Por qué.** Es la única señal que expone la librería; inventar otra heurística
+divergiría del comportamiento de referencia de whisper.cpp sin ninguna ventaja.
+
+### D-13 · `avg_logprob` se calcula a mano, promediando `plog` por token
+
+**Ambigüedad.** El protocolo pide `Utterance.avg_logprob`, pero `whisper-rs` no expone
+un getter de log-probabilidad a nivel de segmento (a diferencia de la librería Python de
+OpenAI, que sí lo calcula).
+
+**Decisión.** Se promedia `token_data().plog` de todos los tokens no especiales de la
+utterance. `no_speech_prob` sí es nativo (`segment.no_speech_probability()`) y se
+promedia entre segmentos si whisper partió el audio en más de uno.
+
+**Por qué.** Es exactamente el cálculo que hace `whisper.cpp`/Python internamente para
+ese campo (promedio de log-probabilidades de token); reproducirlo a mano en Rust da el
+mismo número sin depender de una API que el binding no expone.
+
+### D-14 · `AsrConfig` lee solo la tabla `[asr]` de `config.toml`, no el archivo entero
+
+**Ambigüedad.** §13 muestra un `~/.qua/config.toml` con secciones de todo el daemon
+(`[daemon]`, `[asr]`, `[capture]`, `[correlator]`, `[[projects]]`), pero B2 solo es dueño
+de `[asr]`.
+
+**Decisión.** `AsrConfig::load` deserializa un struct que solo tiene el campo `asr`, y
+serde ignora las demás tablas del archivo por default (no hay
+`deny_unknown_fields`). Si el archivo no existe todavía, devuelve
+`AsrConfig::default()` sin error — un daemon recién instalado no tiene por qué tener
+`~/.qua/config.toml`.
+
+**Por qué.** El resto del schema de `config.toml` (pairing, capture, correlador,
+proyectos) es de B1/B3/C1. Que B2 posea un tipo que ignora esas tablas evita un choque de
+"dueño del archivo" entre tareas de la misma ola — cada una lee lo suyo del mismo
+archivo sin tener que coordinarse.
+
+### D-15 · `--asr-workers N` queda como campo de config, no como pool real de hilos
+
+**Ambigüedad.** §06.1 menciona `--asr-workers N` para máquinas lentas, pero el diagrama
+del pipeline dice "1 worker whisper" a secas, y la DECISIÓN del propio §06.1 aclara que
+un `WhisperContext` no es thread-safe para inferencia paralela.
+
+**Decisión.** `AsrConfig.workers` existe como campo tuneable, y `run_whisper_worker`
+consume la cola en un solo hilo con un solo `WhisperContext`, tal cual el diagrama. No se
+implementó el fan-out a N workers (que requeriría un receptor compartible, p. ej.
+`Arc<Mutex<Receiver<PendingSegment>>>`, más N `WhisperContext` independientes).
+
+**Por qué.** El entregable de B2 es el pipeline correcto de principio a fin; cablear el
+flag de CLI a un pool de hilos es una decisión de cómo arranca el proceso (`quad`/CLI),
+no del módulo de ASR en sí. Se deja anotado para quien conecte `qua doctor`/el arranque
+del daemon: `run_whisper_worker` ya es reentrante (toma su propio `WhisperWorker` y su
+propio extremo de la cola), así que levantar N de estos en N hilos con un
+`Arc<Mutex<Receiver>>` alcanza.
+
+### D-16 · CI necesita `cmake` + `libclang-dev` en el runner de Rust
+
+**Contexto, no ambigüedad.** `whisper-rs-sys` compila whisper.cpp con `cmake` y genera
+bindings con `bindgen`, que a su vez necesita `libclang`. `ubuntu-latest` no lo trae
+instalado por default.
+
+**Decisión.** Se agregó un paso `apt-get install -y cmake libclang-dev` al job `rust` de
+`.github/workflows/ci.yml`, antes de `cargo fmt`/`clippy`/`test`.
+
+**Por qué.** Sin esto, `cargo build` del workspace entero rompe en cualquier corredor
+que no tenga esas herramientas — no es opcional para que B2 compile en CI.
+
+**Costo que queda anotado, no resuelto.** El test de integración de B2 baja
+`ggml-base` (~148 MB) de Hugging Face en cada corrida de CI porque el runner es efímero
+y no hay caché configurado para `~/.qua/models` (`Swatinem/rust-cache` solo cubre
+`target/` y el registro de cargo). Si esto molesta en la práctica, la solución es cachear
+ese directorio por hash del modelo — no se hizo acá para no tocar más de lo que hace
+falta al workflow compartido.
