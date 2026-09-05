@@ -418,4 +418,26 @@ Las cuatro cosas más serias las encontraron los workers leyendo la spec, no los
 la suma de scores que anclaba al elemento equivocado con confianza máxima, la clave primaria
 que perdía datos entre sesiones, el hotkey desconectado del protocolo, y el WebSocket que no
 existía en idle. **Ninguna habría aparecido en CI.**
+- `2026-09-05 03:35` — **G1 ✅ entregada, pero su merge quedó pendiente (→ M1).**
+  G1 hizo el trabajo más difícil de la noche: cableó extensión + daemon de punta a punta y
+  **encontró y arregló 6 bugs de integración que ningún test unitario detectaba** — el contrato
+  de mensajes interno roto entre A1/A2/A3, `t` sin normalizar contra `t0_wall`, el AudioWorklet
+  que nunca compilaba por cómo lo empaqueta WXT, y que `chrome.runtime.sendMessage` no preserva
+  `Uint8Array`. Su E2E lanza **Chrome real** con la extensión cargada (sin modo desarrollador
+  manual), un daemon real, hace un hover real e inyecta el WAV de B2 como micrófono falso.
+  **Lo corrí yo: produce un `report.md` con transcripción real de whisper.**
+
+  **Pero no lo mergeé.** La rama es vieja y chocó en 6 archivos; el nudo es
+  `session-manager.ts`, donde **P1 y G1 cambiaron el constructor de formas distintas** y cada
+  uno agregó campos que el otro no tiene (`createSocket` en P1, `now` y el cableado del
+  offscreen en G1). Intenté resolverlo a mano y lo dejé roto —métodos duplicados y una llave
+  suelta, typecheck en rojo—, así que **revertí para dejar `main` verde en 444 tests** y lo
+  despaché como **M1** con Opus y el mapa completo de qué aporta cada lado.
+
+### Defecto visible en la salida del E2E (para después de M1)
+
+El issue del E2E ancla a `(ruta desconocida)` con deixis `el sidebar`. Degradar a `route` es
+correcto según §07, pero **la ruta no debería ser desconocida**: el evento `nav` no está
+llegando con la URL, o la página de prueba no la expone. Se ve en
+`docs/ejemplos/` una vez que M1 cierre.
 
