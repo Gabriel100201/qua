@@ -30,7 +30,7 @@
 | F1 · Generador sintético       | F0     | ✅ hecho (ver F1c pendiente) | codex luna | `6e1e0b2` | `d28620d` |
 | A1 · Content script            | F0     | ✅ hecho | sonnet | `99aec5b` | — |
 | A2 · Service worker            | F0     | ✅ hecho | sonnet | `679c64f` | — | — |
-| A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
+| A3 · Offscreen + UI            | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — | — |
 | B3 · Correlador                | F0, F1 | ✅ hecho | **opus** | `2509595` | — | — |
@@ -38,7 +38,7 @@
 | C1 · App Tauri                 | B1     | 🟡 en curso | sonnet | — | — |
 | D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
-| G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
+| G1 · Integración y packaging   | todas  | 🟡 en curso | sonnet | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
 
@@ -263,4 +263,22 @@ agregar y se revisa antes de commitear.**
   ejerce las 5 herramientas por el protocolo MCP verdadero. La escritura está impuesta a nivel
   de flags de SQLite: `READ_ONLY` para todo salvo `qua_issue_mark_exported`.
 - `2026-09-05 02:15` — Largué **F1c** para sanear el harness, con el diagnóstico completo de B3.
+- `2026-09-05 02:20` — **A3 ✅** mergeada. **La extensión está completa**: A1 + A2 + A3
+  integrados, **172 tests en 25 archivos**. Total del repo: **242 de TS + 172 de Rust = 414**.
+  A3 verifica el frame binario **byte a byte contra la fixture dorada de F0**, que es la forma
+  correcta de probar un contrato entre dos lenguajes.
+- `2026-09-05 02:20` — **Arreglé la resolución de paquetes del workspace.** A3 reportó que 4
+  archivos de test de A1 no cargaban por `@qua/source-resolver` sin `dist/`, y confirmó con
+  `git stash` que era preexistente. La causa: `dist/` está en `.gitignore`, así que depender
+  de él obliga a construir antes de testear y rompe en cualquier checkout limpio. Alias en
+  `extension/{tsconfig,vitest.config}` contra el fuente TS para los dos paquetes.
+- `2026-09-05 02:20` — Largué **G1** (integración E2E + packaging), ya desbloqueada.
+
+### Brecha de protocolo que reportó A3 (sin aplicar)
+
+No existe ningún mensaje en §04 para subir el archivo `audio.opus` del offscreen document al
+daemon. El PCM crudo viaja por frames binarios, pero el opus de archivo no tiene camino. Está
+en `docs/DECISIONS.md`. **Decidilo con la cabeza fresca**: o se agrega un mensaje al contrato,
+o el daemon reconstruye el opus desde `raw/audio.pcm` con ffmpeg (que es lo que B1 ya hace en
+D-B1-08, así que probablemente la brecha sea sólo aparente).
 
