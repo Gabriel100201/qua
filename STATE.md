@@ -401,4 +401,21 @@ Si el worker no commiteó, commitealo vos desde su worktree dejando constancia e
   con datos, no con argumentos.
   El escenario ambiguo `s23` degrada a `route` con confianza **0,40**, debajo del umbral:
   la regla de oro funciona.
+- `2026-09-05 03:12` — **P1 ✅** mergeada. **196 tests de Rust + 248 de TS = 444, cero errores.**
+  El hotkey global ahora llega hasta el final: `session.control` en el protocolo con fixture
+  cruzada TS↔Rust, `POST /control` autenticado en el daemon, y los handlers de la app Tauri.
+  **P1 encontró algo más profundo que lo que yo le pedí:** el WebSocket de la extensión
+  **sólo vivía durante una grabación**, así que `start` no podía llegar nunca estando idle —
+  el hotkey habría seguido sin funcionar aunque el mensaje existiera. Lo resolvió abriendo un
+  canal ocioso que sólo manda `hello`, reusando el `WsClient` de A2 sin reescribirlo.
+  Costo aceptado y documentado (D-P1-01/02): directorios de sesión huérfanos por cada `hello`
+  del canal ocioso —ya contemplado en D-B1-09— y el hotkey es best-effort contra `/control`,
+  con log en `~/.qua/logs/qua-app.log` si el daemon no responde.
+
+### El patrón de la noche
+
+Las cuatro cosas más serias las encontraron los workers leyendo la spec, no los tests:
+la suma de scores que anclaba al elemento equivocado con confianza máxima, la clave primaria
+que perdía datos entre sesiones, el hotkey desconectado del protocolo, y el WebSocket que no
+existía en idle. **Ninguna habría aparecido en CI.**
 
