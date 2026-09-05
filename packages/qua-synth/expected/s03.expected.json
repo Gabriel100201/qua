@@ -1,6 +1,7 @@
 {
-  "issue": "i3",
+  "issue": "i03",
   "anchor": {
-    "kind": "route"
+    "kind": "element",
+    "selector": "button[data-testid=\"ver-detalle\"]"
   }
 }

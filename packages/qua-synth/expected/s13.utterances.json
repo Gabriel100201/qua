@@ -1,38 +1,44 @@
 [
   {
     "id": "u13",
-    "t_start": 18000,
-    "t_end": 18805,
-    "text": "este botón es muy chico",
+    "t_start": 20000,
+    "t_end": 21645,
+    "text": "esta sección tiene demasiados filtros repetidos",
     "lang": "es",
     "words": [
       {
-        "w": "este",
-        "t": 18000,
+        "w": "esta",
+        "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "botón",
-        "t": 18090,
+        "w": "sección",
+        "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "es",
-        "t": 18180,
+        "w": "tiene",
+        "t": 20180,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "muy",
-        "t": 18270,
+        "w": "demasiados",
+        "t": 20270,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "chico",
-        "t": 18360,
+        "w": "filtros",
+        "t": 20360,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "repetidos",
+        "t": 20450,
         "d": 80,
         "p": 0.97
       }

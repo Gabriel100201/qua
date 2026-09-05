@@ -1,25 +1,13 @@
-{"t":9500,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":9830,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":10160,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":10490,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":10820,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":11150,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":11480,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":11810,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":12140,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":12470,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":12800,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":13130,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":13460,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":13790,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":14120,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":14450,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":14780,"tab":1,"k":"scroll","url":"/agenda/semana"}
-{"t":15110,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
-{"t":0,"tab":1,"k":"nav","url":"/agenda/semana"}
-{"t":12100,"tab":1,"k":"scroll_settle","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"top_target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
-{"t":13200,"tab":1,"k":"focus_change","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
-{"t":14100,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"button":0}
-{"t":14800,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"guardar-cambios\"]","strategy":"testid","tag":"button","text":"Guardar cambios","visible":true},"dwell_ms":1400}
-{"t":15600,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"guardar-cambios\"]","strategy":"testid","tag":"button","text":"Guardar cambios","visible":true},"button":0}
-{"t":17200,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"dwell_ms":900}
+{"t":0,"tab":2,"k":"nav","url":"/pacientes/ficha","title":"Agendi","kind":"load"}
+{"t":10500,"tab":2,"k":"viewport","w":1512,"h":857,"dpr":2}
+{"t":10750,"tab":2,"k":"mutation_burst","count":3}
+{"t":11200,"tab":2,"k":"input","target":{"sel":"input[data-testid=\"buscador\"]","strategy":"testid","tag":"input","text":"","visible":true},"field":{"name":"buscador","type":"search"}}
+{"t":11800,"tab":2,"k":"submit","target":{"sel":"form[data-testid=\"filtros\"]","strategy":"testid","tag":"form","text":"","visible":true}}
+{"t":12200,"tab":2,"k":"tab_switch","from":null,"to":2,"url":"/pacientes/ficha"}
+{"t":12600,"tab":2,"k":"audio_gap","duration_ms":300}
+{"t":13000,"k":"tab_close","tab":102}
+{"t":19650,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"confirmar-turno\"]","strategy":"testid","tag":"button","text":"Confirmar turno","visible":true},"button":0,"mods":[]}
+{"t":20350,"tab":2,"k":"mutation_burst","count":24,"target":{"sel":"button[data-testid=\"confirmar-turno\"]","strategy":"testid","tag":"button","text":"Confirmar turno","visible":true}}
+{"t":16000,"tab":2,"k":"scroll_settle","y":500,"pct":0.3,"top_target":{"sel":"button[data-testid=\"reprogramar-turno\"]","strategy":"testid","tag":"button","text":"Reprogramar turno","visible":true}}
+{"t":21000,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"reprogramar-turno\"]","strategy":"testid","tag":"button","text":"Reprogramar turno","visible":true},"button":0,"mods":[]}
+{"t":19500,"tab":2,"k":"console","level":"error","text":"TypeError: cannot read property 'id' of undefined"}

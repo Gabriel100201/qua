@@ -2,37 +2,67 @@
   {
     "id": "u17",
     "t_start": 20000,
-    "t_end": 20805,
-    "text": "este botón es muy chico",
+    "t_end": 21995,
+    "text": "en toda la app falta contraste en los botones secundarios",
     "lang": "es",
     "words": [
       {
-        "w": "este",
+        "w": "en",
         "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "botón",
+        "w": "toda",
         "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "es",
+        "w": "la",
         "t": 20180,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "muy",
+        "w": "app",
         "t": 20270,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "chico",
+        "w": "falta",
         "t": 20360,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "contraste",
+        "t": 20450,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "en",
+        "t": 20540,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "los",
+        "t": 20630,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "botones",
+        "t": 20720,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "secundarios",
+        "t": 20810,
         "d": 80,
         "p": 0.97
       }

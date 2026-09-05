@@ -1,7 +1,6 @@
 {
   "issue": "i13",
   "anchor": {
-    "kind": "element",
-    "selector": "button[data-testid=\"nuevo-turno\"]"
+    "kind": "route"
   }
 }

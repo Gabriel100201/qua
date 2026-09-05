@@ -1,6 +1,7 @@
 {
-  "issue": "i7",
+  "issue": "i07",
   "anchor": {
-    "kind": "route"
+    "kind": "element",
+    "selector": "button[data-testid=\"guardar-cliente\"]"
   }
 }

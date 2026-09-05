@@ -1,0 +1,7 @@
+{
+  "issue": "i27",
+  "anchor": {
+    "kind": "element",
+    "selector": "button[data-testid=\"confirmar-turno\"]"
+  }
+}

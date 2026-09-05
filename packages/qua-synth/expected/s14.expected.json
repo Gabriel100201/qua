@@ -1,7 +1,6 @@
 {
   "issue": "i14",
   "anchor": {
-    "kind": "element",
-    "selector": "button[data-testid=\"guardar-cambios\"]"
+    "kind": "route"
   }
 }
