@@ -2,6 +2,7 @@ node_modules/
 target/
 dist/
 .output/
+extension/build/
 *.log
 .DS_Store
 .env

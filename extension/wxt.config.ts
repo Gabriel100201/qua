@@ -10,6 +10,10 @@ import { defineConfig } from "wxt";
  */
 export default defineConfig({
   srcDir: ".",
+  // Carpeta visible a propósito: el default de WXT es `.output`, y macOS esconde
+  // todo lo que empieza con punto en el selector de archivos — cargar la extensión
+  // sin empaquetar se vuelve innecesariamente difícil.
+  outDir: "build",
   manifest: {
     name: "QUA",
     permissions: ["tabs", "storage", "offscreen", "alarms", "scripting", "webNavigation"],
