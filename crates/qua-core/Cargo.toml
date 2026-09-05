@@ -20,6 +20,7 @@ ureq = "3"
 toml = "1"
 num_cpus = "1"
 tracing = "0.1"
+image.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 whisper-rs = { version = "0.16", features = ["metal"] }

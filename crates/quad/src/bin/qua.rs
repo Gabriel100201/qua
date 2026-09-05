@@ -1,12 +1,14 @@
-//! `qua` — CLI de §6.2. B1 implementa `recover` (el criterio de aceptación de la
-//! tarea) y un `doctor` mínimo que solo verifica que el daemon responda. El resto de
-//! los subcomandos (`sessions`, `show`, `reprocess`, `refine`, `export`) dependen de
-//! ASR (B2), el correlador (B3) o el renderer (B4) y quedan como stubs explícitos —
-//! ver D-B1-05 en `docs/DECISIONS.md`.
+//! `qua` — CLI de §6.2. Los ocho subcomandos completos: B1 dejó `recover`/`doctor`
+//! (§04 Resiliencia, criterio de aceptación de B1); B4 agrega `sessions`, `show`,
+//! `reprocess`, `refine` y `export` sobre `qua-core::render` y `qua-core::store`. La
+//! lógica de cada uno vive en `quad::cli` — este binario solo parsea `clap` y
+//! despacha, así los tests de integración pueden ejercer lo mismo sin invocar el
+//! binario.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use quad::cli::{ExportFormat, ShowFormat};
 
 #[derive(Parser, Debug)]
 #[command(name = "qua", about = "CLI de QUA (§6.2).")]
@@ -22,27 +24,36 @@ struct Cli {
 enum Command {
     /// Reconstruye una sesión desde `raw/` (§04 Resiliencia). Es el criterio de
     /// aceptación de B1: `kill -9` a mitad de sesión, después `qua recover <id>`.
-    Recover {
-        id: String,
-    },
+    Recover { id: String },
     /// Chequeo mínimo: `GET /health`. El resto de §6.2 (modelo, mic, pairing) depende
     /// de B2/A3/C1 y todavía no existe para chequear acá.
     Doctor {
         #[arg(long, default_value_t = qua_protocol::DEFAULT_DAEMON_PORT)]
         port: u16,
     },
-    Sessions,
+    /// Lista sesiones grabadas, más recientes primero.
+    Sessions {
+        #[arg(long)]
+        project: Option<String>,
+        #[arg(long)]
+        limit: Option<i64>,
+    },
+    /// Muestra una sesión: `report.md` (default) o `session.json` completo.
     Show {
         id: String,
+        #[arg(long, value_enum, default_value_t = ShowFormat::Md)]
+        format: ShowFormat,
     },
-    Reprocess {
-        id: String,
-    },
-    Refine {
-        id: String,
-    },
+    /// Re-corre el pipeline de render (y, cuando existan, ASR + correlador) sobre una
+    /// sesión ya grabada, sin regrabar nada. Idempotente.
+    Reprocess { id: String },
+    /// Pase LLM opcional sobre `issues.json` (§8.3). Nunca corre solo.
+    Refine { id: String },
+    /// Exporta `report.md` o `issues.json` a stdout.
     Export {
         id: String,
+        #[arg(long, value_enum, default_value_t = ExportFormat::Md)]
+        format: ExportFormat,
     },
 }
 
@@ -50,66 +61,18 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let data_dir = cli.data_dir.unwrap_or_else(quad::config::qua_home);
 
-    match cli.command {
-        Command::Recover { id } => cmd_recover(&id, &data_dir),
-        Command::Doctor { port } => cmd_doctor(port),
-        Command::Sessions
-        | Command::Show { .. }
-        | Command::Reprocess { .. }
-        | Command::Refine { .. }
-        | Command::Export { .. } => {
-            println!(
-                "`qua {:?}` todavía no está implementado: depende del correlador (B3) o el renderer (B4).",
-                cli.command
-            );
-            Ok(())
+    let output = match cli.command {
+        Command::Recover { id } => quad::cli::recover(&id, &data_dir),
+        Command::Doctor { port } => quad::cli::doctor(port),
+        Command::Sessions { project, limit } => {
+            quad::cli::sessions(&data_dir, project.as_deref(), limit)
         }
-    }
-}
+        Command::Show { id, format } => quad::cli::show(&data_dir, &id, format),
+        Command::Reprocess { id } => quad::cli::reprocess(&data_dir, &id),
+        Command::Refine { id } => quad::cli::refine(&data_dir, &id),
+        Command::Export { id, format } => quad::cli::export(&data_dir, &id, format),
+    }?;
 
-fn cmd_recover(id: &str, data_dir: &Path) -> anyhow::Result<()> {
-    let dir = data_dir.join("sessions").join(id);
-    if !dir.exists() {
-        anyhow::bail!("no existe la sesión {id} en {}", dir.display());
-    }
-
-    let meta = qua_core::read_meta(&dir).map_err(|e| {
-        anyhow::anyhow!("{e} — no hay nada recuperable más allá del directorio vacío")
-    })?;
-    let config = quad::config::Config::load(&data_dir.join("config.toml"))?;
-    let project = config.match_project(&meta.base_url);
-
-    let session = qua_core::recover_session(&dir, &meta, project)?;
-    std::fs::write(
-        dir.join("session.json"),
-        serde_json::to_vec_pretty(&session)?,
-    )?;
-
-    let conn = qua_core::store::open(data_dir)?;
-    qua_core::store::upsert_session(&conn, &session, &dir.to_string_lossy())?;
-
-    println!(
-        "Sesión {} reconstruida: {} eventos, status={:?} — {}",
-        session.id,
-        session.events.len(),
-        session.status,
-        dir.join("session.json").display()
-    );
-    Ok(())
-}
-
-fn cmd_doctor(port: u16) -> anyhow::Result<()> {
-    use std::io::{Read, Write};
-    use std::net::TcpStream;
-
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).map_err(|e| {
-        anyhow::anyhow!("no se pudo conectar a 127.0.0.1:{port}: {e} (¿está corriendo `quad`?)")
-    })?;
-    stream.write_all(b"GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")?;
-    let mut buf = String::new();
-    stream.read_to_string(&mut buf)?;
-    let body = buf.split("\r\n\r\n").nth(1).unwrap_or("").trim();
-    println!("quad respondió en el puerto {port}: {body}");
-    println!("(chequeo de modelo, mic y pairing pendiente de B2/A3/C1)");
+    println!("{output}");
     Ok(())
 }

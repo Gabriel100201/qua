@@ -32,3 +32,4 @@ rand = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 regex = "1"
 toml = "0.8"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
