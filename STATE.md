@@ -33,7 +33,7 @@
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
-| B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
+| B3 · Correlador                | F0, F1 | ✅ hecho (ver nota) | Opus | rama `b3` |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
@@ -123,3 +123,29 @@ worker.** Es lo que separó un merge sano de meter basura en `main`.
   enteras en una sola línea. Funciona y está testeado, pero merece un pase de formato.
 - `2026-09-04 23:51` — Largué **B2** (audio + ASR). Es la de cola más larga: descarga el modelo
   de 574 MB y compila whisper.cpp con Metal, así que conviene que arranque temprano.
+
+- `2026-09-05` — **B3 (correlador) entregada** en la rama `b3`. Los 9 pasos de §07 en
+  `crates/qua-core/src/correlate/`, con **todos** los umbrales en `[correlator]` de
+  `config.toml` (D-B3-01) y 108 tests propios escritos contra la spec, independientes del
+  harness. `cargo test --workspace` y `cargo clippy --all-targets` verdes.
+
+  **Lo que hay que decidir antes de dar B3 por cerrada.** Sobre los 26 escenarios de F1b,
+  con la configuración por defecto —que es §07 al pie de la letra— el anclaje da **46,2 %**,
+  lejos del ≥ 85 % de §14. La causa está identificada y es **una línea de la spec contra
+  otra**: §07 paso 5 manda sumar los scores de todos los candidatos que resuelven al mismo
+  selector, y eso hace que una tira de eventos débiles sobre un distractor (scroll + focus +
+  click viejo + dos hover = 7,07) supere a la señal real (hover sostenido + click = 5,04),
+  con confianza saturada en 1,0. Eso contradice la regla de oro del paso 6 y el criterio de
+  aceptación de B3 en §14 («ningún caso ambiguo anclado a elemento con confianza > 0.5»).
+  Se dejó como perilla: `merge_extra_weight` (default `1.0` = la suma literal de §07,
+  `0.0` = solo el aporte más fuerte). Con `0.0` el mismo harness da **73,1 %**, sin
+  recompilar. Ver `docs/DECISIONS.md` D-B3-07.
+
+  **El harness tampoco es oráculo.** Además de lo ya sabido (usa un `scroll` que no existe
+  en el contrato y cubre 7 de los 18 tipos), 572 de sus 651 líneas de evento **no validan
+  contra §03**: a `nav` le faltan `title`/`kind`, a `click` `mods`, a `scroll_settle`
+  `y`/`pct`, a `mutation_burst` `count`. Y hay dos escenarios cuyo ground truth contradice
+  §07 con cualquier configuración: la plantilla POINTER (s01/05/09/13/17/21) espera
+  `element` donde el ratio best/second da 1,11 y el paso 6 manda degradar a `route`; y s24
+  («visibilidad penaliza candidato oculto») espera que gane justamente el candidato con
+  `visible: false`, que es lo contrario del factor 0.3 del paso 5.
