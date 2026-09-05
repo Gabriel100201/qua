@@ -5,6 +5,7 @@ members = [
   "crates/qua-core",
   "crates/quad",
   "crates/qua-mcp",
+  "apps/qua-app/src-tauri",
 ]
 
 [workspace.package]

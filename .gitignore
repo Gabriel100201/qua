@@ -8,3 +8,6 @@ dist/
 .env.local
 models/
 *.tsbuildinfo
+apps/qua-app/src-tauri/binaries/
+apps/qua-app/src-tauri/gen/
+.impeccable/

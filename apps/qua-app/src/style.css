@@ -1,0 +1,148 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: canvas;
+  color: canvastext;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid color-mix(in srgb, canvastext 15%, transparent);
+}
+
+.tabs a {
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.tabs a:hover {
+  opacity: 1;
+  background: color-mix(in srgb, canvastext 8%, transparent);
+}
+
+main {
+  padding: 14px;
+}
+
+h1 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+h2 {
+  font-size: 13px;
+  margin: 16px 0 6px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+button {
+  font: inherit;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, canvastext 20%, transparent);
+  background: color-mix(in srgb, canvastext 6%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: color-mix(in srgb, canvastext 12%, transparent);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+pre {
+  white-space: pre-wrap;
+  background: color-mix(in srgb, canvastext 6%, transparent);
+  padding: 10px;
+  border-radius: 8px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: color-mix(in srgb, canvastext 10%, transparent);
+}
+
+.session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-item {
+  border: 1px solid color-mix(in srgb, canvastext 15%, transparent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.session-item:hover {
+  background: color-mix(in srgb, canvastext 6%, transparent);
+}
+
+.session-item.active {
+  border-color: color-mix(in srgb, canvastext 40%, transparent);
+}
+
+.meta {
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.progress {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, canvastext 10%, transparent);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.2s ease;
+}
+
+.code6 {
+  font-size: 32px;
+  letter-spacing: 0.3em;
+  font-weight: 600;
+  padding: 10px 0;
+}

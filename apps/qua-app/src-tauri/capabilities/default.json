@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capacidades de la única ventana webview del app (§09): abrir la carpeta de una sesión en Finder y copiar su ruta.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:allow-open-path",
+    "clipboard-manager:allow-write-text"
+  ]
+}

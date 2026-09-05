@@ -1,0 +1,43 @@
+[package]
+name = "qua-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "App Tauri de QUA: tray, sidecar del daemon, hotkeys globales y ventana de sesiones (§09)."
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "protocol-asset"] }
+tauri-plugin-shell = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-opener = "2"
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender = "0.2"
+chrono.workspace = true
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "stream",
+  "rustls-tls",
+] }
+futures-util.workspace = true
+sha2 = "0.10"
+cpal = "0.15"
+
+# Reuso directo del daemon y del contrato en vez de reinventar rutas de `~/.qua/` y
+# tipos de `/health` / `/pair`: C1 depende de B1 (§14), no lo duplica.
+quad = { path = "../../../crates/quad" }
+qua-core = { path = "../../../crates/qua-core" }
+qua-protocol = { path = "../../../crates/qua-protocol" }
+
+[lib]
+name = "qua_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]

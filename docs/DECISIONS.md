@@ -1206,3 +1206,79 @@ consultas de `qua-mcp` antes de este fix.
 `i01` cada una, confirma que `qua_issues_pending` devuelve las dos (antes del fix, la
 segunda pisaba a la primera y solo aparecía un issue), y que `qua_issue_mark_exported`
 con `(session_id, issue_id)` afecta solo a la sesión correcta.
+
+## C1 · App Tauri
+
+### D-C1-01 · El hotkey global no puede arrancar/parar una grabación de verdad todavía
+
+**Ambigüedad real, no menor.** §09 dice que el hotkey global (⌘⇧R / ⌘⇧E) «es lo único que la
+extensión sola no puede dar», dando a entender que dispara la grabación en el navegador. Pero
+§04 solo define `session.start` / `session.stop` / `mark` como mensajes **cliente→servidor**
+(los manda la extensión al daemon). No hay ningún mensaje **servidor→cliente** en la lista de
+§04 para que el daemon (o la app) le ordene a la extensión arrancar o parar — el canal para
+que un proceso externo controle una sesión ya abierta en el navegador no existe en el
+contrato actual.
+
+**Decisión.** No lo agrego ni al `packages/protocol` ni al `qua-protocol` de Rust — es
+exactamente el tipo de cambio de contrato que C1 tiene prohibido aplicar unilateralmente
+(rompería en silencio a A2, que ya está mergeada). En su lugar:
+
+- El hotkey global (`tauri-plugin-global-shortcut`, ⌘⇧R / ⌘⇧E) queda completamente
+  implementado y **se probó que dispara con Chrome en foco** — es una API del SO, no depende
+  de qué ventana tiene el foco. Togglea el estado local del tray (idle/grabando) y lo deja en
+  el log unificado de `~/.qua/logs/qua-app.log`.
+- Lo que **no** hace todavía: mover una sesión real de la extensión. Eso necesita un mensaje
+  nuevo servidor→cliente (propongo `{ v:1, type:"control.toggle_recording" }` y
+  `{ v:1, type:"control.mark", t }`, agregados a §04 y reenviados por el daemon al cliente WS
+  conectado) más el listener correspondiente en el service worker (A2, ya cerrada).
+
+**Por qué.** Implementar solo la mitad alcanzable de C1 (el hotkey de verdad, el tray de
+verdad, el sidecar de verdad) y documentar el resto es mejor que fingir una integración
+end-to-end que en realidad no toca la extensión. El criterio de aceptación de §14 («el
+hotkey dispara con Chrome en foco») se cumple tal como está escrito; «mueve una grabación
+real» es una lectura más fuerte que no se puede satisfacer sin tocar protocolo o A2.
+
+**Para quien retome C1.** Con el mensaje de arriba agregado a `packages/protocol` (y su
+espejo Rust), el lado de la app es un `if let Some(child) = ...` trivial: postear al daemon
+(nuevo endpoint HTTP interno, p.ej. `POST /control/toggle-recording`, no versionado — como
+`/pair/start` de B1) que reenvía el mensaje por el WS activo. `apps/qua-app/src-tauri/src/
+hotkeys_actions.rs` es donde engancharlo.
+
+### D-C1-02 · Los binarios de sidecar no se commitean
+
+**Decisión.** `apps/qua-app/src-tauri/binaries/{quad,qua}-<target-triple>` van al
+`.gitignore`. Se generan con `apps/qua-app/scripts/build-sidecars.sh` (compila `quad` y `qua`
+en release desde el mismo código fuente del repo y los copia con el sufijo de target-triple
+que espera `tauri-plugin-shell`).
+
+**Por qué.** Son ~25-30 MB cada uno, reproducibles al 100 % desde `crates/quad`, y el
+target-triple cambia según la máquina. Commitearlos infla el repo sin necesidad — es
+exactamente lo mismo que no commitear `target/`.
+
+### D-C1-03 · El modelo de ASR se descarga reusando `qua_core::asr::model` de B2
+
+**Decisión.** En vez de reimplementar descarga + verificación SHA-256 para la barra de
+progreso de onboarding (§09), la app depende directamente de `qua-core` y llama a
+`ensure_model` (B2) con un callback de progreso que emite eventos al frontend.
+
+**Por qué.** B2 ya tiene los SHA-256 reales (los que reporta la API de HF, no inventados) y
+la lógica de reintento/idempotencia. Reimplementarla hubiera significado adivinar hashes o
+saltear la verificación — ninguna de las dos aceptable para un archivo de 574 MB que carga
+un modelo de inferencia.
+
+### D-C1-04 · Medidor de nivel de mic: dispositivo propio, no el de la extensión
+
+**Ambigüedad.** §09 dice que el app "no captura nada: gestiona", pero también pide un
+"medidor de nivel de mic en vivo" y un selector de dispositivo — cosas que necesitan tocar
+el micrófono, y el micrófono real de la sesión lo abre el offscreen document de la extensión
+(§5.4), no el app.
+
+**Decisión.** El app abre su **propio** stream de `cpal` (independiente del de la extensión)
+solo para calcular RMS y mostrarlo en el tray, y para listar/probar dispositivos de entrada
+en el onboarding. Nunca se graba ni se persiste. macOS permite múltiples taps de lectura
+sobre el mismo dispositivo de entrada sin conflicto.
+
+**Por qué.** Es la única forma de que "medidor de nivel" y "selector de dispositivo" existan
+sin que el app dependa de que la extensión esté conectada — y sin ellos, dos ítems explícitos
+de §09 quedarían sin implementar. "No captura nada" se interpreta como "no es la fuente de
+la grabación de la sesión", no como "nunca abre el micrófono para nada".
