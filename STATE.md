@@ -175,4 +175,34 @@ recuperé a mano. Cada worker agrega sus propias entradas, así que el conflicto
   sigue siendo honesta sobre la mejor evidencia sola: el que gana por acumular ruido llega con
   confianza baja y lo filtra el `min_score` o el `dominance_ratio`. `docs/SPEC.md` §07 corregida.
   El artifact publicado también hay que actualizarlo.
+- `2026-09-05 01:56` — **PARÓN DE DOS HORAS: se agotaron los límites de tokens a las 23:46.**
+  Los cinco workers (A2, A3, B2, B3, B4) se cortaron **en el mismo minuto** y quedaron *idle en
+  el prompt* con los procesos vivos. Ni un archivo tocado en 130 minutos. Los límites se
+  renovaron ~01:18 pero nadie los volvió a empujar: **el cron de la 01:33 fue lo que salvó la
+  noche.** Alcanzaron a commitear A2 (service worker), B2 (audio+ASR) y B3 (correlador);
+  A3 y B4 no habían arrancado. Reactivé a los cinco con `orca terminal send`.
+
+### Cómo diagnosticar esto rápido (no confíes en los heartbeats)
+
+Los dispatches seguían en `dispatched` y Orca no marcó nada como fallado. La señal real es el
+**mtime de los archivos en cada worktree**:
+
+```bash
+for w in a2 a3 b2 b3 b4; do
+  d=~/orca/workspaces/qua/$w
+  last=$(find "$d" -type f -not -path "*/node_modules/*" -not -path "*/target/*" \
+         -not -path "*/.git/*" -exec stat -f "%m" {} + | sort -rn | head -1)
+  echo "$w: hace $(( ($(date +%s) - last) / 60 )) min"
+done
+```
+
+Si todos frenaron **en el mismo minuto**, es límite de cuota, no un bug. Reactivación:
+
+```bash
+D=$(orca orchestration dispatch-show --task <task> --json | jq -r .result.dispatch.assignee_handle)
+orca terminal send --terminal "$D" --text "Retomá: ..." --enter --json
+```
+
+Ojo: los handles guardados se ponen `stale`; resolvelos siempre desde `assignee_handle` del
+dispatch, no de un archivo viejo.
 
