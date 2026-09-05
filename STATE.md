@@ -27,17 +27,17 @@
 | Tarea | Dep. | Estado | Agente | Commit |
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
-| F1 · Generador sintético       | F0     | ⬜ pendiente | — | — |
-| A1 · Content script            | F0     | ⬜ pendiente | — | — |
+| F1 · Generador sintético       | F0     | 🟡 en curso | codex luna | — |
+| A1 · Content script            | F0     | 🟡 en curso | sonnet | — |
 | A2 · Service worker            | F0     | ⬜ pendiente | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
-| B1 · Daemon servidor y store   | F0     | ⬜ pendiente | — | — |
+| B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | ⬜ pendiente | — | — |
 | B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
-| E1 · Source mapping            | F0     | ⬜ pendiente | — | — |
+| E1 · Source mapping            | F0     | 🟡 en curso | codex luna | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
@@ -49,6 +49,11 @@ Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ blo
 - **Codex `gpt-5.6-luna`:** solo F1 y E1 — spec cerrada, sin ida y vuelta
 - **Haiku:** tareas mecánicas
 - No usar `gpt-5.6-sol` salvo que Luna falle en algo concreto.
+
+## Worktrees de los workers
+
+Cada worker trabaja en su propio worktree para no pelearse por el índice de git ni por los
+lockfiles. Se mergean a `main` a medida que cierran. Ruta: `~/orca/workspaces/qua/<id>`.
 
 ## Bitácora
 
@@ -69,3 +74,23 @@ Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ blo
 2. `git log --oneline` para ver qué commits entraron.
 3. `orca orchestration task-list --json` para ver el estado de los workers.
 4. Agarrá la primera tarea ⬜ cuyas dependencias estén ✅ y despachala.
+- `2026-09-04 23:13` — **F0 ✅** (`ba276ac`). Verificado por el coordinador, no solo reportado:
+  60 tests en TS + 11 en Rust, incluido round-trip cruzado y el frame binario dorado
+  decodificando idéntico en los dos lenguajes. Encontró una contradicción real en la spec
+  (§14 decía 17 tipos de evento, la tabla de §03 tiene 18) y ocho ambigüedades más, todas
+  documentadas en `docs/DECISIONS.md`.
+- `2026-09-04 23:30` — Ola 1 tanda A largada: **F1** y **E1** con Codex/Luna (otra bolsa de
+  cuota, paralelismo gratis), **A1** y **B1** con Sonnet.
+
+## Trampas ya resueltas (no las vuelvas a pisar)
+
+1. **Claude Code se cuelga en el diálogo de confianza** de una carpeta nueva. Pre-aceptalo:
+   `python3 <scratchpad>/trust.py <ruta>` escribe `hasTrustDialogAccepted` en `~/.claude.json`.
+   Las 13 rutas de worktree ya están hechas.
+2. **Codex se cuelga igual** con `codex-interactive-prompt`. Se arregla agregando
+   `[projects."<ruta>"]` con `trust_level = "trusted"` a `~/.codex/config.toml`. Ya hecho.
+3. **Codex bloqueaba con `codex-update-prompt`.** Resuelto actualizando a 0.153.4.
+4. **`worker-start --worktree new-top-level` devuelve `selector_not_found`.** No lo uses.
+   El camino que funciona es de tres pasos: `worktree create` → `terminal create --command
+   '<agente con su modelo>'` → `terminal wait --for tui-idle` → `worker-start --terminal`.
+   Está scripteado en `<scratchpad>/launch.sh <ID> <task> '<cmd>' [retry_of]`.
