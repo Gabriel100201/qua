@@ -38,7 +38,7 @@
 | C1 · App Tauri                 | B1     | ✅ hecho | sonnet | `88deeca` | — | — |
 | D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
-| G1 · Integración y packaging   | todas  | 🟡 en curso | sonnet | — | — |
+| G1 · Integración y packaging   | todas  | ✅ hecho | — | mergeada vía M1 | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
 
@@ -440,4 +440,33 @@ El issue del E2E ancla a `(ruta desconocida)` con deixis `el sidebar`. Degradar 
 correcto según §07, pero **la ruta no debería ser desconocida**: el evento `nav` no está
 llegando con la URL, o la página de prueba no la expone. Se ve en
 `docs/ejemplos/` una vez que M1 cierre.
+
+## 🎉 QUA COMPLETO — 2026-09-05 03:45
+
+**Las 13 tareas del plan original, más 6 correctivas, cerradas y mergeadas.**
+
+| | |
+|---|---|
+| Tests | **444** (196 Rust + 248 TS), cero fallos |
+| Commits | 83 |
+| Código | 23.224 líneas (sin dependencias) |
+| E2E | **PASA desde `main`** |
+
+El E2E no es un mock: lanza **Chrome real** con la extensión cargada (sin modo desarrollador
+manual), un **daemon real**, hace un hover real, le inyecta el WAV de `fixtures/audio/` como
+micrófono falso, y produce un `report.md` con **transcripción real de whisper** y un issue
+anclado.
+
+M1 resolvió el nudo que yo había roto, y con el diagnóstico correcto: el conflicto de
+`session-manager.ts` **no era una elección entre P1 y G1 sino una contención** — el
+constructor de P1 (`now`, `createSocket`) *contiene* al de G1 (`now`) porque `createSocket`
+es opcional. La unión completa era la respuesta; yo lo estaba tratando como disyuntiva.
+
+### Lo último en vuelo: Z1 (pulido)
+
+1. **El issue del E2E ancla a `(ruta desconocida)`.** El `nav` con `kind: "load"` SÍ se emite
+   (`content/main.ts:51`), así que la ruta se pierde después. Z1 lo está rastreando.
+2. **README desactualizado:** dice que la app Tauri «no cerró», y C1 se mergeó después de que
+   G1 lo escribiera.
+3. `qua refine` arma markdown local sin llamar a ningún LLM — que lo haga o que lo diga.
 
