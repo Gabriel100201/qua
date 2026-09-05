@@ -8,6 +8,7 @@
 pub mod cli;
 pub mod config;
 pub mod pairing;
+pub mod pipeline;
 pub mod server;
 pub mod session;
 pub mod ws;

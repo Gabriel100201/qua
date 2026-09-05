@@ -181,7 +181,10 @@ async fn ingesta_100k_eventos_sin_perdida() {
     else {
         panic!("se esperaba session.done");
     };
-    assert_eq!(issues, 0, "B1 no corre el correlador: siempre 0 issues");
+    assert_eq!(
+        issues, 0,
+        "sin audio no hay utterances, así que el correlador (G1) no arma ningún grupo"
+    );
     assert!(report_path.ends_with("report.md"));
 
     reader.await.expect("reader task");
@@ -206,7 +209,12 @@ async fn ingesta_100k_eventos_sin_perdida() {
         "no puede faltar ni sobrar ni un evento"
     );
     assert_eq!(session.stats.events_raw, TOTAL);
-    assert_eq!(session.status, SessionStatus::Processing);
+    assert_eq!(
+        session.status,
+        SessionStatus::Ready,
+        "G1 cablea ASR+correlate+render en finalize (D-B1-04, resuelta): sin errores, la \
+         sesión sale de session.stop ya en ready"
+    );
     assert!(session.ended_at.is_some());
 
     // Sin huecos ni duplicados en la secuencia lógica de los `t` de los eventos.
