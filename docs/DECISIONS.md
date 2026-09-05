@@ -559,3 +559,121 @@ y no hay caché configurado para `~/.qua/models` (`Swatinem/rust-cache` solo cub
 `target/` y el registro de cargo). Si esto molesta en la práctica, la solución es cachear
 ese directorio por hash del modelo — no se hizo acá para no tocar más de lo que hace
 falta al workflow compartido.
+
+### D-D1-01 · JSON-RPC/stdio escrito a mano, sin SDK de MCP
+
+**Ambigüedad.** §10 no dice con qué implementar el transporte MCP. Existe un SDK oficial
+en Rust (`rmcp`), pero trae su propio runtime async, macros de derivación de schema y
+abstracciones para transportes que `qua-mcp` no necesita (solo hay 5 herramientas, un
+único transporte — stdio — y ningún estado compartido entre llamadas).
+
+**Decisión.** Se implementó el JSON-RPC 2.0 mínimo a mano: un loop síncrono que lee
+líneas de stdin, despacha `initialize` / `notifications/initialized` / `tools/list` /
+`tools/call` / `ping`, y escribe una línea de respuesta por stdout. Cada tool devuelve su
+resultado como `content: [{type: "text", text: <JSON serializado>}]`.
+
+**Por qué.** Menos superficie: no hay que aprender ni fijar una versión de un SDK externo
+para cinco funciones de solo lectura, y el test de aceptación puede hablar el protocolo
+real sin más dependencia que `serde_json`. Si en otra ola se agregan más herramientas o
+un transporte HTTP, ahí sí vale la pena migrar a `rmcp`.
+
+### D-D1-02 · Solo lectura impuesta por flags de SQLite, no por disciplina de código
+
+**Contexto, no ambigüedad.** El criterio de D1 es "SOLO LECTURA... salvo
+`qua_issue_mark_exported`".
+
+**Decisión.** `qua_sessions_list`, `qua_session_get`, `qua_issues_pending` y
+`qua_issues_search` abren su conexión con `SQLITE_OPEN_READ_ONLY`; solo
+`qua_issue_mark_exported` abre una conexión `SQLITE_OPEN_READ_WRITE`. Cada llamada abre y
+cierra su propia conexión (igual que ya hace `quad`, ver `crates/qua-core/src/store/mod.rs`).
+
+**Por qué.** Con el flag de SQLite, un bug futuro que intente escribir desde una
+herramienta de "solo lectura" falla en tiempo de ejecución con `SQLITE_READONLY` en vez
+de corromper silenciosamente el índice del daemon mientras corre en paralelo.
+
+### D-D1-03 · `qua_session_get.include_events` agrega `session.json` completo
+
+**Ambigüedad.** §10 dice que `qua_session_get` devuelve "report.md + issues.json" y que
+tiene un parámetro `include_events=false`, pero no dice qué cambia ese parámetro si el
+"Devuelve" ya está fijo.
+
+**Decisión.** Con `include_events=false` (default) la herramienta lee y devuelve
+`report.md` + `issues.json` del directorio de la sesión (`dir` en `sessions`), tal cual
+dice la tabla. Con `true`, agrega además el contenido completo de `session.json` (que sí
+tiene los eventos crudos, §8.2) bajo la clave `session`.
+
+**Por qué.** Es la única lectura consistente con los tres nombres en juego: el parámetro
+se llama "events", y el único archivo de la sesión que tiene eventos es `session.json` —
+`issues.json` no los tiene. Mantiene el caso por defecto barato (sin los ~147 eventos
+crudos) y dale al agente una vía explícita para pedir el detalle completo cuando lo
+necesite.
+
+### D-D1-04 · `qua_home()` se duplica en `qua-mcp` en vez de depender de `quad`
+
+**Ambigüedad.** `quad` (B1) ya expone `config::qua_home()` (`$QUA_HOME` o `$HOME/.qua`)
+como lib, y sería el path por defecto natural para el archivo `qua.db` que abre `qua-mcp`.
+
+**Decisión.** Se copian esas mismas 6 líneas en `crates/qua-mcp/src/db.rs` en vez de
+agregar `quad` como dependencia de `qua-mcp`.
+
+**Por qué.** `quad` es el binario de otra tarea (B1); depender de su crate como librería
+acopla el build de D1 a cualquier cambio futuro en B1, cuando lo único que hace falta es
+una función de tres líneas sin estado. El nombre del archivo (`qua.db`) sí se reusa desde
+`qua_core::store::DB_FILE_NAME`, que es la fuente de verdad compartida y no tiene ese
+problema.
+
+### D-D1-05 · Orden de `qua_issues_pending`: severidad (`high > med > low`) y después confianza
+
+**Ambigüedad.** §10 dice que se ordena "por severidad", sin desempate.
+
+**Decisión.** `ORDER BY CASE severity WHEN 'high' THEN 3 WHEN 'med' THEN 2 WHEN 'low'
+THEN 1 END DESC, confidence DESC`.
+
+**Por qué.** El índice `idx_pending` de §03 es exactamente `(exported_to, confidence
+DESC)` — la confianza como desempate secundario es la señal más fuerte de que "por
+severidad" no quería decir "ignorando todo lo demás", sino "agrupado por severidad, y
+adentro de cada grupo, como ya lo dejó indexado F0".
+
+### D-D1-06 · Filtro `project` es igualdad exacta contra `sessions.project`
+
+**Ambigüedad.** §10 no dice si `project` en `qua_sessions_list`, `qua_issues_pending` y
+`qua_issues_search` es substring, case-insensitive o exacto.
+
+**Decisión.** Igualdad exacta (`=`) contra el label de proyecto tal cual quedó en
+`sessions.project` (el `label` de `ProjectRef` de §13/§03).
+
+**Por qué.** Es el comportamiento más predecible para un agente que ya sabe el nombre
+exacto del proyecto (lo tiene de `qua_sessions_list` o de su propio `config.toml`). Si en
+la práctica hace falta buscar por substring, se puede agregar sin romper este contrato
+ampliando el parámetro, no reinterpretándolo.
+
+### D-D1-07 · Errores de herramienta son `isError: true`, no errores de JSON-RPC
+
+**Ambigüedad implícita del protocolo MCP.** Un issue inexistente, una sesión sin
+`dir` legible, o un parámetro con el tipo equivocado son fallas de la operación, no del
+transporte.
+
+**Decisión.** `tools/call` siempre responde con `result` (nunca con `error` de
+JSON-RPC) cuando el método existe y los params tienen la forma básica; el fallo de la
+herramienta en sí viaja como `result.isError: true` con el mensaje en `content[0].text`.
+Los errores de JSON-RPC (`-32601` método desconocido, `-32602` falta `params.name`,
+`-32700` JSON inválido) se reservan para pedidos rotos a nivel de protocolo.
+
+**Por qué.** Es la convención estándar de MCP y la que espera un cliente como Claude
+Code: le permite mostrarle el error al agente como parte de la conversación de la
+herramienta en vez de tratarlo como una falla de la conexión.
+
+### D-D1-08 · Fixtures de test propias en `crates/qua-mcp/tests/fixtures/`, no en `fixtures/`
+
+**Regla de la ola, no ambigüedad.** `fixtures/` de la raíz es de F0 (contrato
+TS↔Rust); D1 no lo toca.
+
+**Decisión.** El test de aceptación siembra la DB desde `crates/qua-mcp/tests/fixtures/`:
+`seed.json` (filas de `sessions`/`issues`, con las 3 clases de anchor de §07 y un issue
+ya exportado) más un directorio `session/` con `report.md` + `issues.json` +
+`session.json` de verdad. El esquema se aplica con `qua_core::store::apply_schema` — el
+mismo código que usa el daemon — para que la DB de test sea idéntica en forma a la real.
+
+**Por qué.** Cumple "test que abre una DB sembrada desde fixtures" sin tocar el directorio
+compartido de F0 ni depender de que otra tarea (B1/B3/B4) ya haya producido una sesión
+real en disco.

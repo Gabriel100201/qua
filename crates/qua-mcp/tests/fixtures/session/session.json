@@ -1,0 +1,114 @@
+{
+  "schema": "qua/session@1",
+  "id": "2026-09-04T14-32-11Z-a3f9",
+  "status": "ready",
+  "t0_wall": 1788012731204,
+  "started_at": "2026-09-04T14:32:11.204Z",
+  "ended_at": "2026-09-04T14:39:03.512Z",
+  "duration_ms": 412308,
+  "project": { "label": "Agendi", "repo": "/Users/gabrielfunes/Projects/personal/agendi" },
+  "git": { "branch": "main", "sha": "9f21ac3", "dirty": true },
+  "env": {
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    "chrome": "142.0",
+    "platform": "macOS 15.1",
+    "viewport": { "w": 1512, "h": 857, "dpr": 2 },
+    "ext": "1.0.0"
+  },
+  "audio": { "path": "audio.opus", "sample_rate": 16000, "gaps_ms": 0 },
+  "stats": { "events_raw": 3184, "events_kept": 21, "utterances": 6, "issues": 3 },
+  "tabs": [
+    { "tab": 42, "url": "http://localhost:3000/agenda/semana", "title": "Agenda · Semana — Agendi", "first_ms": 0, "last_ms": 412000 },
+    { "tab": 43, "url": "https://supabase.com/dashboard/project/agendi/editor", "title": "Table editor | Supabase", "first_ms": 31000, "last_ms": 90000 }
+  ],
+  "events": [
+    { "t": 0, "tab": 42, "k": "viewport", "w": 1512, "h": 857, "dpr": 2 },
+    { "t": 120, "tab": 42, "k": "nav", "url": "http://localhost:3000/agenda/semana", "title": "Agenda · Semana — Agendi", "kind": "load" }
+  ],
+  "utterances": [
+    {
+      "id": "u01",
+      "t_start": 4200,
+      "t_end": 5900,
+      "text": "este botón de nuevo turno es re chico, en mobile casi no lo encuentro",
+      "lang": "es",
+      "words": [
+        { "w": "este", "t": 4200, "d": 220, "p": 0.97 },
+        { "w": "botón", "t": 4460, "d": 260, "p": 0.9 }
+      ],
+      "avg_logprob": -0.3,
+      "no_speech_prob": 0.02,
+      "marked": false
+    }
+  ],
+  "issues": [
+    {
+      "id": "i01",
+      "utterance_ids": ["u01"],
+      "t": 5100,
+      "text": "este botón de nuevo turno es re chico, en mobile casi no lo encuentro",
+      "anchor": {
+        "kind": "element",
+        "target": {
+          "sel": "button[data-testid=\"nuevo-turno\"]",
+          "strategy": "testid",
+          "tag": "button",
+          "text": "Nuevo turno",
+          "role": "button",
+          "name": "Nuevo turno",
+          "rect": { "x": 1180, "y": 96, "w": 88, "h": 32 },
+          "visible": true,
+          "classes": "px-3 py-1.5 text-sm rounded-md bg-zinc-900",
+          "component": ["AgendaHeader", "Button"],
+          "src": { "file": "src/components/AgendaHeader.tsx", "line": 42, "tier": 2 }
+        },
+        "tab": 42,
+        "url": "http://localhost:3000/agenda/semana",
+        "confidence": 0.91,
+        "reason": ["click −0.9s", "deixis:este"]
+      },
+      "evidence": { "console": [], "net": [], "timings": [] },
+      "category": "ui",
+      "severity": "low",
+      "exported_to": null
+    },
+    {
+      "id": "i02",
+      "utterance_ids": ["u07", "u08"],
+      "t": 88000,
+      "text": "esto tarda un montón en guardar, se me colgó el filtro de la semana",
+      "anchor": {
+        "kind": "route",
+        "tab": 42,
+        "url": "http://localhost:3000/agenda/semana",
+        "confidence": 0.74,
+        "reason": ["net_slow +1.2s"]
+      },
+      "evidence": {
+        "console": [],
+        "net": [{ "t": 88400, "tab": 42, "k": "net_slow", "method": "GET", "url": "/api/agenda", "status": 200, "duration_ms": 1800 }],
+        "timings": [{ "label": "guardar → respuesta", "ms": 1800 }]
+      },
+      "category": "bug",
+      "severity": "high",
+      "exported_to": null
+    },
+    {
+      "id": "i03",
+      "utterance_ids": ["u12"],
+      "t": 150000,
+      "text": "la tabla de turnos de supabase tarda en cargar cuando hay muchas filas",
+      "anchor": {
+        "kind": "session",
+        "tab": 43,
+        "url": "https://supabase.com/dashboard/project/agendi/editor",
+        "confidence": 0.5,
+        "reason": ["sin click previo"]
+      },
+      "evidence": { "console": [], "net": [], "timings": [] },
+      "category": "perf",
+      "severity": "med",
+      "exported_to": "https://linear.app/agendi/issue/AG-40"
+    }
+  ]
+}
