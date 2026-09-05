@@ -37,8 +37,9 @@
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
-| E1 · Source mapping            | F0     | 🟡 en curso | codex luna | — |
+| E1 · Source mapping            | F0     | ❌ tests rojos → E1b | codex luna | `5173056` | — |
 | F1b· Fortalecer harness        | F1     | 🟡 en curso | codex luna | — |
+| E1b· Arreglar source mapping   | E1     | 🟡 en curso | codex luna | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
@@ -106,3 +107,15 @@ lockfiles. Se mergean a `main` a medida que cierran. Ruta: `~/orca/workspaces/qu
 - `2026-09-04 23:36` — También largué **A2**. Cinco workers concurrentes: A1, B1, E1, F1b, A2.
 - Aviso enviado a A1/B1/E1: trabajar en su propio worktree. F1 (Codex) commiteó en `main`
   porque la spec menciona la ruta del repo principal como referencia y la tomó literal.
+- `2026-09-04 23:42` — **E1 rechazada.** Reportó `succeeded` pero no había corrido los tests
+  (le faltaba `node_modules` en el worktree). Instalé y corrí yo: falla
+  `parses turbopack and skips framework frames`, que es **el tier 2** — el camino principal
+  en Next 16 + React 19 + Turbopack. Relancé como **E1b** en el mismo terminal, con el fallo
+  exacto y seis casos de cobertura que faltaban.
+
+## Lección para el coordinador
+
+Dos de los tres entregables revisados hasta ahora estaban mal a pesar de reportar éxito:
+F1 pasaba sus tests pero con escenarios triviales, y E1 directamente no corrió los suyos.
+**Verificar cada entregable ejecutando los criterios de aceptación, no leer el reporte del
+worker.** Es lo que separó un merge sano de meter basura en `main`.
