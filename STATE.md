@@ -28,7 +28,7 @@
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
 | F1 · Generador sintético       | F0     | ⬜ pendiente | — | — |
-| A1 · Content script            | F0     | ⬜ pendiente | — | — |
+| A1 · Content script            | F0     | ✅ hecho | Sonnet | `99aec5b` |
 | A2 · Service worker            | F0     | ⬜ pendiente | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | ⬜ pendiente | — | — |
@@ -62,6 +62,16 @@ Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ blo
   de la spec resueltas y anotadas en `docs/DECISIONS.md` (la más importante: **los tipos de
   evento son 18, no 17** — la tabla de §03 tiene 18 filas y la prosa de §14 quedó vieja).
   **Ola 1 desbloqueada:** F1 · A1 · A2 · A3 · B1 · B2 · D1 · E1 pueden arrancar en paralelo.
+- `2026-09-04 23:40` — **A1 hecha.** Content script en `extension/entrypoints/content/`:
+  hooks (fetch/XHR/console/history), listeners en fase capture, `PerformanceObserver` +
+  `MutationObserver`, tracker de hover, cascada de selector de §5.2 y redacción de §12.
+  `@qua/source-resolver` de E1 integrado detrás de una interfaz (stub — E1 no existe
+  todavía). 57 tests con vitest+jsdom; el de extremo a extremo dispara los 17 tipos de
+  evento no-`audio_gap` sobre `extension/test/fixtures/page.html` y prueba que el selector
+  reidentifica el mismo nodo tras un re-render. Dos hallazgos anotados en
+  `docs/DECISIONS.md`: D-09 (`tab_switch`/`tab_close`/`mark` no los puede disparar un
+  content script — quedan builders para A2) y D-10 (bug de F0: el build de `@qua/protocol`
+  no coincide con su `package.json`; A1 lo bordea con un alias en vez de tocar el paquete).
 
 ## Qué hacer si retomás en frío
 
