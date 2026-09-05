@@ -16,6 +16,21 @@ export interface PopupStatus {
   startedAtWall: number | null;
   /** Contador de eventos de sesión ya confirmados (`ack`, §04) — no incluye audio. */
   eventsCount: number;
+  /**
+   * Último error real que devolvió el service worker (start/stop fallido, o el
+   * transporte con el mismo se rompió) — o `null` si no hay nada que mostrar.
+   * D-U2-01 (docs/DECISIONS.md): antes esto se descartaba en silencio y el popup
+   * solo mostraba un contador en cero, sin ningún síntoma de qué había fallado.
+   * Opcional para no forzar a cada literal de test existente a declararlo — se lee
+   * siempre con `?? null`.
+   */
+  lastError?: string | null;
+  /** Pairing + conectividad reales del daemon (`StatusResponse`, §04) — para la
+   * franja de estado del popup (D-U2-01), independiente de la fase de sesión: el
+   * canal de control puede estar conectado en `idle` (D-P1-01), o una sesión puede
+   * seguir en `recording` mientras el WS está caído a mitad de una reconexión. */
+  paired?: boolean;
+  wsStatus?: "disconnected" | "connecting" | "connected";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

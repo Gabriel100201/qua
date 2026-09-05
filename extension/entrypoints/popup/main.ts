@@ -1,5 +1,6 @@
 import { startPopupController, type PopupElements, type Teardown } from "./lib/controller.js";
 import { StatusClient } from "./lib/status-client.js";
+import { PopupDiagnosticsClient } from "./lib/diagnostics.js";
 
 export type { Teardown };
 
@@ -17,13 +18,20 @@ export function findPopupElements(doc: Document): PopupElements {
     durationLabel: byId("qua-duration"),
     eventsCountLabel: byId("qua-events-count"),
     transcript: byId("qua-transcript"),
+    errorBanner: byId("qua-error"),
+    daemonStatusLabel: byId("qua-daemon-status"),
+    micStatusLabel: byId("qua-mic-status"),
+    contentScriptStatusLabel: byId("qua-content-script-status"),
+    reloadTabButton: byId<HTMLButtonElement>("qua-reload-tab"),
   };
 }
 
 /** Arranca el popup real contra `document` y `chrome.runtime`. */
 export function startQuaPopup(doc: Document = document): Teardown {
+  const client = new StatusClient();
   return startPopupController({
-    client: new StatusClient(),
+    client,
+    diagnostics: new PopupDiagnosticsClient(client),
     elements: findPopupElements(doc),
   });
 }

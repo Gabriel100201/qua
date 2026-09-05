@@ -23,4 +23,7 @@ export type ToBackgroundMessage =
 export interface StatusResponse {
   phase: "idle" | "starting" | "recording" | "stopping";
   wsStatus?: "disconnected" | "connecting" | "connected";
+  /** Hay token de pairing guardado (§04, franja de estado del popup) — no implica
+   * que el daemon esté vivo, solo que options ya emparejó alguna vez. */
+  paired: boolean;
 }

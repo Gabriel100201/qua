@@ -21,22 +21,30 @@ function fakeRuntime(sendMessageImpl?: (msg: unknown) => unknown) {
 }
 
 describe("StatusClient.getStatus", () => {
-  it("devuelve la respuesta del service worker, completando defaults faltantes", async () => {
-    const status: PopupStatus = { state: "recording", startedAtWall: 1000, eventsCount: 12 };
-    const { runtime, sendMessage } = fakeRuntime(() => status);
+  it("mapea la respuesta real del service worker (StatusResponse: phase/wsStatus/paired)", async () => {
+    const { runtime, sendMessage } = fakeRuntime(() => ({ phase: "recording", wsStatus: "connected", paired: true }));
     const client = new StatusClient(runtime);
 
-    expect(await client.getStatus()).toEqual(status);
+    expect(await client.getStatus()).toEqual({
+      state: "recording",
+      startedAtWall: null,
+      eventsCount: 0,
+      lastError: null,
+      paired: true,
+      wsStatus: "connected",
+    });
     expect(sendMessage).toHaveBeenCalledWith({ type: "qua:get-status" });
   });
 
-  it("devuelve IDLE_STATUS si el service worker no responde", async () => {
+  it("devuelve IDLE_STATUS con lastError si el service worker no responde (undefined)", async () => {
     const { runtime } = fakeRuntime(() => undefined);
     const client = new StatusClient(runtime);
-    expect(await client.getStatus()).toEqual(IDLE_STATUS);
+    const status = await client.getStatus();
+    expect(status.state).toBe("idle");
+    expect(status.lastError).toMatch(/\[qua\]/);
   });
 
-  it("devuelve IDLE_STATUS si sendMessage tira (contexto invalidado)", async () => {
+  it("devuelve un mensaje de error si sendMessage tira (contexto invalidado) — antes se descartaba en silencio", async () => {
     const runtime = {
       sendMessage: vi.fn(() => {
         throw new Error("Extension context invalidated");
@@ -44,25 +52,67 @@ describe("StatusClient.getStatus", () => {
       onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
     } as unknown as typeof chrome.runtime;
     const client = new StatusClient(runtime);
-    expect(await client.getStatus()).toEqual(IDLE_STATUS);
+    const status = await client.getStatus();
+    expect(status.state).toBe("idle");
+    expect(status.lastError).toBe("[qua] el service worker no responde: Extension context invalidated");
   });
 
-  it("sin runtime disponible, devuelve IDLE_STATUS", async () => {
+  it("sin runtime disponible, devuelve un error concreto (no silencioso)", async () => {
     const client = new StatusClient(undefined);
-    expect(await client.getStatus()).toEqual(IDLE_STATUS);
+    const status = await client.getStatus();
+    expect(status.lastError).toMatch(/chrome\.runtime no está disponible/);
   });
 });
 
-describe("StatusClient — comandos", () => {
-  it("start/stop/mark mandan el mensaje correcto", () => {
-    const { runtime, sendMessage } = fakeRuntime();
+describe("StatusClient — comandos propagan errores (D-U2-01)", () => {
+  it("start() manda el mensaje correcto y resuelve {ok:true} si el SW confirma", async () => {
+    const { runtime, sendMessage } = fakeRuntime(() => ({ ok: true }));
     const client = new StatusClient(runtime);
-    client.start();
-    client.stop();
-    client.mark();
+    expect(await client.start()).toEqual({ ok: true });
     expect(sendMessage).toHaveBeenNthCalledWith(1, { type: "qua:start-session" });
-    expect(sendMessage).toHaveBeenNthCalledWith(2, { type: "qua:stop-session" });
-    expect(sendMessage).toHaveBeenNthCalledWith(3, { type: "qua:trigger-mark" });
+  });
+
+  it("stop()/mark() mandan el mensaje correcto", async () => {
+    const { runtime, sendMessage } = fakeRuntime(() => ({ ok: true }));
+    const client = new StatusClient(runtime);
+    await client.stop();
+    await client.mark();
+    expect(sendMessage).toHaveBeenNthCalledWith(1, { type: "qua:stop-session" });
+    expect(sendMessage).toHaveBeenNthCalledWith(2, { type: "qua:trigger-mark" });
+  });
+
+  it("start() propaga el error real cuando el SW responde {ok:false, error}", async () => {
+    const { runtime } = fakeRuntime(() => ({ ok: false, error: "[qua] sin token: emparejá primero desde options." }));
+    const client = new StatusClient(runtime);
+    expect(await client.start()).toEqual({
+      ok: false,
+      error: "[qua] sin token: emparejá primero desde options.",
+    });
+  });
+
+  it("start() propaga un error distinto para una causa distinta (daemon caído)", async () => {
+    const { runtime } = fakeRuntime(() => ({
+      ok: false,
+      error: "[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté corriendo.",
+    }));
+    const client = new StatusClient(runtime);
+    const result = await client.start();
+    expect(result).toEqual({
+      ok: false,
+      error: "[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté corriendo.",
+    });
+  });
+
+  it("start() propaga un error si sendMessage tira, en vez de devolver undefined en silencio", async () => {
+    const runtime = {
+      sendMessage: vi.fn(() => Promise.reject(new Error("Extension context invalidated"))),
+      onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
+    } as unknown as typeof chrome.runtime;
+    const client = new StatusClient(runtime);
+    expect(await client.start()).toEqual({
+      ok: false,
+      error: "[qua] el service worker no responde: Extension context invalidated",
+    });
   });
 });
 
@@ -73,7 +123,7 @@ describe("StatusClient — pushes en vivo", () => {
     const cb = vi.fn();
     client.onStatus(cb);
 
-    const status: PopupStatus = { state: "recording", startedAtWall: 5, eventsCount: 1 };
+    const status: PopupStatus = { state: "recording", startedAtWall: 5, eventsCount: 1, lastError: null };
     listeners[0]!({ type: "qua:status", status });
     listeners[0]!({ type: "qua:transcript-partial", utterance: { text: "hola" } });
 

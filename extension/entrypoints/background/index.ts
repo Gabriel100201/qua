@@ -20,7 +20,7 @@ async function resolveActiveTabSessionInfo(): Promise<{
 }> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab?.id || !tab.url) {
-    throw new Error("SessionManager: no hay pestaña activa para arrancar la sesión");
+    throw new Error("[qua] no hay pestaña activa para arrancar la sesión.");
   }
   let viewport = DEFAULT_VIEWPORT;
   try {
@@ -77,7 +77,7 @@ export default defineBackground(() => {
         await sessions.stop();
         return { ok: true };
       case "qua:get-status":
-        return { phase: sessions.getPhase(), wsStatus: sessions.getWsStatus() };
+        return { phase: sessions.getPhase(), wsStatus: sessions.getWsStatus(), paired: await sessions.isPaired() };
       default:
         return { ok: false, error: "mensaje desconocido" };
     }

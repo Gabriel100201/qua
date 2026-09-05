@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { startPopupController, type PopupElements, type StatusClientLike } from "./controller.js";
-import { IDLE_STATUS } from "./status-client.js";
+import {
+  startPopupController,
+  type DiagnosticsClientLike,
+  type PopupElements,
+  type StatusClientLike,
+} from "./controller.js";
+import { IDLE_STATUS, type CommandResult } from "./status-client.js";
 import type { PopupStatus } from "./messages.js";
 import type { Utterance } from "@qua/protocol";
 
@@ -12,6 +17,11 @@ function buildElements(): PopupElements {
     <span id="duration"></span>
     <span id="events"></span>
     <div id="transcript"></div>
+    <div id="error" hidden></div>
+    <span id="daemon-status"></span>
+    <span id="mic-status"></span>
+    <span id="content-script-status"></span>
+    <button id="reload-tab" hidden></button>
   `;
   return {
     toggleButton: document.getElementById("toggle") as HTMLButtonElement,
@@ -20,6 +30,11 @@ function buildElements(): PopupElements {
     durationLabel: document.getElementById("duration")!,
     eventsCountLabel: document.getElementById("events")!,
     transcript: document.getElementById("transcript")!,
+    errorBanner: document.getElementById("error")!,
+    daemonStatusLabel: document.getElementById("daemon-status")!,
+    micStatusLabel: document.getElementById("mic-status")!,
+    contentScriptStatusLabel: document.getElementById("content-script-status")!,
+    reloadTabButton: document.getElementById("reload-tab") as HTMLButtonElement,
   };
 }
 
@@ -33,9 +48,9 @@ function fakeClient(initial: PopupStatus = IDLE_STATUS): {
 } {
   let statusCb: ((s: PopupStatus) => void) | null = null;
   let transcriptCb: ((u: Utterance) => void) | null = null;
-  const start = vi.fn();
-  const stop = vi.fn();
-  const mark = vi.fn();
+  const start = vi.fn<() => Promise<CommandResult>>(() => Promise.resolve({ ok: true }));
+  const stop = vi.fn<() => Promise<CommandResult>>(() => Promise.resolve({ ok: true }));
+  const mark = vi.fn<() => Promise<CommandResult>>(() => Promise.resolve({ ok: true }));
   const client: StatusClientLike = {
     getStatus: () => Promise.resolve(initial),
     start,
@@ -62,6 +77,21 @@ function fakeClient(initial: PopupStatus = IDLE_STATUS): {
     stop,
     mark,
   };
+}
+
+function fakeDiagnostics(overrides: Partial<DiagnosticsClientLike> = {}): DiagnosticsClientLike {
+  return {
+    getDaemonStatus: vi.fn().mockResolvedValue("conectado"),
+    getMicStatus: vi.fn().mockResolvedValue("granted"),
+    getContentScriptStatus: vi.fn().mockResolvedValue("inyectado"),
+    reloadActiveTab: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+/** Flushea las promesas encadenadas de un click (start/stop/mark → applyCommandResult → refreshDiagnostics). */
+async function flushAsync(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe("startPopupController — estado inicial", () => {
@@ -226,5 +256,127 @@ describe("startPopupController — teardown", () => {
     elements.toggleButton.click();
     expect(start).not.toHaveBeenCalled();
     expect(clearIntervalFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * CRITERIO de esta tarea (docs/DECISIONS.md D-U2-01): un fallo en cada capa —
+ * sin token, daemon caído, sin content script — tiene que producir un mensaje
+ * DISTINTO y correcto en el popup. Antes, los tres terminaban en el mismo síntoma
+ * mudo: un contador en cero.
+ */
+describe("startPopupController — errores reales, no silenciosos (D-U2-01)", () => {
+  it("start() falla por falta de token: el banner de error muestra ese mensaje exacto", async () => {
+    const elements = buildElements();
+    const { client, start } = fakeClient(IDLE_STATUS);
+    start.mockResolvedValue({ ok: false, error: "[qua] sin token: emparejá primero desde options." });
+    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+
+    elements.toggleButton.click();
+    await flushAsync();
+
+    expect(elements.errorBanner.hidden).toBe(false);
+    expect(elements.errorBanner.textContent).toBe("[qua] sin token: emparejá primero desde options.");
+  });
+
+  it("start() falla porque el daemon no responde: mensaje distinto al de 'sin token'", async () => {
+    const elements = buildElements();
+    const { client, start } = fakeClient(IDLE_STATUS);
+    start.mockResolvedValue({
+      ok: false,
+      error: "[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté corriendo.",
+    });
+    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+
+    elements.toggleButton.click();
+    await flushAsync();
+
+    expect(elements.errorBanner.textContent).toBe(
+      "[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté corriendo.",
+    );
+    expect(elements.errorBanner.textContent).not.toBe("[qua] sin token: emparejá primero desde options.");
+  });
+
+  it("un start() exitoso limpia un error previo del banner", async () => {
+    const elements = buildElements();
+    const { client, start } = fakeClient(IDLE_STATUS);
+    start.mockResolvedValueOnce({ ok: false, error: "[qua] sin token: emparejá primero desde options." });
+    start.mockResolvedValueOnce({ ok: true });
+    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+
+    elements.toggleButton.click();
+    await flushAsync();
+    expect(elements.errorBanner.hidden).toBe(false);
+
+    elements.toggleButton.click();
+    await flushAsync();
+    expect(elements.errorBanner.hidden).toBe(true);
+    expect(elements.errorBanner.textContent).toBe("");
+  });
+
+  it("sin content script en la pestaña activa: label distinto + botón de recargar visible", async () => {
+    const elements = buildElements();
+    const { client } = fakeClient(IDLE_STATUS);
+    const diagnostics = fakeDiagnostics({ getContentScriptStatus: vi.fn().mockResolvedValue("hace_falta_recargar") });
+    startPopupController({ client, elements, diagnostics });
+    await flushAsync();
+
+    expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: recargá para grabar");
+    expect(elements.reloadTabButton.hidden).toBe(false);
+  });
+
+  it("con content script inyectado: el botón de recargar queda oculto", async () => {
+    const elements = buildElements();
+    const { client } = fakeClient(IDLE_STATUS);
+    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+    await flushAsync();
+
+    expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: lista");
+    expect(elements.reloadTabButton.hidden).toBe(true);
+  });
+
+  it("los tres mensajes de la franja (daemon/mic/content script) son todos distintos entre sí", async () => {
+    const elements = buildElements();
+    const { client } = fakeClient(IDLE_STATUS);
+    const diagnostics = fakeDiagnostics({
+      getDaemonStatus: vi.fn().mockResolvedValue("sin_emparejar"),
+      getMicStatus: vi.fn().mockResolvedValue("prompt"),
+      getContentScriptStatus: vi.fn().mockResolvedValue("hace_falta_recargar"),
+    });
+    startPopupController({ client, elements, diagnostics });
+    await flushAsync();
+
+    const labels = [
+      elements.daemonStatusLabel.textContent,
+      elements.micStatusLabel.textContent,
+      elements.contentScriptStatusLabel.textContent,
+    ];
+    expect(new Set(labels).size).toBe(3);
+  });
+
+  it("click en 'Recargar la pestaña' llama a diagnostics.reloadActiveTab() y refresca la franja", async () => {
+    const elements = buildElements();
+    const { client } = fakeClient(IDLE_STATUS);
+    const getContentScriptStatus = vi.fn().mockResolvedValueOnce("hace_falta_recargar").mockResolvedValue("inyectado");
+    const diagnostics = fakeDiagnostics({ getContentScriptStatus });
+    startPopupController({ client, elements, diagnostics });
+    await flushAsync();
+    expect(elements.reloadTabButton.hidden).toBe(false);
+
+    elements.reloadTabButton.click();
+    await flushAsync();
+
+    expect(diagnostics.reloadActiveTab).toHaveBeenCalledTimes(1);
+    expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: lista");
+    expect(elements.reloadTabButton.hidden).toBe(true);
+  });
+
+  it("sin diagnostics inyectado, no rompe y deja la franja como venía en el HTML", async () => {
+    const elements = buildElements();
+    const { client } = fakeClient(IDLE_STATUS);
+    startPopupController({ client, elements });
+    await flushAsync();
+
+    expect(elements.daemonStatusLabel.textContent).toBe("");
   });
 });
