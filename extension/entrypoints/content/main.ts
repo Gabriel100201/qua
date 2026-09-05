@@ -6,6 +6,7 @@ import { installHooks, type Teardown } from "./lib/hooks.js";
 import { installListeners } from "./lib/listeners.js";
 import { installObservers } from "./lib/observers.js";
 import { installMarkRelay } from "./lib/mark.js";
+import { installPingResponder } from "./lib/ping.js";
 import { nowMs } from "./lib/clock.js";
 import type { BuildTargetRefOptions } from "./lib/target.js";
 
@@ -46,6 +47,7 @@ export function startQuaContentScript(opts: StartOptions = {}): Teardown {
     installListeners(target, emit, { targetRefOptions }),
     installObservers(target, emit, { targetRefOptions, PerformanceObserverCtor: opts.PerformanceObserverCtor }),
     installMarkRelay(emit),
+    installPingResponder(),
   ];
 
   emit({ t: nowMs(), k: "nav", url: win.location.href, title: doc.title, kind: "load" } as Event);

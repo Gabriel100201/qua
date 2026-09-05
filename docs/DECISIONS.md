@@ -2127,3 +2127,102 @@ tanto `options/lib/pairing.ts` (código de 6 dígitos) como `popup/lib/connectio
 storage; el `connection.test.ts` de este pase la importa explícitamente en vez de
 hardcodear el string, siguiendo la regla ya establecida: si dos entrypoints comparten
 un valor, vive en `shared/` y se importa, nunca se duplica.
+
+### D-U2-01 · Que los errores se vean: `StatusClient` se tragaba todo, `start()` fallaba en silencio
+
+**EL PECADO ORIGINAL.** `extension/entrypoints/popup/lib/status-client.ts` tenía un
+`catch { return undefined }` en `send()`: si `chrome.runtime.sendMessage` tiraba (SW
+recién reciclado, contexto invalidado) o el service worker respondía `{ok:false,
+error}`, el popup lo descartaba entero. El bug real que motivó esta tarea (D-Z1 en el
+commit anterior: options guardaba el token de pairing como `"quaPairToken"`, el
+service worker lo leía de `"qua:daemon-token"`, nunca coincidían) tardó horas en
+diagnosticarse exactamente por esto — `openTransport()` fallaba, pero lo único visible
+era un contador de eventos en cero. Nada decía "no hay token" ni "el daemon no
+responde": el síntoma era indistinguible de "no está pasando nada".
+
+**Fix, cuatro capas:**
+
+1. **`StatusClient` ya no se traga nada.** `send()` devuelve
+   `{ok:true,value} | {ok:false,error}` en vez de `unknown | undefined`. `getStatus()`
+   propaga ese error como `PopupStatus.lastError` (campo nuevo, opcional para no
+   romper los literales de test existentes — se lee siempre con `?? null`).
+   `start()`/`stop()`/`mark()` dejaron de ser fire-and-forget (`void this.send(...)`):
+   ahora devuelven `Promise<CommandResult>`, y si el service worker responde
+   `{ok:false, error}` ese `error` real llega hasta el controller. De paso,
+   `getStatus()` mapea `StatusResponse.phase` → `PopupStatus.state` — antes ese merge
+   comparaba contra un campo (`state`) que el service worker nunca mandó (mandaba
+   `phase`), así que el estado en vivo del popup jamás reflejaba el `phase` real de la
+   FSM. Nadie lo notó porque el test viejo mockeaba una respuesta con la forma
+   incorrecta en vez de la real (mismo patrón que D-G1-03: cada lado testeaba su
+   propia mentira del contrato del otro).
+
+2. **Franja de estado nueva en el popup** (`popup/index.html` +
+   `popup/lib/diagnostics.ts`, tres líneas siempre visibles, en español):
+   - **Daemon** — `conectado` / `no responde` / `sin emparejar`. Sale de
+     `StatusResponse.paired` + `wsStatus` (`internal-messages.ts` ahora expone
+     `paired: boolean`, vía `SessionManager.isPaired()`), NO de la fase de sesión: el
+     canal de control puede estar conectado en `idle` (D-P1-01), y una sesión puede
+     seguir en `recording` mientras el WS está a mitad de una reconexión — son ejes
+     independientes, mezclarlos habría sido el mismo tipo de bug que esto arregla.
+   - **Micrófono** — reusa `checkMicPermission` de `options/lib/mic-permission.ts`
+     tal cual (ya era framework-agnóstico con deps inyectables); el popup corre en un
+     contexto de ventana real, así que `navigator.permissions.query` funciona igual
+     que en options.
+   - **Content script de la pestaña activa** — el problema es real y conocido: un
+     content script `matches: ["<all_urls>"]` (§05) no se inyecta solo en pestañas
+     que ya estaban abiertas antes de instalar/recargar la extensión, y antes de esto
+     no había ninguna forma de saberlo salvo "la grabación no generó ningún evento".
+     `content/lib/ping.ts` agrega un responder explícito (`qua:ping` → `qua:pong`);
+     `diagnostics.checkContentScript()` le manda un ping a la pestaña activa
+     (`chrome.tabs.sendMessage`) y si rechaza ("Could not establish connection")
+     marca `hace_falta_recargar`. Si es así, aparece el botón "Recargar la pestaña"
+     (`chrome.tabs.reload`, `diagnostics.reloadActiveTab()`).
+   No hay polling en vivo todavía — la franja se refresca al abrir el popup y después
+   de cada intento de start/stop/mark o de recargar la pestaña. Un refresco periódico
+   (ej. cada pocos segundos mientras el popup esté abierto) queda para un pase
+   siguiente; no era necesario para que el error deje de ser invisible.
+
+3. **`SessionManager.start()` falla con la causa concreta, no un genérico.**
+   `getToken()` tira `"[qua] sin token: emparejá primero desde options."` (antes:
+   un párrafo genérico sin prefijo). Más importante: `openTransport()` antes era
+   fire-and-forget — `start()` confirmaba la FSM a `"recording"` sin esperar a que el
+   WS conectara de verdad, así que un daemon caído (o un token que el daemon
+   rechazara) nunca producía un error, solo dejaba el `WsClient` reintentando en
+   silencio de fondo con backoff mientras la sesión "grababa" sin transportar nada.
+   Ahora `start()` llama `openTransport(..., {waitForConnection: true})`: espera el
+   primer `hello.ok` o rechaza a los `connectTimeoutMs` (5 s por defecto, 3er
+   parámetro del constructor — inyectable para tests) con
+   `"[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté
+   corriendo."`, y la FSM vuelve a `idle` (`abortStart()`) en vez de quedar
+   "recording" para siempre. `init()` retomando una sesión tras un reciclado del
+   worker sigue usando el modo fire-and-forget (`waitForConnection` default
+   `false`) — ahí la sesión ya estaba confirmada, no hay nada que abortar.
+
+4. **Prefijo `[qua]` en todos los `console.warn`/`console.error` del service
+   worker**, para poder filtrarlos en `chrome://serviceworker-internals` en medio del
+   ruido de la página. Ya estaba así en `session-manager.ts` (nadie lo había roto),
+   pero no había ningún test que lo garantizara — `console-prefix.test.ts` escanea
+   `extension/entrypoints/background/*.ts` y falla si aparece un `console.warn(...)`
+   o `console.error(...)` sin `"[qua] "` al principio.
+
+**Regla nueva para el futuro** (ya vale para D-anterior, la de `storage-keys.ts`, pero
+queda explícita acá): si dos entrypoints de la extensión necesitan compartir un valor
+o un contrato, va en `extension/shared/` con un test que falle si divergen — no
+"cada lado define el suyo y confía en que coincidan". El bug de `quaPairToken` vs.
+`qua:daemon-token` y el de `state` vs. `phase` en `getStatus()` son la misma clase de
+error, encontrada dos veces en el mismo módulo.
+
+**Tests** (`extension/entrypoints/background/session-manager.test.ts`, describe
+`start(): mensajes de error concretos`; `extension/entrypoints/popup/lib/*.test.ts`):
+cinco escenarios de fallo — sin token, daemon caído (con connectTimeoutMs chico para
+no hacer lento el test suite), reintento posterior exitoso tras el timeout, content
+script ausente, y verificación explícita de que los mensajes de las tres capas son
+todos distintos entre sí (`Set(...).size === 3`) — más los tests de
+`status-client.test.ts`/`controller.test.ts`/`diagnostics.test.ts` que verifican que
+cada error real (no un `undefined` inventado) llega hasta el DOM. `pnpm test` (211
+tests en `extension/`, 302 en el monorepo) y
+`~/.cargo/bin/cargo test --workspace` (~197 tests, todos los binarios) quedan verdes —
+el workspace de Rust
+necesitó `apps/qua-app/scripts/build-sidecars.sh` primero (D-M1-03, ya documentado
+arriba: sin los sidecars compilados, `cargo test --workspace` ni siquiera compila
+`qua-app`).

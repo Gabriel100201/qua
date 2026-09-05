@@ -15,13 +15,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function setupManager(daemon: FakeDaemon) {
+async function setupManager(daemon: FakeDaemon, opts: { withToken?: boolean; connectTimeoutMs?: number } = {}) {
   fakeBrowser.reset();
-  await fakeBrowser.storage.local.set({ [TOKEN_STORAGE_KEY]: "test-token" });
+  if (opts.withToken ?? true) {
+    await fakeBrowser.storage.local.set({ [TOKEN_STORAGE_KEY]: "test-token" });
+  }
   (fakeBrowser.runtime as unknown as { getManifest: () => { version: string } }).getManifest = () => ({
     version: "0.1.0",
   });
-  const manager = new SessionManager(() => 1_700_000_000_000, daemon.createSocket);
+  const manager = new SessionManager(() => 1_700_000_000_000, daemon.createSocket, opts.connectTimeoutMs);
   await manager.init(); // como en `index.ts` real: siempre corre antes de cualquier otra cosa
   return manager;
 }
@@ -152,5 +154,64 @@ describe("nav sintético al arrancar (D-Z1-01)", () => {
     expect(navEvents).toEqual([
       { t: 1_700_000_000_000, k: "nav", url: "https://agendi.app", title: "", kind: "load" },
     ]);
+  });
+});
+
+/**
+ * CRITERIO de U2 (docs/DECISIONS.md D-U2-01): `start()` tiene que fallar con un
+ * mensaje que diga la causa concreta, no un genérico — es lo único que el popup
+ * tiene para mostrarle al usuario qué pasó. Cada capa produce un mensaje DISTINTO.
+ */
+describe("start(): mensajes de error concretos (D-U2-01)", () => {
+  it("sin token guardado: falla con 'sin token: emparejá primero', sin abrir WS", async () => {
+    const daemon = new FakeDaemonCtor({ responseDelayMs: 1 });
+    const manager = await setupManager(daemon, { withToken: false });
+
+    await expect(manager.start("https://agendi.app", VIEWPORT)).rejects.toThrow(
+      "[qua] sin token: emparejá primero desde options.",
+    );
+    expect(manager.getPhase()).toBe("idle");
+    expect(daemon.sockets.size).toBe(0);
+  });
+
+  it("daemon caído (nunca conecta): falla con 'el daemon no responde en 127.0.0.1:7331', vuelve a idle", async () => {
+    const daemon = new FakeDaemonCtor({ responseDelayMs: 1 });
+    daemon.down(); // nunca abre: como `quad` no escuchando en el puerto
+    const manager = await setupManager(daemon, { connectTimeoutMs: 30 });
+
+    await expect(manager.start("https://agendi.app", VIEWPORT)).rejects.toThrow(
+      "[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté corriendo.",
+    );
+    expect(manager.getPhase()).toBe("idle");
+  });
+
+  it("los dos mensajes de error son distintos entre sí", async () => {
+    const daemonSinToken = new FakeDaemonCtor({ responseDelayMs: 1 });
+    const managerSinToken = await setupManager(daemonSinToken, { withToken: false });
+    const sinTokenError = await managerSinToken
+      .start("https://agendi.app", VIEWPORT)
+      .catch((err: Error) => err.message);
+
+    const daemonCaido = new FakeDaemonCtor({ responseDelayMs: 1 });
+    daemonCaido.down();
+    const managerCaido = await setupManager(daemonCaido, { connectTimeoutMs: 30 });
+    const daemonCaidoError = await managerCaido
+      .start("https://agendi.app", VIEWPORT)
+      .catch((err: Error) => err.message);
+
+    expect(sinTokenError).not.toBe(daemonCaidoError);
+  });
+
+  it("segundo intento tras el timeout puede conectar normalmente (no queda un WS colgado)", async () => {
+    const daemon = new FakeDaemonCtor({ responseDelayMs: 1 });
+    daemon.down();
+    const manager = await setupManager(daemon, { connectTimeoutMs: 30 });
+
+    await expect(manager.start("https://agendi.app", VIEWPORT)).rejects.toThrow();
+    expect(manager.getPhase()).toBe("idle");
+
+    daemon.up();
+    await manager.start("https://agendi.app", VIEWPORT);
+    expect(manager.getPhase()).toBe("recording");
   });
 });

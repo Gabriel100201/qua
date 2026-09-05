@@ -1,5 +1,5 @@
 import { browser } from "wxt/browser";
-import { wsUrl } from "@qua/protocol";
+import { DAEMON_HOST, DEFAULT_DAEMON_PORT, wsUrl } from "@qua/protocol";
 import type { Event, EnvInfo, SessionControlAction, ViewportInfo } from "@qua/protocol";
 import { SessionFsm } from "./fsm.js";
 import { Outbox } from "./outbox.js";
@@ -28,9 +28,7 @@ async function getToken(): Promise<string> {
   const stored = await browser.storage.local.get(TOKEN_STORAGE_KEY);
   const token = stored[TOKEN_STORAGE_KEY] as string | undefined;
   if (!token) {
-    throw new Error(
-      "SessionManager: no hay token de pairing (chrome.storage.local). Emparejá primero desde options.",
-    );
+    throw new Error("[qua] sin token: emparejá primero desde options.");
   }
   return token;
 }
@@ -91,6 +89,10 @@ export class SessionManager {
     private readonly now: () => number = Date.now,
     /** Inyectable para tests (`FakeDaemon.createSocket`, como ya hace A2) — `undefined` usa el `WebSocket` real. */
     private readonly createSocket?: (url: string) => WebSocketLike,
+    /** Cuánto esperar la primera conexión antes de fallar `start()` con un error
+     * concreto (D-U2-01, docs/DECISIONS.md) en vez de dejar la sesión "recording"
+     * mientras el WS reintenta en silencio de fondo. */
+    private readonly connectTimeoutMs: number = 5000,
   ) {
     this.tabs = new TabTracker((event) => this.onEvent(event), this.now);
     this.screenshots = new ScreenshotRing(this.now, activeTabId);
@@ -124,9 +126,20 @@ export class SessionManager {
     return this.ws?.getStatus();
   }
 
+  /** Hay token de pairing guardado — no dice nada sobre si el daemon está vivo, solo
+   * si options ya completó el emparejamiento (§04, franja de estado del popup). */
+  async isPaired(): Promise<boolean> {
+    try {
+      await getToken();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async start(baseUrl: string, viewport: ViewportInfo, tab?: SessionTab): Promise<void> {
     if (this.fsm.current.phase !== "idle") {
-      throw new Error("SessionManager: ya hay una sesión en curso");
+      throw new Error("[qua] ya hay una sesión en curso.");
     }
     // Cualquier arranque (popup, hotkey vía `session.control`) cierra el canal de
     // control ocioso de D-P1-01 — no tiene sentido dejarlo colgado mientras graba.
@@ -144,9 +157,15 @@ export class SessionManager {
     await this.fsm.start({ sessionId, t0Wall, baseUrl, env });
     await this.outbox.reset(); // §03/§04: `seq` es monótono por sesión, no global.
     try {
-      await this.openTransport(t0Wall, baseUrl, env);
+      // A diferencia de `init()` retomando una sesión ya confirmada, acá SÍ hace
+      // falta esperar la conexión real: es la única forma de que un daemon caído o
+      // un token que el daemon rechaza produzcan un error concreto en vez de dejar
+      // la FSM en "recording" con el WS reintentando en silencio de fondo (D-U2-01).
+      await this.openTransport(t0Wall, baseUrl, env, { waitForConnection: true });
     } catch (err) {
       await this.fsm.abortStart();
+      this.ws?.disconnect();
+      this.ws = undefined;
       throw err;
     }
     await this.fsm.confirmRecording();
@@ -186,7 +205,7 @@ export class SessionManager {
 
   async stop(): Promise<void> {
     if (this.fsm.current.phase !== "recording") {
-      throw new Error("SessionManager: no hay sesión grabando para detener");
+      throw new Error("[qua] no hay sesión grabando para detener.");
     }
     await this.fsm.stop();
     this.tabs.stop();
@@ -318,23 +337,66 @@ export class SessionManager {
     });
   }
 
-  private async openTransport(t0Wall: number, baseUrl: string, env: EnvInfo): Promise<void> {
+  /**
+   * `waitForConnection: true` (usado por `start()`) no resuelve hasta el primer
+   * `hello.ok` del daemon, o rechaza con un error concreto tras
+   * `connectTimeoutMs` — así un daemon caído o un token que el daemon rechaza
+   * (nunca llega `hello.ok`) fallan `start()` en vez de dejarlo "recording" para
+   * siempre (D-U2-01, EL PECADO ORIGINAL de este pase). `false` (el resumen de
+   * `init()` tras un reciclado del worker) mantiene el fire-and-forget de
+   * siempre: la sesión ya estaba confirmada, no hay nada que abortar acá.
+   */
+  private async openTransport(
+    t0Wall: number,
+    baseUrl: string,
+    env: EnvInfo,
+    opts: { waitForConnection?: boolean } = {},
+  ): Promise<void> {
     const token = await getToken();
-    this.ws = new WsClient({
-      url: wsUrl(token),
-      hello: { ext_version: env.ext, chrome: env.chrome, platform: env.platform },
-      outbox: this.outbox,
-      now: this.now,
-      createSocket: this.createSocket,
-      onCaptureRequest: (tab, tTarget) => {
-        const frame = this.screenshots.closestTo(tab, tTarget);
-        if (frame) this.ws?.sendFrame(frame.t, frame.tab, frame.jpegB64);
-      },
-      onSessionControl: (action, t) => void this.handleControl(action, t),
-      onStatusChange: (status) => {
-        this.sendToOffscreen({ type: "qua:connection-state", connected: status === "connected" });
-      },
+    const waitForConnection = opts.waitForConnection ?? false;
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        if (timer !== undefined) clearTimeout(timer);
+        fn();
+      };
+
+      if (waitForConnection) {
+        timer = setTimeout(() => {
+          settle(() =>
+            reject(
+              new Error(
+                `[qua] el daemon no responde en ${DAEMON_HOST}:${DEFAULT_DAEMON_PORT} — revisá que quad esté corriendo.`,
+              ),
+            ),
+          );
+        }, this.connectTimeoutMs);
+      }
+
+      this.ws = new WsClient({
+        url: wsUrl(token),
+        hello: { ext_version: env.ext, chrome: env.chrome, platform: env.platform },
+        outbox: this.outbox,
+        now: this.now,
+        createSocket: this.createSocket,
+        onCaptureRequest: (tab, tTarget) => {
+          const frame = this.screenshots.closestTo(tab, tTarget);
+          if (frame) this.ws?.sendFrame(frame.t, frame.tab, frame.jpegB64);
+        },
+        onSessionControl: (action, t) => void this.handleControl(action, t),
+        onStatusChange: (status) => {
+          this.sendToOffscreen({ type: "qua:connection-state", connected: status === "connected" });
+          if (status === "connected") settle(resolve);
+        },
+      });
+      this.ws.startSession({ t0Wall, baseUrl, env });
+
+      if (!waitForConnection) settle(resolve);
     });
-    this.ws.startSession({ t0Wall, baseUrl, env });
   }
 }

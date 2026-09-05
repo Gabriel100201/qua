@@ -48,6 +48,37 @@
         color: #52525b;
         margin-bottom: 8px;
       }
+      #qua-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+      }
+      #qua-error[hidden] {
+        display: none;
+      }
+      .qua-diagnostics {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 12px;
+        color: #52525b;
+        border: 1px solid #e4e4e7;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+      }
+      #qua-reload-tab {
+        margin-top: 4px;
+        flex: none;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+      #qua-reload-tab[hidden] {
+        display: none;
+      }
       #qua-transcript {
         height: 160px;
         overflow-y: auto;
@@ -103,6 +134,20 @@
         <button id="qua-connect-button" type="button">Conectar</button>
         <button id="qua-connect-options" type="button" hidden>Abrir opciones</button>
       </div>
+    <header>
+      <span id="qua-status">Inactivo</span>
+      <span id="qua-duration">00:00</span>
+    </header>
+    <div id="qua-error" role="alert" hidden></div>
+    <div class="qua-diagnostics">
+      <span id="qua-daemon-status">Daemon: …</span>
+      <span id="qua-mic-status">Micrófono: …</span>
+      <span id="qua-content-script-status">Pestaña: …</span>
+      <button id="qua-reload-tab" type="button" hidden>Recargar la pestaña</button>
+    </div>
+    <div class="qua-actions">
+      <button id="qua-toggle" type="button">Grabar</button>
+      <button id="qua-mark" type="button" disabled>Marcar</button>
     </div>
     <div id="qua-main" hidden>
       <header>
