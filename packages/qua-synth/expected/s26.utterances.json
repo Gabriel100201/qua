@@ -1,32 +1,50 @@
 [
   {
     "id": "u26",
-    "t_start": 35400,
-    "t_end": 36345,
-    "text": "señal espuria del micrófono",
+    "t_start": 20000,
+    "t_end": 21610,
+    "text": "señal espuria captada por el micrófono abierto",
     "lang": "es",
     "words": [
       {
         "w": "señal",
-        "t": 35400,
+        "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
         "w": "espuria",
-        "t": 35490,
+        "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "del",
-        "t": 35580,
+        "w": "captada",
+        "t": 20180,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "por",
+        "t": 20270,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "el",
+        "t": 20360,
         "d": 80,
         "p": 0.97
       },
       {
         "w": "micrófono",
-        "t": 35670,
+        "t": 20450,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "abierto",
+        "t": 20540,
         "d": 80,
         "p": 0.97
       }

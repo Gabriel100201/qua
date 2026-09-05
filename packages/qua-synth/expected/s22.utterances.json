@@ -1,56 +1,50 @@
 [
   {
     "id": "u22",
-    "t_start": 33800,
-    "t_end": 35165,
-    "text": "cuando le doy a guardar tarda un montón",
+    "t_start": 20000,
+    "t_end": 21820,
+    "text": "cuando aprieto guardar el formulario tarda demasiado",
     "lang": "es",
     "words": [
       {
         "w": "cuando",
-        "t": 33800,
+        "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "le",
-        "t": 33890,
-        "d": 80,
-        "p": 0.97
-      },
-      {
-        "w": "doy",
-        "t": 33980,
-        "d": 80,
-        "p": 0.97
-      },
-      {
-        "w": "a",
-        "t": 34070,
+        "w": "aprieto",
+        "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
         "w": "guardar",
-        "t": 34160,
+        "t": 20180,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "el",
+        "t": 20270,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "formulario",
+        "t": 20360,
         "d": 80,
         "p": 0.97
       },
       {
         "w": "tarda",
-        "t": 34250,
+        "t": 20450,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "un",
-        "t": 34340,
-        "d": 80,
-        "p": 0.97
-      },
-      {
-        "w": "montón",
-        "t": 34430,
+        "w": "demasiado",
+        "t": 20540,
         "d": 80,
         "p": 0.97
       }

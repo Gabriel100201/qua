@@ -1,50 +1,56 @@
 [
   {
     "id": "u12",
-    "t_start": 17500,
-    "t_end": 18445,
-    "text": "en general la app se ve mal",
+    "t_start": 20000,
+    "t_end": 21645,
+    "text": "el header queda tapado por el buscador flotante",
     "lang": "es",
     "words": [
       {
-        "w": "en",
-        "t": 17500,
+        "w": "el",
+        "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "general",
-        "t": 17590,
+        "w": "header",
+        "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "la",
-        "t": 17680,
+        "w": "queda",
+        "t": 20180,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "app",
-        "t": 17770,
+        "w": "tapado",
+        "t": 20270,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "se",
-        "t": 17860,
+        "w": "por",
+        "t": 20360,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "ve",
-        "t": 17950,
+        "w": "el",
+        "t": 20450,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "mal",
-        "t": 18040,
+        "w": "buscador",
+        "t": 20540,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "flotante",
+        "t": 20630,
         "d": 80,
         "p": 0.97
       }

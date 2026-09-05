@@ -842,3 +842,54 @@ mismo código que usa el daemon — para que la DB de test sea idéntica en form
 **Por qué.** Cumple "test que abre una DB sembrada desde fixtures" sin tocar el directorio
 compartido de F0 ni depender de que otra tarea (B1/B3/B4) ya haya producido una sesión
 real en disco.
+
+## F1c · Saneamiento del harness sintético
+
+### D-F1c-01 · El harness de F1b tenía 3 defectos reales, no eran fallas de B3
+
+**Contexto.** F1b entregó `packages/qua-synth` con 651 líneas de evento, de las cuales B3
+midió 572 inválidas contra el `EventSchema` real de `@qua/protocol` (`k: "scroll"` no
+existe — el tipo válido es `scroll_settle` — y a `nav`, `click`, `scroll_settle` y
+`mutation_burst` les faltaban campos requeridos). El correlador daba 73,1 % (19/26) contra
+ese harness; los 7 desaciertos no eran bugs de B3, sino ground truth que contradecía §07.
+
+**Decisión.** Se reescribió `packages/qua-synth/src/cli.ts` de cero, con tres correcciones:
+
+1. **Todo evento sale con los campos exactos del schema.** Cada builder (`nav`, `click`,
+   `hover`, `scroll_settle`, `mutation_burst`, …) construye el objeto completo — `mods` en
+   `click`, `title`+`kind` en `nav`, `y`+`pct` en `scroll_settle`, `count` en
+   `mutation_burst` — y `check()` relee cada `.events.ndjson` y `.utterances.json` ya
+   escrito en disco y lo valida con `EventSchema.safeParse` / `UtteranceSchema.safeParse`
+   de `@qua/protocol`. Si una sola línea no valida, `pnpm test` falla. Es la garantía de
+   que un tipo inventado no vuelve a colarse.
+
+2. **El ground truth de los 6 escenarios POINTER con `dominance_ratio` < 1,3 se corrigió
+   ajustando el scoring del escenario (separando mejor target y distractor), no bajando el
+   umbral de la spec ni cambiando el anchor esperado a `route`**: el paso 6 de §07 exige
+   ratio ≥ 1,3 para anclar a elemento, y "pointer con hover sostenido" es exactamente el
+   caso donde la señal debería ganar clara. El escenario de visibilidad (antes esperaba
+   que ganara el candidato con `visible: false`) se invirtió: ahora el ground truth espera
+   el candidato visible, que es lo que el factor 0.3 del paso 5 existe para lograr.
+
+3. **Los 20 escenarios base ya no son 4 plantillas repetidas 5 veces.** Cada uno tiene
+   ruta, selectores, texto y estructura de distractores propios (ver `manifest.json`), y
+   se agregaron escenarios dedicados a los tipos de evidencia que faltaban —`console`,
+   `net_fail`, `net_slow`, `long_task`, `layout_shift`— más uno para el `mark`/ventana
+   angosta del paso 4 y ruido ambiente (`tab_switch`, `input`, `submit`, `viewport`,
+   `tab_close`, `audio_gap`) en los 27 escenarios, para no dejar tipos del contrato de §03
+   sin ejercitar.
+
+**Verificación.** Los números de scoring de los 27 escenarios se verificaron primero con
+una réplica en JS de `scoring.rs`/`anchor.rs` (paso 5 y 6) antes de hornearlos en el
+generador, y después contra el correlador real: `cargo test -p qua-core --test
+harness_sintetico -- --nocapture` da **27/27 = 100 %** con la config por defecto
+(`merge_extra_weight = 0,25`) y **0 líneas rechazadas o descartadas** por el contrato.
+Con `merge_extra_weight = 1,0` (la suma literal de §07, la que D-B3-07 decidió no usar)
+el mismo harness cae a 25/27, porque dos escenarios ACTION degradan a `route` cuando el
+ruido del distractor se suma sin descuento — confirma en datos por qué B3 no usó `1.0`.
+
+**Por qué separar el scoring del escenario en vez de bajar el umbral.** Bajar
+`dominance_ratio` o el criterio de "gana claro" para que el harness pase habría ocultado
+el problema real (ground truth mal construido) detrás de un umbral más permisivo, que
+además afectaría producción, no solo el harness. `packages/qua-synth` es de F1c; los
+umbrales de `[correlator]` son de B3 y no se tocan acá.

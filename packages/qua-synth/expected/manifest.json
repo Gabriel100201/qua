@@ -1,162 +1,168 @@
 {
-  "version": 2,
-  "count": 26,
+  "version": 3,
+  "count": 27,
   "scenarios": [
     {
       "id": "s01",
-      "name": "pointer con hover sostenido",
-      "behavior": "POINTER con distractores",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "pointer: este botón de nuevo turno queda muy chico ",
+      "behavior": "POINTER con hover sostenido + click sobre el target; distractor con señales más débiles o más lejanas en el tiempo",
+      "naiveFailure": "el baseline temporal ignora a qué selector pertenece cada evento y puede tomar el del distractor si cae más cerca de t_start"
     },
     {
       "id": "s02",
-      "name": "action sobre click anterior",
-      "behavior": "ACTION prefiere click anterior",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "pointer: ese ícono de agregar quedó mal alineado co",
+      "behavior": "POINTER con hover sostenido + click sobre el target; distractor con señales más débiles o más lejanas en el tiempo",
+      "naiveFailure": "el baseline temporal ignora a qué selector pertenece cada evento y puede tomar el del distractor si cae más cerca de t_start"
     },
     {
       "id": "s03",
-      "name": "screen degrada a route",
-      "behavior": "SCREEN fuerza route",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "pointer: acá falta un espacio antes del texto del b",
+      "behavior": "POINTER con hover sostenido + click sobre el target; distractor con señales más débiles o más lejanas en el tiempo",
+      "naiveFailure": "el baseline temporal ignora a qué selector pertenece cada evento y puede tomar el del distractor si cae más cerca de t_start"
     },
     {
       "id": "s04",
-      "name": "global degrada a session",
-      "behavior": "GLOBAL fuerza session",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "pointer: este campo pide demasiados datos para pode",
+      "behavior": "POINTER con hover sostenido + click sobre el target; distractor con señales más débiles o más lejanas en el tiempo",
+      "naiveFailure": "el baseline temporal ignora a qué selector pertenece cada evento y puede tomar el del distractor si cae más cerca de t_start"
     },
     {
       "id": "s05",
-      "name": "pointer con hover sostenido",
-      "behavior": "POINTER con distractores",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "pointer: ahí quedó todo amontonado, ese ícono sobra",
+      "behavior": "POINTER con hover sostenido + click sobre el target; distractor con señales más débiles o más lejanas en el tiempo",
+      "naiveFailure": "el baseline temporal ignora a qué selector pertenece cada evento y puede tomar el del distractor si cae más cerca de t_start"
     },
     {
       "id": "s06",
-      "name": "action sobre click anterior",
-      "behavior": "ACTION prefiere click anterior",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "action: cuando le doy a guardar tarda un montón en",
+      "behavior": "ACTION prefiere el click anterior a t_ref (bias ×2); un click del distractor posterior a t_ref no recibe ese sesgo",
+      "naiveFailure": "el baseline temporal toma el evento más cercano sin importar si el click quedó antes o después de que arrancara a hablar"
     },
     {
       "id": "s07",
-      "name": "screen degrada a route",
-      "behavior": "SCREEN fuerza route",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "action: al guardar se cuelga toda la pantalla de c",
+      "behavior": "ACTION prefiere el click anterior a t_ref (bias ×2); un click del distractor posterior a t_ref no recibe ese sesgo",
+      "naiveFailure": "el baseline temporal toma el evento más cercano sin importar si el click quedó antes o después de que arrancara a hablar"
     },
     {
       "id": "s08",
-      "name": "global degrada a session",
-      "behavior": "GLOBAL fuerza session",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "action: cuando hago clic en generar no pasa absolu",
+      "behavior": "ACTION prefiere el click anterior a t_ref (bias ×2); un click del distractor posterior a t_ref no recibe ese sesgo",
+      "naiveFailure": "el baseline temporal toma el evento más cercano sin importar si el click quedó antes o después de que arrancara a hablar"
     },
     {
       "id": "s09",
-      "name": "pointer con hover sostenido",
-      "behavior": "POINTER con distractores",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "action: al entrar tarda un montón en cargar las pr",
+      "behavior": "ACTION prefiere el click anterior a t_ref (bias ×2); un click del distractor posterior a t_ref no recibe ese sesgo",
+      "naiveFailure": "el baseline temporal toma el evento más cercano sin importar si el click quedó antes o después de que arrancara a hablar"
     },
     {
       "id": "s10",
-      "name": "action sobre click anterior",
-      "behavior": "ACTION prefiere click anterior",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "action: cuando aprieto confirmar se rompe el formu",
+      "behavior": "ACTION prefiere el click anterior a t_ref (bias ×2); un click del distractor posterior a t_ref no recibe ese sesgo",
+      "naiveFailure": "el baseline temporal toma el evento más cercano sin importar si el click quedó antes o después de que arrancara a hablar"
     },
     {
       "id": "s11",
-      "name": "screen degrada a route",
-      "behavior": "SCREEN fuerza route",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "screen: esta pantalla necesita un título más cla",
+      "behavior": "SCREEN fuerza anchor.kind=route sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s12",
-      "name": "global degrada a session",
-      "behavior": "GLOBAL fuerza session",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "screen: el header queda tapado por el buscador f",
+      "behavior": "SCREEN fuerza anchor.kind=route sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s13",
-      "name": "pointer con hover sostenido",
-      "behavior": "POINTER con distractores",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "screen: esta sección tiene demasiados filtros re",
+      "behavior": "SCREEN fuerza anchor.kind=route sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s14",
-      "name": "action sobre click anterior",
-      "behavior": "ACTION prefiere click anterior",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "screen: el sidebar molesta cuando abro el resume",
+      "behavior": "SCREEN fuerza anchor.kind=route sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s15",
-      "name": "screen degrada a route",
-      "behavior": "SCREEN fuerza route",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "screen: esta vista está totalmente desordenada y",
+      "behavior": "SCREEN fuerza anchor.kind=route sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s16",
-      "name": "global degrada a session",
-      "behavior": "GLOBAL fuerza session",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "global: en general la app se ve un poco anticuad",
+      "behavior": "GLOBAL fuerza anchor.kind=session sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s17",
-      "name": "pointer con hover sostenido",
-      "behavior": "POINTER con distractores",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "global: en toda la app falta contraste en los bo",
+      "behavior": "GLOBAL fuerza anchor.kind=session sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s18",
-      "name": "action sobre click anterior",
-      "behavior": "ACTION prefiere click anterior",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "global: en todos lados el buscador tarda para fi",
+      "behavior": "GLOBAL fuerza anchor.kind=session sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s19",
-      "name": "screen degrada a route",
-      "behavior": "SCREEN fuerza route",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "global: siempre que cambio una preferencia se pi",
+      "behavior": "GLOBAL fuerza anchor.kind=session sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s20",
-      "name": "global degrada a session",
-      "behavior": "GLOBAL fuerza session",
-      "naiveFailure": "elige el evento temporalmente más cercano, ignorando deixis y scoring"
+      "name": "global: en general las fuentes son muy chicas pa",
+      "behavior": "GLOBAL fuerza anchor.kind=session sin importar el scoring",
+      "naiveFailure": "el baseline temporal ancla a un elemento aunque la deixis sea de pantalla o global, porque no clasifica el texto"
     },
     {
       "id": "s21",
-      "name": "pointer no sigue click reciente",
-      "behavior": "POINTER: hover sostenido vence click reciente",
-      "naiveFailure": "nearest toma click reciente"
+      "name": "pointer resiste dos hovers distractores en paralelo",
+      "behavior": "el hover sostenido + click sobre el target sigue ganando aunque el distractor acumule dos hovers separados (paso 5, fusión por selector)",
+      "naiveFailure": "el baseline temporal puede preferir el hover del distractor más cercano a t_start"
     },
     {
       "id": "s22",
-      "name": "action anclada al click anterior",
-      "behavior": "ACTION usa click anterior y timings",
-      "naiveFailure": "cursor actual es distractor"
+      "name": "action ignora el cursor actual",
+      "behavior": "ACTION prefiere el click anterior aunque el cursor esté sobre otro botón en el instante exacto de hablar; el hover nunca recibe el bias ×2",
+      "naiveFailure": "el baseline temporal toma el hover casi simultáneo con el arranque del habla en vez del click que la frase describe"
     },
     {
       "id": "s23",
-      "name": "ambigüedad con dos scores cercanos",
-      "behavior": "ratio best/second < 1.3 degrada a route",
-      "naiveFailure": "nearest devuelve un elemento arbitrario"
+      "name": "ambigüedad real entre dos paneles",
+      "behavior": "best/second queda por debajo de dominance_ratio (1.3): la regla de oro del paso 6 manda degradar a route en vez de adivinar cuál de los dos paneles es",
+      "naiveFailure": "el baseline temporal siempre elige un candidato arbitrario; nunca degrada aunque los dos estén empatados"
     },
     {
       "id": "s24",
       "name": "visibilidad penaliza candidato oculto",
-      "behavior": "visibility=false aplica factor 0.3",
-      "naiveFailure": "nearest toma candidato oculto"
+      "behavior": "visibility=false aplica el factor 0.3 del paso 5: aunque el candidato oculto sea más reciente, el visible gana la comparación",
+      "naiveFailure": "el baseline temporal no sabe nada de visibilidad y toma el evento más cercano sin importar si el elemento estaba tapado"
     },
     {
       "id": "s25",
-      "name": "corte por marcador de tema",
-      "behavior": "marker fuerza grupo nuevo",
-      "naiveFailure": "fusiona dos issues consecutivos"
+      "name": "corte por marcador de tema entre dos quejas distintas",
+      "behavior": "el marcador de tema al arranque de la segunda utterance corta la fusión aunque el gap sea corto (paso 1); cada grupo arma su propia ventana de candidatos",
+      "naiveFailure": "el baseline temporal fusiona todo en una sola utterance sin mirar marcadores de tema"
     },
     {
       "id": "s26",
-      "name": "ruido ASR descartable",
-      "behavior": "no_speech_prob 0.7 descarta utterance",
-      "naiveFailure": "crea issue desde audio sin habla"
+      "name": "ruido asr sin señal de habla",
+      "behavior": "no_speech_prob > 0.6 descarta el grupo entero en el paso 2: no debe generarse ningún issue",
+      "naiveFailure": "el baseline temporal no filtra ruido: crea un ancla desde una utterance que en realidad es silencio o ruido de micrófono"
+    },
+    {
+      "id": "s27",
+      "name": "marca precisa con hotkey durante hover sostenido",
+      "behavior": "con marked=true y un evento mark dentro de [t_start, t_end], t_ref pasa a ser el instante del mark y la ventana se angosta a [-2500, +500] (paso 4)",
+      "naiveFailure": "el baseline temporal ni sabe qué es un mark: sigue usando t_start del habla, no el instante señalado"
     }
   ]
 }

@@ -1,6 +1,7 @@
 {
-  "issue": "i4",
+  "issue": "i04",
   "anchor": {
-    "kind": "session"
+    "kind": "element",
+    "selector": "button[data-testid=\"cerrar-caja\"]"
   }
 }

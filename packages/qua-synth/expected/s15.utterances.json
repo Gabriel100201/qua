@@ -1,50 +1,56 @@
 [
   {
     "id": "u15",
-    "t_start": 19000,
-    "t_end": 20470,
-    "text": "esta pantalla necesita un título más claro",
+    "t_start": 20000,
+    "t_end": 21890,
+    "text": "esta vista está totalmente desordenada y sin jerarquía",
     "lang": "es",
     "words": [
       {
         "w": "esta",
-        "t": 19000,
+        "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "pantalla",
-        "t": 19090,
+        "w": "vista",
+        "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "necesita",
-        "t": 19180,
+        "w": "está",
+        "t": 20180,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "un",
-        "t": 19270,
+        "w": "totalmente",
+        "t": 20270,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "título",
-        "t": 19360,
+        "w": "desordenada",
+        "t": 20360,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "más",
-        "t": 19450,
+        "w": "y",
+        "t": 20450,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "claro",
-        "t": 19540,
+        "w": "sin",
+        "t": 20540,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "jerarquía",
+        "t": 20630,
         "d": 80,
         "p": 0.97
       }

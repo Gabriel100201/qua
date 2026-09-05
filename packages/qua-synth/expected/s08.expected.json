@@ -1,6 +1,7 @@
 {
-  "issue": "i8",
+  "issue": "i08",
   "anchor": {
-    "kind": "session"
+    "kind": "element",
+    "selector": "button[data-testid=\"generar-reporte\"]"
   }
 }

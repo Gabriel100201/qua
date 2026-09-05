@@ -1,56 +1,68 @@
 [
   {
-    "id": "u2",
-    "t_start": 12500,
-    "t_end": 13865,
-    "text": "cuando le doy a guardar tarda un montón",
+    "id": "u02",
+    "t_start": 20000,
+    "t_end": 21925,
+    "text": "ese ícono de agregar quedó mal alineado con el buscador",
     "lang": "es",
     "words": [
       {
-        "w": "cuando",
-        "t": 12500,
+        "w": "ese",
+        "t": 20000,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "le",
-        "t": 12590,
+        "w": "ícono",
+        "t": 20090,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "doy",
-        "t": 12680,
+        "w": "de",
+        "t": 20180,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "a",
-        "t": 12770,
+        "w": "agregar",
+        "t": 20270,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "guardar",
-        "t": 12860,
+        "w": "quedó",
+        "t": 20360,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "tarda",
-        "t": 12950,
+        "w": "mal",
+        "t": 20450,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "un",
-        "t": 13040,
+        "w": "alineado",
+        "t": 20540,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "montón",
-        "t": 13130,
+        "w": "con",
+        "t": 20630,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "el",
+        "t": 20720,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "buscador",
+        "t": 20810,
         "d": 80,
         "p": 0.97
       }
