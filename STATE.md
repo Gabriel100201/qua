@@ -366,4 +366,25 @@ con severidad alta.
 
 En los dos casos el dispatch sigue en `dispatched` y Orca no marca nada: **la única señal
 confiable es el mtime de los archivos del worktree.**
+- `2026-09-05 02:58` — **B6 ✅** mergeada. **192 tests de Rust.** La confianza del issue 01 pasa
+  de **0,48 a 0,64**: cruza el umbral de screenshot y deja de leerse como una moneda al aire.
+  El encabezado ahora dice "3 issues + 1 sin anclar", consistente con la tabla.
+  **Lo mejor de B6 fue negarse a llegar al número que le pedí.** Yo había pedido ≥0,75; probó
+  normalizar contra el score fusionado para llegar, vio que eso reabría el bug de D-B3-07 en el
+  escenario s23, y lo descartó explicando la cuenta. Prefirió 0,64 correcto a 0,75 con un bug
+  adentro.
+
+### Cuidado: verificar que el worker COMMITEÓ, no sólo que sus tests pasan
+
+B6 reportó `worker_done` dejando todo **sin commitear**. Mi verificación pasó igual porque
+corro los tests dentro de su worktree, donde los cambios sí estaban — pero `git merge b6` dijo
+*"Already up to date"* y casi doy por mergeado algo que no existía en ninguna rama.
+**Después de cada `worker_done`, antes de mergear:**
+
+```bash
+git log --oneline <rama> ^main | head        # ¿hay commits?
+git -C <worktree> status --short             # ¿quedó algo sin commitear?
+```
+
+Si el worker no commiteó, commitealo vos desde su worktree dejando constancia en el mensaje.
 
