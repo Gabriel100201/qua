@@ -30,7 +30,7 @@
 | F1 · Generador sintético       | F0     | ✅ hecho (ver F1c pendiente) | codex luna | `6e1e0b2` | `d28620d` |
 | A1 · Content script            | F0     | ✅ hecho | sonnet | `99aec5b` | — |
 | A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
-| A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
+| A3 · Offscreen + UI            | F0     | ✅ hecho | sonnet | `2e621c2` | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
@@ -152,3 +152,17 @@ verificable de una sola línea, y mandar a Claude todo lo que exija leer spec co
   Los alias que A1 puso en `extension/` siguen siendo válidos y se pueden borrar cuando alguien
   quiera; no urge.
 - `2026-09-05 23:42` — Largué **A3** en el slot liberado.
+- `2026-09-05` — **A3 ✅** (`2e621c2`, worktree `a3`, sin mergear a `main` todavía). Offscreen doc
+  (AudioWorklet "pcm-tap" f32→i16 en frames de 320 muestras, `AudioCapture` orquestando
+  getUserMedia + AudioContext 16 kHz + MediaRecorder opus, `GapBuffer` de 30 s), popup
+  (start/stop, duración, transcript.partial en vivo, contador de eventos) y options (grant de
+  mic del bloque CUIDADO de §5.4, pairing de 6 dígitos contra `/pair`). 77 tests propios, todos
+  mockeando Web Audio/MediaRecorder/chrome.runtime/fetch — no dependen de A1 ni A2. El criterio
+  de aceptación (PCM a 16 kHz mono, layout byte a byte) se verifica contra la fixture dorada de
+  F0: el primer frame armado desde muestras f32 equivalentes es idéntico bit a bit a
+  `fixtures/audio-frame.bin`. A2 (service worker) sigue sin existir — A3 documentó el contrato
+  completo offscreen↔SW y popup↔SW en `docs/DECISIONS.md` (D-11 a D-15) para que A2 lo consuma
+  sin re-diseñar. Nota aparte, no de A3: `tsc --noEmit` en `extension/` falla por
+  `entrypoints/content/lib/source-resolver.ts` — `@qua/source-resolver` (E1b) nunca corrió su
+  `build`, no tiene `dist/`. Confirmado que el fallo es preexistente (falla igual sin los
+  cambios de A3, ver `git stash`). No lo toqué: es de A1/E1, no de mi alcance.
