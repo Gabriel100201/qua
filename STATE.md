@@ -33,9 +33,9 @@
 | A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — | — |
-| B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
+| B3 · Correlador                | F0, F1 | ✅ hecho | **opus** | `2509595` | — | — |
 | B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
-| C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
+| C1 · App Tauri                 | B1     | 🟡 en curso | sonnet | — | — |
 | D1 · Servidor MCP              | F0     | 🟡 en curso | sonnet | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
@@ -236,4 +236,26 @@ En el merge de B2 mi loop de resolución hizo `git add` incluso del archivo que 
 "necesita revisión", y commiteé `lib.rs` con marcadores `<<<<<<<` adentro. Compiló en rojo.
 Al resolver conflictos: los casos conocidos se resuelven y se agregan; **el resto se deja sin
 agregar y se revisa antes de commitear.**
+- `2026-09-05 02:12` — **B3 ✅** (`2509595`) verificada y mergeada. **170 tests de Rust.**
+  Los 9 pasos de §07, un módulo por paso, 25 umbrales en `[correlator]` con
+  `deny_unknown_fields` para que un umbral mal tipeado rompa en vez de ignorarse en silencio.
+  **109 tests escritos contra la spec, independientes del harness** — que es lo que de verdad
+  verifica el correlador.
+  Con mi decisión de rendimientos decrecientes: harness **73,1%** (19/26) contra 46,2% con la
+  suma literal, y **cero desaciertos anclados a elemento con confianza > 0.5**, o sea que el
+  segundo criterio de §14 sí se cumple. Los 7 desaciertos NO son fallas del correlador:
+  6 son copias de la plantilla POINTER donde el ratio best/second da 1,11 < 1,3 y el paso 6
+  **manda** degradar a route (el escenario espera element, contradiciendo la spec), y s24
+  espera anclar justo al candidato `visible:false`, lo contrario del factor 0.3 del paso 5.
+
+### Deuda conocida, para la mañana
+
+1. **Contrato de `Evidence` incompleto.** §03 define `console` + `net`, pero §07 paso 7 manda
+   adjuntar cinco tipos. B3 metió `long_task` y `layout_shift` dentro de `net` (D-B3-06).
+   Es semánticamente incorrecto y se va a ver en el `report.md`. **No lo cambié anoche a
+   propósito**: B4 estaba construyendo el renderer contra ese contrato y tocarlo con tres
+   workers en vuelo rompe en silencio. Arreglar con B4 ya cerrado.
+2. **El harness sigue roto.** 234 líneas con el evento inexistente `scroll`; con validación
+   estricta B3 contó 572 de 651 inválidas. Falta **F1c**.
+3. **7 escenarios contradicen §07** (los 6 POINTER y s24). Arreglarlos sube el 73,1% real.
 
