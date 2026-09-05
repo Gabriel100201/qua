@@ -13,6 +13,19 @@ rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+voice_activity_detector = "0.2"
+sha2 = "0.10"
+ureq = "3"
+toml = "1"
+num_cpus = "1"
+tracing = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+whisper-rs = { version = "0.16", features = ["metal"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+whisper-rs = "0.16"
 
 [dev-dependencies]
 tempfile = "3"
+hound = "3.5"
