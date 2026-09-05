@@ -541,3 +541,39 @@ fallaba con `"X is not exported"`. `vitest.config.ts` ya aliaseaba al fuente; ah
   un bug de una línea en horas de diagnóstico.
 - **U3** — rediseño visual de popup y opciones.
 
+---
+
+# Cierre — 2026-09-05 11:15
+
+**509 tests verdes** (307 TS + 202 Rust) · **97 commits** · una sola rama (`main`) · `.git` en 1,7 MB
+
+Todo limpio: 0 worktrees fuera de `main`, 0 dispatches sin liberar, 0 terminales de agente
+abiertas, 0 tareas de fondo. Las 22 ramas de trabajo se borraron después de verificar que
+ninguna tenía commits fuera de `main`.
+
+Única excepción deliberada: la rama `u3` tenía un rediseño parcial (468 líneas) que quedó
+**superado** por el de U3b (`a2648a1`), que sí está en `main`. Lo descarté a propósito; el
+commit sigue en el reflog.
+
+## Lo que arreglamos hoy, con Gabriel usándolo por primera vez
+
+1. **El token no se encontraba nunca.** `options` escribía en `"quaPairToken"`, el service
+   worker leía `"qua:daemon-token"`. La sesión no arrancaba jamás y el popup se lo tragaba en
+   silencio. 447 tests verdes y un E2E con Chrome real no lo vieron porque cada lado mockeaba
+   su propio storage.
+2. **La build resolvía `@qua/protocol` contra `dist/`**, así que agregar una constante al
+   protocolo rompía la extensión con un error que no decía nada.
+3. **Emparejar era un `curl` con código de 6 dígitos.** Ahora es un botón.
+4. **Los errores eran invisibles.** Franja de diagnóstico permanente y causas concretas.
+5. **El popup era HTML crudo.** Rediseñado, con tema claro y oscuro.
+6. **`display:flex` le ganaba al `[hidden]`** y el panel de conexión no se ocultaba bien.
+
+## Falta un click
+
+La extensión quedó construida pero **sin recargar en Chrome** — el sistema no me dio el foco
+para hacerlo (`window_not_focused`). En `chrome://extensions`, el ícono circular de recargar
+en la tarjeta de QUA.
+
+Después: abrir el popup → **Conectar** (un click, `paired_extensions` está vacío) → recargar la
+pestaña donde vayas a grabar → **Grabar**.
+
