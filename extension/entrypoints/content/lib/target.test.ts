@@ -59,3 +59,89 @@ describe("buildTargetRef (§03)", () => {
     expect(target.src).toBeUndefined();
   });
 });
+
+/**
+ * CRITERIO de esta tarea (docs/DECISIONS.md D-Q1-02): un selector `css-path` como
+ * `div:nth-of-type(2) > main:nth-of-type(1) > section` (pediloapp.com, sin
+ * data-testid) no identifica nada legible por sí solo — el `TargetRef` tiene que
+ * traer lo que sí lo identifica.
+ */
+describe("buildTargetRef — ancestorText en el fallback css-path (D-Q1-02)", () => {
+  it("elemento sin texto propio ni nombre: sube al ancestro más cercano con texto", () => {
+    document.body.innerHTML = `
+      <section>
+        Verde Bowl Abierto ahora
+        <div><span class="lp-belt__track"></span></div>
+      </section>
+    `;
+    const span = document.querySelector("span")!;
+    const target = buildTargetRef(span);
+
+    expect(target.strategy).toBe("css-path");
+    expect(target.text).toBeUndefined();
+    expect(target.ancestorText).toBe("Verde Bowl Abierto ahora");
+  });
+
+  it("con texto propio, no hace falta subir — ancestorText queda undefined", () => {
+    document.body.innerHTML = `
+      <section>Contenedor
+        <span>EL PROBLEMA</span>
+      </section>
+    `;
+    const span = document.querySelector("span")!;
+    const target = buildTargetRef(span);
+
+    expect(target.strategy).toBe("css-path");
+    expect(target.text).toBe("EL PROBLEMA");
+    expect(target.ancestorText).toBeUndefined();
+  });
+
+  it("con nombre accesible (aria-label) sin selector único, no hace falta ancestorText", () => {
+    document.body.innerHTML = `
+      <section>Contenedor
+        <span aria-label="Cerrar"></span>
+        <span aria-label="Cerrar"></span>
+      </section>
+    `;
+    // Dos aria-label iguales: `roleNameSelector` no es único → cae a css-path, pero
+    // `name` sigue calculándose igual — no hace falta subir a buscar texto.
+    const span = document.querySelectorAll("span")[0]!;
+    const target = buildTargetRef(span);
+
+    expect(target.strategy).toBe("css-path");
+    expect(target.name).toBe("Cerrar");
+    expect(target.ancestorText).toBeUndefined();
+  });
+
+  it("con un selector que NO cayó a css-path, no calcula ancestorText aunque no haya texto propio", () => {
+    document.body.innerHTML = `
+      <section>Verde Bowl
+        <span id="track-unico"></span>
+      </section>
+    `;
+    const span = document.getElementById("track-unico")!;
+    const target = buildTargetRef(span);
+
+    expect(target.strategy).toBe("id");
+    expect(target.ancestorText).toBeUndefined();
+  });
+
+  it("bajo un subárbol privado, no calcula ancestorText (name ya viene [redactado])", () => {
+    // `name` de un elemento privado ya se fuerza a "[redactado]" (línea de arriba en
+    // buildTargetRef) — con `!target.name` en falso, ni se intenta subir a buscar
+    // texto del ancestro. No hay forma de que este fallback termine filtrando el
+    // texto de un subárbol privado por una puerta lateral.
+    document.body.innerHTML = `
+      <div data-private>
+        Diagnóstico: paciente X
+        <span class="icon"></span>
+      </div>
+    `;
+    const span = document.querySelector("span")!;
+    const target = buildTargetRef(span);
+
+    expect(target.strategy).toBe("css-path");
+    expect(target.name).toBe("[redactado]");
+    expect(target.ancestorText).toBeUndefined();
+  });
+});

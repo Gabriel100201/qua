@@ -54,6 +54,16 @@ export interface PopupControllerOptions {
   clearIntervalFn?: typeof clearInterval;
   /** Cuántas líneas de transcript se conservan en el DOM (recorta el resto). */
   maxTranscriptLines?: number;
+  /**
+   * Bug U3 (docs/DECISIONS.md D-U3-01): mientras el popup está abierto, `getStatus()`
+   * y la franja de diagnóstico se refrescan cada `pollIntervalMs` — antes se
+   * consultaban una sola vez al abrir el popup, así que apretar Grabar/Detener nunca
+   * se veía reflejado sin cerrar y reabrir. `onStatus`/`onTranscript` (push) siguen
+   * cableados por si algún día el service worker empieza a emitir — hoy no lo hace
+   * (§5.3 FSM no tiene ningún `sendMessage` de salida), así que el polling es quien
+   * hace el trabajo real.
+   */
+  pollIntervalMs?: number;
 }
 
 const STATUS_LABELS: Record<PopupSessionState, string> = {
@@ -83,6 +93,9 @@ const CONTENT_SCRIPT_LABELS: Record<ContentScriptDiagnosis, string> = {
 };
 
 const DEFAULT_MAX_TRANSCRIPT_LINES = 50;
+/** D-U3-01: 500 ms — rápido para sentirse "en vivo", lo bastante espaciado para no
+ * saturar `chrome.runtime.sendMessage` mientras el popup queda abierto de fondo. */
+const DEFAULT_POLL_INTERVAL_MS = 500;
 
 export type Teardown = () => void;
 
@@ -99,9 +112,10 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
   const setIntervalFn = opts.setIntervalFn ?? setInterval;
   const clearIntervalFn = opts.clearIntervalFn ?? clearInterval;
   const maxLines = opts.maxTranscriptLines ?? DEFAULT_MAX_TRANSCRIPT_LINES;
+  const pollIntervalMs = opts.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
 
   let status: PopupStatus = IDLE_STATUS;
-  let durationTimer: ReturnType<typeof setInterval> | null = null;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   function renderStatus(): void {
     elements.statusLabel.textContent = STATUS_LABELS[status.state];
@@ -136,20 +150,17 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
     );
   }
 
-  function syncDurationTimer(): void {
-    const shouldTick = status.state === "recording" && status.startedAtWall !== null;
-    if (shouldTick && durationTimer === null) {
-      durationTimer = setIntervalFn(renderDuration, 1000);
-    } else if (!shouldTick && durationTimer !== null) {
-      clearIntervalFn(durationTimer);
-      durationTimer = null;
-    }
-  }
-
+  /**
+   * D-U3-01: se usa tanto para el push (`onStatus`, hoy inerte) como para cada poll
+   * de `getStatus()`. `lastError` NO se pisa con lo que traiga `next` salvo que
+   * `next` traiga uno propio — si lo hiciera siempre, un error real recién mostrado
+   * por `applyCommandResult` (ej. "sin token") desaparecería solo en el próximo tick
+   * del poll, sin que el usuario llegue a leerlo. El único que limpia `lastError`
+   * explícitamente es `setError`/`applyCommandResult`.
+   */
   function applyStatus(next: PopupStatus): void {
-    status = next;
+    status = { ...next, lastError: next.lastError ?? status.lastError ?? null };
     renderStatus();
-    syncDurationTimer();
   }
 
   function appendTranscript(utterance: Utterance): void {
@@ -169,10 +180,10 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
   };
   const onMarkClick = () => void client.mark().then(applyCommandResult);
 
-  /** Franja de estado (§04, D-U2-01): daemon / micrófono / content script de la
-   * pestaña activa — se refresca al abrir el popup y después de cada intento de
-   * start/stop/mark o de recargar la pestaña. No hay polling en vivo todavía
-   * (ver docs/DECISIONS.md D-U2-01, "queda para un pase siguiente"). */
+  /** Franja de estado (§04, D-U2-01/D-U3-01): daemon / micrófono / content script de
+   * la pestaña activa — se refresca al abrir el popup, después de cada intento de
+   * start/stop/mark o de recargar la pestaña, y en cada tick del poll de estado
+   * (D-U3-01) mientras el popup sigue abierto. */
   async function refreshDiagnostics(): Promise<void> {
     if (!diagnostics) return;
     const [daemon, mic, contentScript] = await Promise.all([
@@ -200,6 +211,14 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
   const unsubStatus = client.onStatus(applyStatus);
   const unsubTranscript = client.onTranscript(appendTranscript);
 
+  function pollStatus(): void {
+    void client.getStatus().then(applyStatus).catch(() => {
+      // Mismo motivo que la consulta inicial: `StatusClient` real no rechaza
+      // (D-U2-01). Si un tick falla, el próximo lo vuelve a intentar.
+    });
+    void refreshDiagnostics();
+  }
+
   renderStatus();
   client
     .getStatus()
@@ -209,6 +228,10 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
       // StatusClientLike de test podría. Se queda con IDLE_STATUS, ya renderizado.
     });
   void refreshDiagnostics();
+  // D-U3-01: mientras el popup siga abierto, el estado real (fase, franja de
+  // diagnóstico) se re-consulta cada `pollIntervalMs` — es lo que hace que
+  // apretar Grabar/Detener se vea sin cerrar y reabrir el popup.
+  pollTimer = setIntervalFn(pollStatus, pollIntervalMs);
 
   return () => {
     elements.toggleButton.removeEventListener("click", onToggleClick);
@@ -216,6 +239,6 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
     elements.reloadTabButton.removeEventListener("click", onReloadTabClick);
     unsubStatus();
     unsubTranscript();
-    if (durationTimer !== null) clearIntervalFn(durationTimer);
+    if (pollTimer !== null) clearIntervalFn(pollTimer);
   };
 }

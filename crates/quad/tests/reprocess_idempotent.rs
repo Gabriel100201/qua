@@ -86,6 +86,7 @@ fn sample_session() -> Session {
                     }),
                     visible: Some(true),
                     classes: Some("px-3 py-1".into()),
+                    ancestor_text: None,
                     computed: None,
                     component: None,
                     src: None,

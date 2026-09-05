@@ -367,6 +367,7 @@ mod tests {
                     rect: None,
                     visible: None,
                     classes: None,
+                    ancestor_text: None,
                     computed: None,
                     component: None,
                     src: Some(SourceRef {

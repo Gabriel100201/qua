@@ -26,4 +26,12 @@ export interface StatusResponse {
   /** Hay token de pairing guardado (§04, franja de estado del popup) — no implica
    * que el daemon esté vivo, solo que options ya emparejó alguna vez. */
   paired: boolean;
+  /** epoch ms en que arrancó la sesión en curso, o `null` si `phase === "idle"`.
+   * Bug U3 (docs/DECISIONS.md D-U3-01): sin esto el popup no puede reconstruir la
+   * duración real al re-consultar el estado — solo tenía el reloj propio del timer. */
+  startedAtWall: number | null;
+  /** Eventos aceptados por la FSM en la sesión en curso (0 fuera de `recording`).
+   * Cuenta al encolar, no al `ack` del daemon (D-U3-01): un contador que se queda
+   * congelado esperando la confirmación de red es peor que uno optimista. */
+  eventsCount: number;
 }

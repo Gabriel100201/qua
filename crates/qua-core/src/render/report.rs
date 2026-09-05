@@ -6,7 +6,8 @@
 //! a D-B4-04).
 
 use qua_protocol::{
-    Anchor, AnchorKind, Issue, IssueCategory, Session, Severity, TargetRef, UNANCHORED_CONFIDENCE,
+    Anchor, AnchorKind, Issue, IssueCategory, SelectorStrategy, Session, Severity, TargetRef,
+    UNANCHORED_CONFIDENCE,
 };
 
 use super::time_fmt::hms;
@@ -165,6 +166,70 @@ fn anchor_label(anchor: &Anchor) -> String {
     }
 }
 
+/// Nombre en español del tag para la descripción legible de abajo — solo los que
+/// aparecen en interacciones reales (§03 eventos `click`/`hover`/`input`/`submit`);
+/// cualquier otro tag queda entre backticks tal cual.
+fn tag_word(tag: &str) -> String {
+    match tag {
+        "button" => "botón".to_string(),
+        "a" => "enlace".to_string(),
+        "input" => "campo".to_string(),
+        "select" => "selector".to_string(),
+        "textarea" => "campo de texto".to_string(),
+        "img" => "imagen".to_string(),
+        "svg" => "ícono".to_string(),
+        other => format!("`{other}`"),
+    }
+}
+
+/// Colapsa saltos de línea/espacios repetidos — `TargetRef.text`/`ancestorText`
+/// vienen de `innerText`, que trae un `\n` por línea visual.
+fn collapse_ws(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Bug U3/Q1 (docs/DECISIONS.md D-Q1-02): cuando el selector cayó a `css-path`
+/// (§5.2 nivel 4 — sin testid/id/rol-nombre) es ilegible por diseño
+/// (`div:nth-of-type(2) > main:nth-of-type(1) > section`). Esto arma la frase que sí
+/// identifica al elemento para un humano o un agente, en el orden de lo más
+/// confiable a lo más débil: texto propio → nombre accesible → texto del ancestro
+/// más cercano (con el rol si lo hay) → solo el rol. `None` si no hay nada de eso
+/// (el fallback final sigue siendo el selector crudo, ya mostrado en **Ancla**).
+fn human_description(t: &TargetRef) -> Option<String> {
+    let tag = tag_word(&t.tag);
+    if let Some(text) = t.text.as_deref().filter(|s| !s.is_empty()) {
+        return Some(format!("el {tag} que dice \"{}\"", collapse_ws(text)));
+    }
+    if let Some(name) = t.name.as_deref().filter(|s| !s.is_empty()) {
+        return Some(format!("el {tag} con nombre accesible \"{name}\""));
+    }
+    if let Some(ancestor) = t.ancestor_text.as_deref().filter(|s| !s.is_empty()) {
+        let role_part = t
+            .role
+            .as_deref()
+            .map(|r| format!(" (rol `{r}`)"))
+            .unwrap_or_default();
+        return Some(format!(
+            "el {tag}{role_part} sin texto propio, dentro de \"{}\"",
+            collapse_ws(ancestor)
+        ));
+    }
+    t.role
+        .as_deref()
+        .map(|role| format!("el {tag} con rol `{role}`"))
+}
+
+/// Línea **Elemento** del detalle (solo con `css-path` y algo legible que mostrar —
+/// ver `human_description`). Con cualquier otra estrategia el selector de **Ancla**
+/// ya es legible (`data-testid`, `#id`, rol+nombre) y esta línea sería ruido.
+fn element_description_line(target: &TargetRef) -> Option<String> {
+    if target.strategy != SelectorStrategy::CssPath {
+        return None;
+    }
+    let phrase = human_description(target)?;
+    Some(format!("**Elemento** {phrase}\n"))
+}
+
 fn summary_table(anchored: &[&Issue]) -> String {
     let categories: Vec<&str> = anchored.iter().map(|i| category_str(i.category)).collect();
     let severities: Vec<&str> = anchored.iter().map(|i| severity_str(i.severity)).collect();
@@ -230,6 +295,10 @@ fn issue_block(n: usize, issue: &Issue, viewport: (i64, i64, f64)) -> String {
     out.push_str(&format!("**Ruta** {}\n", route_line(issue)));
 
     if let Some(t) = target {
+        if let Some(line) = element_description_line(t) {
+            out.push_str(&line);
+            out.push('\n');
+        }
         if let Some(line) = source_line(t) {
             out.push_str(&line);
             out.push('\n');
@@ -331,4 +400,79 @@ fn unanchored_section(unanchored: &[&Issue]) -> String {
         ));
     }
     out
+}
+
+#[cfg(test)]
+mod element_description_tests {
+    use super::*;
+
+    fn target(strategy: SelectorStrategy) -> TargetRef {
+        TargetRef {
+            sel: "div:nth-of-type(2) > main:nth-of-type(1) > section".to_string(),
+            strategy,
+            tag: "button".to_string(),
+            text: None,
+            role: None,
+            name: None,
+            rect: None,
+            visible: None,
+            classes: None,
+            ancestor_text: None,
+            computed: None,
+            component: None,
+            src: None,
+        }
+    }
+
+    /// CRITERIO de esta tarea (docs/DECISIONS.md D-Q1-02): el reporte tiene que poder
+    /// decir "el botón que dice Comprar" aunque el selector sea un `css-path` feo.
+    #[test]
+    fn con_texto_propio_arma_el_boton_que_dice() {
+        let mut t = target(SelectorStrategy::CssPath);
+        t.text = Some("Comprar".to_string());
+        assert_eq!(
+            element_description_line(&t),
+            Some("**Elemento** el botón que dice \"Comprar\"\n".to_string())
+        );
+    }
+
+    #[test]
+    fn sin_texto_propio_sube_al_ancestro_mas_cercano() {
+        let mut t = target(SelectorStrategy::CssPath);
+        t.role = Some("group".to_string());
+        t.ancestor_text = Some("Verde Bowl Abierto ahora".to_string());
+        assert_eq!(
+            element_description_line(&t),
+            Some(
+                "**Elemento** el botón (rol `group`) sin texto propio, dentro de \"Verde Bowl Abierto ahora\"\n"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn nombre_accesible_gana_sobre_ancestro() {
+        let mut t = target(SelectorStrategy::CssPath);
+        t.name = Some("Cerrar diálogo".to_string());
+        t.ancestor_text = Some("no debería usarse".to_string());
+        assert_eq!(
+            element_description_line(&t),
+            Some("**Elemento** el botón con nombre accesible \"Cerrar diálogo\"\n".to_string())
+        );
+    }
+
+    /// Con testid/id/rol-nombre el selector de **Ancla** ya es legible — no hay nada
+    /// que agregar, y agregarlo igual sería ruido repetido en cada issue.
+    #[test]
+    fn otras_estrategias_no_agregan_linea() {
+        let mut t = target(SelectorStrategy::TestId);
+        t.text = Some("Comprar".to_string());
+        assert_eq!(element_description_line(&t), None);
+    }
+
+    #[test]
+    fn css_path_sin_nada_legible_no_agrega_linea() {
+        let t = target(SelectorStrategy::CssPath);
+        assert_eq!(element_description_line(&t), None);
+    }
 }

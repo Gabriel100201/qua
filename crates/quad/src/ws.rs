@@ -135,29 +135,21 @@ async fn handle_text(
                 .await;
                 return true;
             }
-            match ActiveSession::create(&state.data_dir) {
-                Ok(new_session) => {
-                    let session_dir = new_session.dir.to_string_lossy().to_string();
-                    send_message(
-                        sender,
-                        &ServerMessage::HelloOk {
-                            v: Default::default(),
-                            daemon_version: state.daemon_version.to_string(),
-                            session_dir,
-                        },
-                    )
-                    .await;
-                    *session = Some(new_session);
-                }
-                Err(e) => {
-                    send_error(
-                        sender,
-                        error_codes::STORAGE,
-                        format!("no se pudo crear el directorio de sesión: {e}"),
-                    )
-                    .await;
-                }
-            }
+            // D-Q1-01 (docs/DECISIONS.md): `ActiveSession::create` ya no toca el
+            // filesystem — solo mintea el id y el path — así que no hay `Err` que
+            // manejar acá. El directorio recién se crea de verdad en `session.start`.
+            let new_session = ActiveSession::create(&state.data_dir);
+            let session_dir = new_session.dir.to_string_lossy().to_string();
+            send_message(
+                sender,
+                &ServerMessage::HelloOk {
+                    v: Default::default(),
+                    daemon_version: state.daemon_version.to_string(),
+                    session_dir,
+                },
+            )
+            .await;
+            *session = Some(new_session);
         }
 
         ClientMessage::SessionStart {

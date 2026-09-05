@@ -84,6 +84,8 @@ export class SessionManager {
    * que `POST /control` (el hotkey global de la app Tauri) tenga a quién reenviarle
    * `session.control` incluso sin sesión abierta. */
   private controlWs: WsClient | undefined;
+  /** Para la franja "eventos" del popup (D-U3-01) — ver `StatusResponse.eventsCount`. */
+  private eventsCount = 0;
 
   constructor(
     private readonly now: () => number = Date.now,
@@ -126,6 +128,16 @@ export class SessionManager {
     return this.ws?.getStatus();
   }
 
+  /** epoch ms de arranque de la sesión en curso, o `null` en `idle` (D-U3-01). */
+  getStartedAtWall(): number | null {
+    return this.fsm.current.session?.t0Wall ?? null;
+  }
+
+  /** Eventos aceptados en la sesión en curso (D-U3-01). */
+  getEventsCount(): number {
+    return this.eventsCount;
+  }
+
   /** Hay token de pairing guardado — no dice nada sobre si el daemon está vivo, solo
    * si options ya completó el emparejamiento (§04, franja de estado del popup). */
   async isPaired(): Promise<boolean> {
@@ -156,6 +168,7 @@ export class SessionManager {
     const sessionId = generateSessionId(new Date(t0Wall));
     await this.fsm.start({ sessionId, t0Wall, baseUrl, env });
     await this.outbox.reset(); // §03/§04: `seq` es monótono por sesión, no global.
+    this.eventsCount = 0;
     try {
       // A diferencia de `init()` retomando una sesión ya confirmada, acá SÍ hace
       // falta esperar la conexión real: es la única forma de que un daemon caído o
@@ -311,6 +324,7 @@ export class SessionManager {
 
   private onEvent(event: Event): void {
     if (this.fsm.current.phase !== "recording") return;
+    this.eventsCount += 1;
     this.ws?.enqueue(event);
   }
 

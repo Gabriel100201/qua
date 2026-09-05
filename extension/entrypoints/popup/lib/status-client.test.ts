@@ -22,13 +22,19 @@ function fakeRuntime(sendMessageImpl?: (msg: unknown) => unknown) {
 
 describe("StatusClient.getStatus", () => {
   it("mapea la respuesta real del service worker (StatusResponse: phase/wsStatus/paired)", async () => {
-    const { runtime, sendMessage } = fakeRuntime(() => ({ phase: "recording", wsStatus: "connected", paired: true }));
+    const { runtime, sendMessage } = fakeRuntime(() => ({
+      phase: "recording",
+      wsStatus: "connected",
+      paired: true,
+      startedAtWall: 1000,
+      eventsCount: 4,
+    }));
     const client = new StatusClient(runtime);
 
     expect(await client.getStatus()).toEqual({
       state: "recording",
-      startedAtWall: null,
-      eventsCount: 0,
+      startedAtWall: 1000,
+      eventsCount: 4,
       lastError: null,
       paired: true,
       wsStatus: "connected",

@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   startPopupController,
   type DiagnosticsClientLike,
   type PopupElements,
   type StatusClientLike,
+  type Teardown,
 } from "./controller.js";
 import { IDLE_STATUS, type CommandResult } from "./status-client.js";
 import type { PopupStatus } from "./messages.js";
@@ -42,17 +43,20 @@ function fakeClient(initial: PopupStatus = IDLE_STATUS): {
   client: StatusClientLike;
   emitStatus: (s: PopupStatus) => void;
   emitTranscript: (u: Utterance) => void;
+  /** Cambia lo que devuelve la PRÓXIMA `getStatus()` — para simular lo que ve un poll. */
+  setPolledStatus: (s: PopupStatus) => void;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   mark: ReturnType<typeof vi.fn>;
 } {
   let statusCb: ((s: PopupStatus) => void) | null = null;
   let transcriptCb: ((u: Utterance) => void) | null = null;
+  let polled = initial;
   const start = vi.fn<() => Promise<CommandResult>>(() => Promise.resolve({ ok: true }));
   const stop = vi.fn<() => Promise<CommandResult>>(() => Promise.resolve({ ok: true }));
   const mark = vi.fn<() => Promise<CommandResult>>(() => Promise.resolve({ ok: true }));
   const client: StatusClientLike = {
-    getStatus: () => Promise.resolve(initial),
+    getStatus: () => Promise.resolve(polled),
     start,
     stop,
     mark,
@@ -73,6 +77,9 @@ function fakeClient(initial: PopupStatus = IDLE_STATUS): {
     client,
     emitStatus: (s) => statusCb?.(s),
     emitTranscript: (u) => transcriptCb?.(u),
+    setPolledStatus: (s) => {
+      polled = s;
+    },
     start,
     stop,
     mark,
@@ -94,13 +101,41 @@ async function flushAsync(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** Captura el callback que `startPopupController` le pasa a `setInterval` para el
+ * poll de estado (D-U3-01, docs/DECISIONS.md), sin depender de timers reales. */
+function fakePollTimer(): { setIntervalFn: typeof setInterval; tick: () => Promise<void> } {
+  let fn: (() => void) | null = null;
+  const setIntervalFn = vi.fn((cb: () => void) => {
+    fn = cb;
+    return 1 as unknown as ReturnType<typeof setInterval>;
+  }) as unknown as typeof setInterval;
+  return {
+    setIntervalFn,
+    tick: async () => {
+      fn?.();
+      await flushAsync();
+    },
+  };
+}
+
+const teardowns: Teardown[] = [];
+function mount(opts: Parameters<typeof startPopupController>[0]): Teardown {
+  const teardown = startPopupController(opts);
+  teardowns.push(teardown);
+  return teardown;
+}
+
+afterEach(() => {
+  while (teardowns.length > 0) teardowns.pop()!();
+});
+
 describe("startPopupController — estado inicial", () => {
   it("arranca en idle, consulta el status y lo aplica", async () => {
     const elements = buildElements();
     const status: PopupStatus = { state: "recording", startedAtWall: 1000, eventsCount: 4 };
     const { client } = fakeClient(status);
 
-    startPopupController({ client, elements, now: () => 3000 });
+    mount({ client, elements, now: () => 3000 });
     await Promise.resolve();
     await Promise.resolve();
 
@@ -115,7 +150,7 @@ describe("startPopupController — botón toggle", () => {
   it("en idle, click en toggle llama a client.start()", () => {
     const elements = buildElements();
     const { client, start } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements });
+    mount({ client, elements });
 
     elements.toggleButton.click();
     expect(start).toHaveBeenCalledTimes(1);
@@ -124,7 +159,7 @@ describe("startPopupController — botón toggle", () => {
   it("en recording, click en toggle llama a client.stop()", () => {
     const elements = buildElements();
     const { client, emitStatus, stop } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements });
+    mount({ client, elements });
     emitStatus({ state: "recording", startedAtWall: 0, eventsCount: 0 });
 
     elements.toggleButton.click();
@@ -134,7 +169,7 @@ describe("startPopupController — botón toggle", () => {
   it("deshabilita el toggle en starting/stopping", () => {
     const elements = buildElements();
     const { client, emitStatus } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements });
+    mount({ client, elements });
 
     emitStatus({ state: "starting", startedAtWall: null, eventsCount: 0 });
     expect(elements.toggleButton.disabled).toBe(true);
@@ -151,7 +186,7 @@ describe("startPopupController — marca", () => {
   it("el botón de marca solo está habilitado grabando", () => {
     const elements = buildElements();
     const { client, emitStatus, mark } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements });
+    mount({ client, elements });
 
     expect(elements.markButton.disabled).toBe(true);
     emitStatus({ state: "recording", startedAtWall: 0, eventsCount: 0 });
@@ -163,42 +198,29 @@ describe("startPopupController — marca", () => {
 });
 
 describe("startPopupController — duración en vivo", () => {
-  it("tickea la duración cada segundo mientras graba y para al dejar de grabar", () => {
+  it("recalcula la duración en cada tick del poll de estado mientras graba", async () => {
     const elements = buildElements();
-    const { client, emitStatus } = fakeClient(IDLE_STATUS);
+    const { client, setPolledStatus } = fakeClient(IDLE_STATUS);
     let currentNow = 0;
-    const tickRef: { current: (() => void) | null } = { current: null };
-    const setIntervalFn = vi.fn((fn: () => void) => {
-      tickRef.current = fn;
-      return 1 as unknown as ReturnType<typeof setInterval>;
-    });
-    const clearIntervalFn = vi.fn();
+    const { setIntervalFn, tick } = fakePollTimer();
 
-    startPopupController({
-      client,
-      elements,
-      now: () => currentNow,
-      setIntervalFn: setIntervalFn as unknown as typeof setInterval,
-      clearIntervalFn: clearIntervalFn as unknown as typeof clearInterval,
-    });
+    mount({ client, elements, now: () => currentNow, setIntervalFn });
+    await flushAsync();
 
-    emitStatus({ state: "recording", startedAtWall: 0, eventsCount: 0 });
-    expect(setIntervalFn).toHaveBeenCalledTimes(1);
-
+    setPolledStatus({ state: "recording", startedAtWall: 0, eventsCount: 0 });
     currentNow = 3000;
-    tickRef.current?.();
-    expect(elements.durationLabel.textContent).toBe("00:03");
+    await tick();
 
-    emitStatus({ state: "stopping", startedAtWall: 0, eventsCount: 0 });
-    expect(clearIntervalFn).toHaveBeenCalledTimes(1);
+    expect(elements.statusLabel.textContent).toBe("● Grabando");
+    expect(elements.durationLabel.textContent).toBe("00:03");
   });
 
-  it("no arranca el timer dos veces si llegan varios pushes en recording", () => {
+  it("un solo timer para el poll, sin importar cuántos pushes de estado lleguen", () => {
     const elements = buildElements();
     const { client, emitStatus } = fakeClient(IDLE_STATUS);
     const setIntervalFn = vi.fn(() => 1 as unknown as ReturnType<typeof setInterval>);
 
-    startPopupController({
+    mount({
       client,
       elements,
       setIntervalFn: setIntervalFn as unknown as typeof setInterval,
@@ -211,11 +233,98 @@ describe("startPopupController — duración en vivo", () => {
   });
 });
 
+/**
+ * CRITERIO de esta tarea (docs/DECISIONS.md D-U3-01): apretar Grabar tiene que
+ * reflejarse en la UI del popup SIN cerrarlo y volver a abrirlo — antes, `getStatus()`
+ * se consultaba una única vez al abrir y el popup se quedaba en "Inactivo" para
+ * siempre aunque la sesión arrancara de verdad del otro lado.
+ */
+describe("startPopupController — la UI se actualiza sin cerrar el popup (D-U3-01)", () => {
+  it("Grabar: la etiqueta pasa de Inactivo a ● Grabando y el botón a Detener en el siguiente poll", async () => {
+    const elements = buildElements();
+    const { client, start, setPolledStatus } = fakeClient(IDLE_STATUS);
+    const { setIntervalFn, tick } = fakePollTimer();
+    mount({ client, elements, setIntervalFn, diagnostics: fakeDiagnostics() });
+    await flushAsync();
+
+    expect(elements.statusLabel.textContent).toBe("Inactivo");
+    expect(elements.toggleButton.textContent).toBe("Grabar");
+
+    // El popup nunca se cierra: `start()` ya devolvió {ok:true} pero el único
+    // camino por el que el popup se entera de que la FSM llegó a "recording" es
+    // el próximo tick del poll — exactamente lo que reprodujo Gabriel.
+    elements.toggleButton.click();
+    await flushAsync();
+    expect(start).toHaveBeenCalledTimes(1);
+
+    setPolledStatus({ state: "recording", startedAtWall: 0, eventsCount: 0 });
+    await tick();
+
+    expect(elements.statusLabel.textContent).toBe("● Grabando");
+    expect(elements.toggleButton.textContent).toBe("Detener");
+  });
+
+  it("Detener: la etiqueta vuelve a Inactivo sin cerrar el popup", async () => {
+    const elements = buildElements();
+    const recording: PopupStatus = { state: "recording", startedAtWall: 0, eventsCount: 2 };
+    const { client, stop, setPolledStatus } = fakeClient(recording);
+    const { setIntervalFn, tick } = fakePollTimer();
+    mount({ client, elements, setIntervalFn, diagnostics: fakeDiagnostics() });
+    await flushAsync();
+    expect(elements.statusLabel.textContent).toBe("● Grabando");
+
+    elements.toggleButton.click();
+    await flushAsync();
+    expect(stop).toHaveBeenCalledTimes(1);
+
+    setPolledStatus({ state: "idle", startedAtWall: null, eventsCount: 0 });
+    await tick();
+
+    expect(elements.statusLabel.textContent).toBe("Inactivo");
+    expect(elements.toggleButton.textContent).toBe("Grabar");
+  });
+
+  it("la franja de diagnóstico (daemon/mic/pestaña) se refresca en el mismo poll", async () => {
+    const elements = buildElements();
+    const { client } = fakeClient(IDLE_STATUS);
+    const getDaemonStatus = vi.fn().mockResolvedValueOnce("no_corre").mockResolvedValue("conectado");
+    const { setIntervalFn, tick } = fakePollTimer();
+    mount({ client, elements, setIntervalFn, diagnostics: fakeDiagnostics({ getDaemonStatus }) });
+    await flushAsync();
+    expect(elements.daemonStatusLabel.textContent).toBe("Daemon: no responde");
+
+    await tick();
+
+    expect(elements.daemonStatusLabel.textContent).toBe("Daemon: conectado");
+  });
+
+  it("un error real mostrado por un comando no desaparece en el siguiente tick del poll", async () => {
+    const elements = buildElements();
+    const { client, start, setPolledStatus } = fakeClient(IDLE_STATUS);
+    start.mockResolvedValue({ ok: false, error: "[qua] sin token: emparejá primero desde options." });
+    const { setIntervalFn, tick } = fakePollTimer();
+    mount({ client, elements, setIntervalFn, diagnostics: fakeDiagnostics() });
+    await flushAsync();
+
+    elements.toggleButton.click();
+    await flushAsync();
+    expect(elements.errorBanner.hidden).toBe(false);
+
+    // El poll sigue viendo `idle` (start() nunca llegó a tocar la FSM) — el error
+    // tiene que seguir visible hasta que el usuario reintente, no borrarse solo.
+    setPolledStatus(IDLE_STATUS);
+    await tick();
+
+    expect(elements.errorBanner.hidden).toBe(false);
+    expect(elements.errorBanner.textContent).toBe("[qua] sin token: emparejá primero desde options.");
+  });
+});
+
 describe("startPopupController — transcript en vivo", () => {
   it("agrega cada utterance de transcript.partial al final", () => {
     const elements = buildElements();
     const { client, emitTranscript } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements });
+    mount({ client, elements });
 
     emitTranscript({ text: "primera línea" } as Utterance);
     emitTranscript({ text: "segunda línea" } as Utterance);
@@ -227,7 +336,7 @@ describe("startPopupController — transcript en vivo", () => {
   it("recorta a maxTranscriptLines, descartando lo más viejo", () => {
     const elements = buildElements();
     const { client, emitTranscript } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements, maxTranscriptLines: 2 });
+    mount({ client, elements, maxTranscriptLines: 2 });
 
     emitTranscript({ text: "a" } as Utterance);
     emitTranscript({ text: "b" } as Utterance);
@@ -239,7 +348,7 @@ describe("startPopupController — transcript en vivo", () => {
 });
 
 describe("startPopupController — teardown", () => {
-  it("el teardown saca los listeners de click y para el timer", () => {
+  it("el teardown saca los listeners de click y para el poll", () => {
     const elements = buildElements();
     const { client, emitStatus, start } = fakeClient(IDLE_STATUS);
     const clearIntervalFn = vi.fn();
@@ -270,7 +379,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
     const elements = buildElements();
     const { client, start } = fakeClient(IDLE_STATUS);
     start.mockResolvedValue({ ok: false, error: "[qua] sin token: emparejá primero desde options." });
-    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+    mount({ client, elements, diagnostics: fakeDiagnostics() });
 
     elements.toggleButton.click();
     await flushAsync();
@@ -286,7 +395,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
       ok: false,
       error: "[qua] el daemon no responde en 127.0.0.1:7331 — revisá que quad esté corriendo.",
     });
-    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+    mount({ client, elements, diagnostics: fakeDiagnostics() });
 
     elements.toggleButton.click();
     await flushAsync();
@@ -302,7 +411,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
     const { client, start } = fakeClient(IDLE_STATUS);
     start.mockResolvedValueOnce({ ok: false, error: "[qua] sin token: emparejá primero desde options." });
     start.mockResolvedValueOnce({ ok: true });
-    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+    mount({ client, elements, diagnostics: fakeDiagnostics() });
 
     elements.toggleButton.click();
     await flushAsync();
@@ -318,7 +427,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
     const elements = buildElements();
     const { client } = fakeClient(IDLE_STATUS);
     const diagnostics = fakeDiagnostics({ getContentScriptStatus: vi.fn().mockResolvedValue("hace_falta_recargar") });
-    startPopupController({ client, elements, diagnostics });
+    mount({ client, elements, diagnostics });
     await flushAsync();
 
     expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: recargá para grabar");
@@ -328,7 +437,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
   it("con content script inyectado: el botón de recargar queda oculto", async () => {
     const elements = buildElements();
     const { client } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements, diagnostics: fakeDiagnostics() });
+    mount({ client, elements, diagnostics: fakeDiagnostics() });
     await flushAsync();
 
     expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: lista");
@@ -343,7 +452,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
       getMicStatus: vi.fn().mockResolvedValue("prompt"),
       getContentScriptStatus: vi.fn().mockResolvedValue("hace_falta_recargar"),
     });
-    startPopupController({ client, elements, diagnostics });
+    mount({ client, elements, diagnostics });
     await flushAsync();
 
     const labels = [
@@ -359,7 +468,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
     const { client } = fakeClient(IDLE_STATUS);
     const getContentScriptStatus = vi.fn().mockResolvedValueOnce("hace_falta_recargar").mockResolvedValue("inyectado");
     const diagnostics = fakeDiagnostics({ getContentScriptStatus });
-    startPopupController({ client, elements, diagnostics });
+    mount({ client, elements, diagnostics });
     await flushAsync();
     expect(elements.reloadTabButton.hidden).toBe(false);
 
@@ -374,7 +483,7 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
   it("sin diagnostics inyectado, no rompe y deja la franja como venía en el HTML", async () => {
     const elements = buildElements();
     const { client } = fakeClient(IDLE_STATUS);
-    startPopupController({ client, elements });
+    mount({ client, elements });
     await flushAsync();
 
     expect(elements.daemonStatusLabel.textContent).toBe("");

@@ -80,6 +80,11 @@ pub struct TargetRef {
     /// Cadena de clases COMPLETA, sin truncar: con Tailwind v4 la clase es el estilo (§03).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub classes: Option<String>,
+    /// Solo cuando `strategy == CssPath` y el elemento no tiene texto propio ni
+    /// nombre accesible — texto del ancestro legible más cercano (§5.2 nivel 4
+    /// fallback), para que el reporte pueda describir el elemento igual.
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ancestorText")]
+    pub ancestor_text: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub computed: Option<ComputedStyle>,
     /// Cadena de `_debugOwner`, de afuera hacia adentro. Tier 3 de §11.
