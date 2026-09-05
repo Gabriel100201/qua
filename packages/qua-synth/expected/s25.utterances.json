@@ -1,0 +1,92 @@
+[
+  {
+    "id": "u25a",
+    "t_start": 34100,
+    "t_end": 34975,
+    "text": "el calendario carga lento",
+    "lang": "es",
+    "words": [
+      {
+        "w": "el",
+        "t": 34100,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "calendario",
+        "t": 34190,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "carga",
+        "t": 34280,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "lento",
+        "t": 34370,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.03,
+    "marked": false
+  },
+  {
+    "id": "u25b",
+    "t_start": 35000,
+    "t_end": 36295,
+    "text": "otra cosa, el título está mal escrito",
+    "lang": "es",
+    "words": [
+      {
+        "w": "otra",
+        "t": 35000,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "cosa,",
+        "t": 35090,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "el",
+        "t": 35180,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "título",
+        "t": 35270,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "está",
+        "t": 35360,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "mal",
+        "t": 35450,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "escrito",
+        "t": 35540,
+        "d": 80,
+        "p": 0.97
+      }
+    ],
+    "avg_logprob": -0.12,
+    "no_speech_prob": 0.03,
+    "marked": false
+  }
+]

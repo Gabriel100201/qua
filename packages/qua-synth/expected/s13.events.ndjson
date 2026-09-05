@@ -1,3 +1,25 @@
-{"t":0,"tab":1,"k":"nav","url":"https://app.test/view/12","title":"Vista","kind":"load"}
-{"t":6000,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"item-13\"]","strategy":"testid","tag":"button","text":"Acción 13","visible":true},"dwell_ms":1200}
-{"t":6400,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"item-13\"]","strategy":"testid","tag":"button","text":"Acción 13","visible":true},"button":0,"mods":[]}
+{"t":11000,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":11330,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":11660,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":11990,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":12320,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":12650,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":12980,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":13310,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":13640,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":13970,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":14300,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":14630,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":14960,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":15290,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":15620,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":15950,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":16280,"tab":1,"k":"scroll","url":"/agenda/semana"}
+{"t":16610,"tab":1,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":0,"tab":1,"k":"nav","url":"/agenda/semana"}
+{"t":13600,"tab":1,"k":"scroll_settle","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"top_target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
+{"t":14700,"tab":1,"k":"focus_change","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
+{"t":15600,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"button":0}
+{"t":16300,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"nuevo-turno\"]","strategy":"testid","tag":"button","text":"Nuevo turno","visible":true},"dwell_ms":1400}
+{"t":17100,"tab":1,"k":"click","target":{"sel":"button[data-testid=\"nuevo-turno\"]","strategy":"testid","tag":"button","text":"Nuevo turno","visible":true},"button":0}
+{"t":18700,"tab":1,"k":"hover","target":{"sel":"button[data-testid=\"exportar-agenda\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"dwell_ms":900}

@@ -1,7 +1,7 @@
 {
-  "issue": "i02",
+  "issue": "i2",
   "anchor": {
     "kind": "element",
-    "selector": "button[data-testid=\"item-2\"]"
+    "selector": "button[data-testid=\"guardar-cambios\"]"
   }
 }

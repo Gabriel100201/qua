@@ -1,3 +1,25 @@
-{"t":0,"tab":2,"k":"nav","url":"https://app.test/view/1","title":"Vista","kind":"load"}
-{"t":4900,"tab":2,"k":"hover","target":{"sel":"button[data-testid=\"item-2\"]","strategy":"testid","tag":"button","text":"Acción 2","visible":true},"dwell_ms":1200}
-{"t":5300,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"item-2\"]","strategy":"testid","tag":"button","text":"Acción 2","visible":true},"button":0,"mods":[]}
+{"t":5500,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":5830,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":6160,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":6490,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":6820,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":7150,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":7480,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":7810,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":8140,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":8470,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":8800,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":9130,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":9460,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":9790,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":10120,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":10450,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":10780,"tab":2,"k":"scroll","url":"/agenda/semana"}
+{"t":11110,"tab":2,"k":"mutation_burst","url":"/agenda/semana"}
+{"t":0,"tab":2,"k":"nav","url":"/agenda/semana"}
+{"t":8100,"tab":2,"k":"scroll_settle","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"top_target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
+{"t":9200,"tab":2,"k":"focus_change","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true}}
+{"t":10100,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"button":0}
+{"t":10800,"tab":2,"k":"hover","target":{"sel":"button[data-testid=\"guardar-cambios\"]","strategy":"testid","tag":"button","text":"Guardar cambios","visible":true},"dwell_ms":1400}
+{"t":11600,"tab":2,"k":"click","target":{"sel":"button[data-testid=\"guardar-cambios\"]","strategy":"testid","tag":"button","text":"Guardar cambios","visible":true},"button":0}
+{"t":13200,"tab":2,"k":"hover","target":{"sel":"button[data-testid=\"cancelar-turno\"]","strategy":"testid","tag":"button","text":"Otra acción","visible":true},"dwell_ms":900}

@@ -2,6 +2,6 @@
   "issue": "i17",
   "anchor": {
     "kind": "element",
-    "selector": "button[data-testid=\"item-17\"]"
+    "selector": "button[data-testid=\"nuevo-turno\"]"
   }
 }

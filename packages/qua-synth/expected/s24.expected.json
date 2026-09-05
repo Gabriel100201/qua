@@ -1,0 +1,7 @@
+{
+  "issue": "i24",
+  "anchor": {
+    "kind": "element",
+    "selector": "button[data-testid=\"nuevo-turno\"]"
+  }
+}

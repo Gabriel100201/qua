@@ -1,50 +1,62 @@
 [
   {
     "id": "u10",
-    "t_start": 6900,
-    "t_end": 8160,
-    "text": "cuando hago clic acá tarda demasiado",
+    "t_start": 16500,
+    "t_end": 17865,
+    "text": "cuando le doy a guardar tarda un montón",
     "lang": "es",
     "words": [
       {
         "w": "cuando",
-        "t": 6900,
+        "t": 16500,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "hago",
-        "t": 6990,
+        "w": "le",
+        "t": 16590,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "clic",
-        "t": 7080,
+        "w": "doy",
+        "t": 16680,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "acá",
-        "t": 7170,
+        "w": "a",
+        "t": 16770,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "guardar",
+        "t": 16860,
         "d": 80,
         "p": 0.97
       },
       {
         "w": "tarda",
-        "t": 7260,
+        "t": 16950,
         "d": 80,
         "p": 0.97
       },
       {
-        "w": "demasiado",
-        "t": 7350,
+        "w": "un",
+        "t": 17040,
+        "d": 80,
+        "p": 0.97
+      },
+      {
+        "w": "montón",
+        "t": 17130,
         "d": 80,
         "p": 0.97
       }
     ],
     "avg_logprob": -0.12,
     "no_speech_prob": 0.03,
-    "marked": true
+    "marked": false
   }
 ]
