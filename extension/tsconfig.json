@@ -2,31 +2,18 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["chrome"],
-    "noEmit": true,
-    "baseUrl": ".",
-    // `@qua/protocol` apunta a `./dist/index.js` en su package.json, pero su
-    // tsconfig usa `rootDir: "."` (incluye scripts/ y test/) así que el build
-    // real cae en `dist/src/index.js`, no `dist/index.js` — ver
-    // `docs/DECISIONS.md` (D-10). Mientras eso no se corrija en F0, resolvemos
-    // contra el fuente directamente; ídem en `vitest.config.ts`.
-
-    "types": ["node"],
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["chrome", "node"],
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    // WORKAROUND temporal — ver docs/DECISIONS.md (A2-04): el `build` de
-    // @qua/protocol emite a dist/src/* pero su package.json declara
-    // exports/types en dist/*, así que node/tsc no encuentran el paquete
-    // construido. Mientras F0 no lo arregla, resolvemos contra el fuente
-    // directo. Borrar este `paths` en cuanto el `exports` de esa package
-    // apunte al lugar correcto.
+    "baseUrl": ".",
+    // D-10 ya está arreglado en `packages/protocol` (su `exports` apunta a
+    // `dist/src/`). Este alias se mantiene igual porque resuelve contra el
+    // fuente TS y evita tener que construir el paquete antes de correr los
+    // tests — es conveniencia, ya no un workaround.
     "paths": {
       "@qua/protocol": ["../packages/protocol/src/index.ts"]
     }
   },
   "include": ["entrypoints/**/*.ts", "test/**/*.ts"]
-
-  "include": ["entrypoints/**/*.ts"]
 }

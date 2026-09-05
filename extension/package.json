@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Extensión Chrome MV3 (WXT). Content script: A1. Service worker: A2 (pendiente). Offscreen/UI: A3 (pendiente).",
+  "description": "Extensión Chrome MV3 (WXT). Content script: A1. Service worker: A2. Offscreen/UI: A3.",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "echo \"(stub — falta el wiring de WXT/A2/A3)\" && exit 0",
+    "typecheck": "tsc --noEmit --pretty",
+    "build": "echo \"(stub — falta el wiring completo de wxt.config.ts, lo cierra G1)\" && exit 0",
     "test": "tsc --noEmit && vitest run"
   },
   "dependencies": {
@@ -16,20 +16,8 @@
   "devDependencies": {
     "@types/chrome": "^0.2.8",
     "@types/node": "^22.10.2",
-    "jsdom": "^30.0.1",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
-
-    "build": "echo \"(stub — la implementan A1/A3: falta wxt.config.ts completo)\" && exit 0",
-    "typecheck": "tsc --noEmit --pretty",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@qua/protocol": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
     "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.0.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
     "wxt": "^0.21.4"

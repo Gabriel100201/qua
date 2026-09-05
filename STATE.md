@@ -29,7 +29,7 @@
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
 | F1 · Generador sintético       | F0     | ✅ hecho (ver F1c pendiente) | codex luna | `6e1e0b2` | `d28620d` |
 | A1 · Content script            | F0     | ✅ hecho | sonnet | `99aec5b` | — |
-| A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
+| A2 · Service worker            | F0     | ✅ hecho | sonnet | `679c64f` | — | — |
 | A3 · Offscreen + UI            | F0     | 🟡 en curso | sonnet | — | — |
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
@@ -205,4 +205,21 @@ orca terminal send --terminal "$D" --text "Retomá: ..." --enter --json
 
 Ojo: los handles guardados se ponen `stale`; resolvelos siempre desde `assignee_handle` del
 dispatch, no de un archivo viejo.
+- `2026-09-05 02:02` — **A2 ✅** (`679c64f`) verificada y mergeada. Su criterio duro pasa: el
+  test simula 10 min con 5 cambios de pestaña y el daemon caído 30 s, y confirma cero eventos
+  perdidos tras el replay del outbox. `main` queda con **165 tests** (95 de extensión).
+
+### Cuidado al mergear: la unión NO sirve para archivos de configuración
+
+`docs/DECISIONS.md` se resuelve por unión, pero **`extension/package.json`, `tsconfig.json` y
+`vitest.config.ts` no**: A1 y A2 crearon cada uno su versión y unirlas a ciegas produce JSON
+inválido y claves duplicadas. Las reconcilié a mano (union de deps, `types: ["chrome","node"]`,
+`include` de `entrypoints/` y `test/`). **A3 va a chocar con los mismos tres archivos** —
+reconciliar de nuevo a mano, no con `union.py`.
+
+Regla por archivo al mergear:
+- `STATE.md` → `--ours` (lo escribe el coordinador)
+- `docs/DECISIONS.md` → unión (`scratchpad/union.py`)
+- `pnpm-lock.yaml` / `Cargo.lock` → `--theirs` y después `pnpm install`
+- configs (`package.json`, `tsconfig.json`, `vitest.config.ts`) → **a mano**
 
