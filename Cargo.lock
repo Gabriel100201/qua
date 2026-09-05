@@ -2303,6 +2303,8 @@ dependencies = [
  "num-traits",
  "png 0.18.1",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -3724,6 +3726,7 @@ name = "qua-core"
 version = "0.1.0"
 dependencies = [
  "hound",
+ "image",
  "num_cpus",
  "qua-protocol",
  "regex",
@@ -3744,8 +3747,14 @@ dependencies = [
 name = "qua-mcp"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "qua-core",
  "qua-protocol",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

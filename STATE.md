@@ -35,7 +35,7 @@
 | B2 · Daemon audio y ASR        | F0     | ✅ hecho | sonnet | `2ed220b` | — | — |
 | B3 · Correlador                | F0, F1 | ✅ hecho | **opus** | `2509595` | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ✅ hecho | sonnet | mergeado | — | — |
-| C1 · App Tauri                 | B1     | 🟡 en curso | sonnet | — | — |
+| C1 · App Tauri                 | B1     | ✅ hecho | sonnet | `88deeca` | — | — |
 | D1 · Servidor MCP              | F0     | ✅ hecho | sonnet | mergeado | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
 | G1 · Integración y packaging   | todas  | 🟡 en curso | sonnet | — | — |
@@ -327,4 +327,16 @@ con severidad alta.
    perfecto nunca pasa de 0,75. Hay que normalizar por clase de deixis.
 2. **El encabezado dice "4 issues" y la tabla lista 3** — el de "Sin anclar" no entra en la
    tabla. Inconsistencia visible en lo primero que se lee.
+- `2026-09-05 02:38` — **C1 ✅** mergeada. App Tauri 2 completa: tray, sidecar, hotkeys
+  globales, onboarding, ventana de sesiones, entitlements e íconos. **El workspace entero
+  compila, incluida `qua-app`. 191 tests de Rust, 0 errores.**
+  Dos cosas que arreglé al mergear:
+  1. **54 MB de binarios commiteados.** C1 escribió `build-sidecars.sh` para generarlos y su
+     propio comentario dice "no están commiteados", pero un `git add -A` los metió igual.
+     Los saqué del tracking y los agregué a `.gitignore` — su intención era correcta.
+  2. **`build-sidecars.sh` moría en silencio.** Hacía `rustc -vV` a secas para resolver el
+     target triple, pero rustup se instaló con `--no-modify-path`, así que `rustc` no está en
+     el PATH de una shell nueva; con `set -e` el script se mataba en esa línea sin llegar a su
+     propio fallback y sin imprimir nada. Ahora invoca `$HOME/.cargo/bin/rustc` por ruta
+     absoluta y falla con mensaje si no lo encuentra. Verificado con `env -i`.
 

@@ -8,10 +8,14 @@ set -euo pipefail
 cd "$(dirname "$0")/../../.."  # raíz del monorepo
 
 CARGO="${CARGO:-$HOME/.cargo/bin/cargo}"
-TRIPLE="$("$CARGO" --version >/dev/null 2>&1 && rustc -vV 2>/dev/null | awk '/^host:/{print $2}')"
-if [ -z "$TRIPLE" ]; then
-  TRIPLE="$("$HOME/.cargo/bin/rustc" -vV | awk '/^host:/{print $2}')"
-fi
+RUSTC="${RUSTC:-$HOME/.cargo/bin/rustc}"
+# `rustup` se instaló con --no-modify-path, así que ni `cargo` ni `rustc` están en el PATH
+# de una shell nueva. Se invocan por ruta absoluta a propósito: la versión anterior de este
+# script hacía `rustc -vV` a secas y, con `set -e`, moría en silencio antes de llegar a su
+# propio fallback.
+command -v "$CARGO" >/dev/null || { echo "no encuentro cargo en $CARGO" >&2; exit 1; }
+TRIPLE="$("$RUSTC" -vV | awk '/^host:/{print $2}')"
+[ -n "$TRIPLE" ] || { echo "no pude resolver el target triple" >&2; exit 1; }
 
 echo "==> Compilando quad y qua (release, target $TRIPLE)"
 "$CARGO" build --release -p quad --bin quad
