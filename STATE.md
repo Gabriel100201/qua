@@ -27,18 +27,17 @@
 | Tarea | Dep. | Estado | Agente | Commit |
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
-| F1 · Generador sintético       | F0     | ✅ hecho (débil, ver F1b) | codex luna | `6e1e0b2` | `d28620d` |
+| F1 · Generador sintético       | F0     | ✅ hecho (ver F1c pendiente) | codex luna | `6e1e0b2` | `d28620d` |
 | A1 · Content script            | F0     | 🟡 en curso | sonnet | — |
 | A2 · Service worker            | F0     | 🟡 en curso | sonnet | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
 | B1 · Daemon servidor y store   | F0     | 🟡 en curso | sonnet | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
-| B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
+| B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
-| F1b· Fortalecer harness        | F1     | 🟡 en curso | codex luna | — |
 | G1 · Integración y packaging   | todas  | ⬜ pendiente | — | — |
 
 Estados: ⬜ pendiente · 🟡 en curso · ✅ hecho · ❌ falló · ⏸️ bloqueada
@@ -123,3 +122,20 @@ worker.** Es lo que separó un merge sano de meter basura en `main`.
   enteras en una sola línea. Funciona y está testeado, pero merece un pase de formato.
 - `2026-09-04 23:51` — Largué **B2** (audio + ASR). Es la de cola más larga: descarga el modelo
   de 574 MB y compila whisper.cpp con Metal, así que conviene que arranque temprano.
+- `2026-09-05 23:26` — **F1b mergeada** (`42fb4b1`) pero con defectos que anoté: inventó un tipo
+  de evento `scroll` que **no existe en el contrato** (el válido es `scroll_settle`, 234
+  ocurrencias), el harness cubre solo 7 de los 18 tipos —faltan `console`, `net_fail`,
+  `tab_switch`, `mark`, `long_task`, `layout_shift`, que son los que necesita el paso 7 de
+  evidencia— y s01..s20 son 4 plantillas repetidas 5 veces. Lo que vale son s21..s26.
+  **Queda pendiente F1c** para arreglarlo, con Sonnet, cuando se libere un slot.
+- `2026-09-05 23:26` — **B3 largada con Opus.** No la bloqueé más esperando el harness: le di la
+  spec como fuente y el aviso explícito de que el harness tiene defectos, con instrucción de
+  NO ajustar la fórmula para que den los números y de reportar escenarios que contradigan §07.
+
+## Observación sobre el reparto de modelos
+
+Los tres entregables de **Codex/Luna** vinieron flojos: F1 con escenarios triviales, E1 sin
+correr sus tests, F1b violando el contrato de eventos. **Opus** en F0 fue impecable a la
+primera. Cada rechazo cuesta más que lo que ahorra la cuota barata: revisión del coordinador
+más el relanzamiento. **Recomendación: reservar Luna para tareas mecánicas con criterio
+verificable de una sola línea, y mandar a Claude todo lo que exija leer spec con cuidado.**
