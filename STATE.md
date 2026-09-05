@@ -27,7 +27,7 @@
 | Tarea | Dep. | Estado | Agente | Commit |
 |---|---|---|---|---|
 | F0 · Scaffold + contratos      | —      | ✅ hecho | Opus | `ba276ac` |
-| F1 · Generador sintético       | F0     | ✅ hecho (ver F1c pendiente) | codex luna | `6e1e0b2` | `d28620d` |
+| F1 · Generador sintético       | F0     | ✅ hecho (saneado por F1c) | — | — | `6e1e0b2` | `d28620d` |
 | A1 · Content script            | F0     | ✅ hecho | sonnet | `99aec5b` | — |
 | A2 · Service worker            | F0     | ✅ hecho | sonnet | `679c64f` | — | — |
 | A3 · Offscreen + UI            | F0     | ✅ hecho | sonnet | mergeado | — | — |
@@ -387,4 +387,18 @@ git -C <worktree> status --short             # ¿quedó algo sin commitear?
 ```
 
 Si el worker no commiteó, commitealo vos desde su worktree dejando constancia en el mensaje.
+- `2026-09-05 03:00` — **F1c ✅** mergeada, y con esto el harness dejó de mentir.
+  Reescribió el generador de cero: **297/297 eventos y 28/28 utterances validan contra el
+  `EventSchema` real** (antes 234 líneas usaban un tipo `scroll` inexistente). Corrigió el
+  ground truth de los 7 escenarios que contradecían §07 —y lo hizo bien: ajustó el scoring
+  target/distractor para que los POINTER anclen con ratio ≥1,3, **en vez de bajar el umbral**—,
+  invirtió el escenario de visibilidad, diversificó de verdad los 20 base y agregó cobertura de
+  los cinco tipos de evidencia que faltaban. 27 escenarios.
+  **El correlador real de B3 da 27/27 = 100%.** Verificado por el coordinador corriendo el test.
+  El baseline ingenuo da 40,7%, bien por debajo del 60% exigido, así que el harness sigue
+  discriminando. Y un dato que cierra el círculo: **con `merge_extra_weight=1.0` —la suma
+  literal que descartamos en D-B3-07— cae a 25/27.** La decisión de las 23:45 quedó confirmada
+  con datos, no con argumentos.
+  El escenario ambiguo `s23` degrada a `route` con confianza **0,40**, debajo del umbral:
+  la regla de oro funciona.
 
