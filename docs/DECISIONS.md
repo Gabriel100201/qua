@@ -188,3 +188,114 @@ estos dos alias se pueden borrar sin que A1 tenga que cambiar ni una línea de s
 `packages/protocol/tsconfig.json`, o separar `scripts`/`test` a su propio `tsconfig`
 (`rootDir: "src"` para el build de la librería), o cambiar `main`/`exports` a
 `./dist/src/index.js`. Cualquiera de las dos cierra la brecha.
+
+## A3 · Offscreen document + UI
+
+### D-11 · Contrato interno offscreen ↔ service worker (A2 no existía todavía)
+
+**Ambigüedad.** §5.4 dice "postMessage → service worker → WS binario" pero no especifica la
+forma de esos mensajes, y A2 (el service worker) todavía estaba "en curso" cuando arrancó A3
+— no hay código del otro lado contra el que alinearse.
+
+**Decisión.** A3 define el contrato completo en `extension/entrypoints/offscreen/lib/messages.ts`:
+
+- SW → offscreen: `qua:start-capture` (con `t0Wall` y `startSeq` opcional), `qua:stop-capture`,
+  `qua:connection-state` (refleja si el WS está arriba, para el buffer de 30 s de §04).
+- offscreen → SW: `qua:audio-frame` (bytes ya empaquetados con el layout de §04, listos para
+  el WS tal cual), `qua:audio-gap` (duración perdida por desborde del buffer), `qua:capture-started`,
+  `qua:capture-error`, `qua:recording-chunk` (blob del `MediaRecorder`, ver D-12).
+
+Todo viaja por `chrome.runtime.sendMessage`/`onMessage`, igual que el relay de `mark` de A1
+(D-09) — no por un `Port` de larga vida, para no introducir dos mecanismos de transporte
+distintos en la misma extensión sin necesidad real (50 fps de 653 B es liviano para
+`sendMessage`).
+
+**Por qué.** A2 necesita algo contra qué implementar cuando llegue a esta parte, y A3 no
+puede bloquearse esperando. Mismo patrón que D-09: el lado que llega primero deja el contrato
+por escrito y builders/tipos ya armados; el otro lado los consume sin re-diseñar nada.
+
+**Consecuencia.** Si A2 (o quien la retome) necesita un contrato distinto, es una tarea de
+mover nombres, no de re-arquitecturar: `AudioCapture` en `lib/audio-capture.ts` ya separa "qué
+hace falta" (`AudioCaptureCallbacks`) de "cómo se manda" (`main.ts`, la única pieza que conoce
+`chrome.runtime`). El offscreen doc nunca abre el WS ni construye `Event`s de §03 — eso sigue
+siendo enteramente de A2 (`audio_gap`, en particular, lo arma el service worker con la
+`duration_ms` que le pasa `qua:audio-gap`, ver D-12).
+
+### D-12 · `audio_gap` lo construye el service worker, no el offscreen doc
+
+**Ambigüedad.** §04 dice que `audio_gap` es un evento de §03 más (con `t` y `tab?`), pero el
+offscreen doc no tiene un reloj de sesión completo ni sabe de `Event`s — esa responsabilidad,
+en toda la spec, es del content script (§5.1) o del service worker (§5.3), nunca del
+offscreen doc.
+
+**Decisión.** El offscreen doc solo reporta `duration_ms` perdida (`qua:audio-gap`, D-11); es
+el service worker quien arma el `Event` `{t, k:"audio_gap", duration_ms}` con `EventSchema` de
+`@qua/protocol` y lo mete en el batching normal de §04.
+
+**Por qué.** Mismo espíritu que D-09 de A1: no inventar una responsabilidad nueva en un
+contexto que la spec nunca le asignó. El offscreen doc ya expone `GapBuffer` (`lib/gap-buffer.ts`,
+30 s por defecto, drop-oldest) para que A2 no tenga que reimplementar la lógica de desborde.
+
+### D-13 · El archivo de respaldo (`MediaRecorder` opus) no tiene forma de subirse al daemon
+
+**Ambigüedad real de la spec.** §5.4 dice "`MediaRecorder(...)` en paralelo para el archivo" y
+§08.2 espera `audio.opus` en la carpeta de la sesión, pero §04 (los únicos mensajes cliente →
+servidor) no define ningún mensaje para subir un archivo — solo el frame binario PCM.
+
+**Decisión.** A3 no inventa un mensaje nuevo (regla de "nadie toca `packages/protocol` fuera
+de F0"). El offscreen doc entrega cada chunk del `MediaRecorder` vía `qua:recording-chunk`
+(D-11) y ahí termina su responsabilidad — qué hacer con esos blobs (guardarlos en IndexedDB,
+subirlos por HTTP a un endpoint nuevo, descartarlos) queda para quien resuelva esta brecha de
+protocolo, probablemente junto con B1/G1.
+
+**Reportado, no aplicado.** Si esto se resuelve agregando un mensaje a `packages/protocol`
+(ej. un `POST /sessions/<id>/audio` o un tipo de mensaje WS nuevo), es responsabilidad de F0/G1
+definirlo — acá solo se deja documentado el hueco y el punto de enganche (`onRecordingChunk`).
+
+### D-14 · `t_ms` del frame de audio se deriva contando muestras, no leyendo el reloj de pared
+
+**Ambigüedad.** El comentario del layout en `packages/protocol/src/constants.ts` dice que
+`t_ms` es "desde t0_wall" (offset relativo), mientras que el comentario de `Event.t` en
+`event.ts` sugiere que el content script manda epoch absoluto y el daemon normaliza (así lo
+implementó A1 en `content/lib/clock.ts`) — dos convenciones distintas conviven en el mismo
+protocolo. Para el frame binario manda el comentario de `constants.ts`, que es más específico
+y es literalmente parte de la fuente de verdad del layout.
+
+**Decisión.** `PcmFramer` (`extension/entrypoints/offscreen/lib/pcm-framer.ts`) no lee ningún
+reloj por frame: recibe un único `startTMs` (calculado una vez, al arrancar la captura, como
+`nowMs() − t0_wall`) y deriva el `t_ms` de cada frame siguiente contando muestras exactas
+emitidas dividido el sample rate (`AUDIO_SAMPLE_RATE`, 16 kHz fijo). El offscreen doc calcula
+ese único offset con el mismo reloj que usa el content script (`performance.timeOrigin +
+performance.now()`, §02) y se lo pasa al `AudioWorkletProcessor` por `postMessage` al iniciar.
+
+**Por qué.** Contar muestras es exacto y no tiene jitter: a un sample rate fijo, el tiempo
+transcurrido es `muestras / sampleRate` segundos, sin importar si `AudioWorkletGlobalScope`
+tiene o no acceso confiable a `performance.now()` en cada navegador. Leer el reloj de pared en
+cada frame (50 veces por segundo) además arrastraría el jitter de scheduling del hilo de audio
+al campo que el daemon usa para el jitter buffer (§06.1) — exactamente lo que ese buffer existe
+para absorber del lado de la red, no algo que el cliente debería introducir por su cuenta.
+
+**Consecuencia.** El test `pcm-framer.test.ts` verifica esto de punta a punta contra la fixture
+dorada de F0 (`fixtures/audio-frame.{bin,json}`): con `startSeq`/`startTMs` iguales a los de la
+fixture, el primer frame producido a partir de las 320 muestras f32 equivalentes es byte a byte
+idéntico al `.bin` — es el criterio de aceptación de A3 ("PCM validado a 16 kHz mono").
+
+### D-15 · Tipos de `AudioWorkletGlobalScope` declarados a mano
+
+**Detalle técnico, no ambigüedad de producto.** `lib.dom.d.ts` (la lib de TypeScript que ya usa
+`extension/tsconfig.json`) declara `AudioWorkletNode` (la vista del hilo principal) pero no
+`AudioWorkletProcessor`/`registerProcessor`/`sampleRate` — esos viven en un scope de worklet
+que TypeScript no incluye por defecto y para el que no hay una lib oficial instalada en este
+monorepo.
+
+**Decisión.** `extension/entrypoints/offscreen/worklet/pcm-tap-processor.ts` declara
+ambientalmente lo mínimo que usa (`AudioWorkletProcessor`, `registerProcessor`) al principio
+del archivo, en vez de agregar una dependencia nueva al workspace solo para esto. El registro
+real (`registerProcessor(...)`) queda atrás de un `typeof AudioWorkletProcessor !== "undefined"`
+— igual que el auto-arranque de `content/index.ts` (A1) y `offscreen/index.ts` — así que
+importar este archivo fuera de un worklet real (tests, bundler) nunca ejecuta nada.
+
+**Pendiente para quien conecte WXT de verdad (G1/A2, ver D-11):** este archivo tiene que
+terminar compilado como su propio script servible (`audioContext.audioWorklet.addModule(url)`
+necesita una URL, no un import) — no se resuelve acá porque es del scaffold compartido, mismo
+punto que D-09.
