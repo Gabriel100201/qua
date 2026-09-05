@@ -29,7 +29,8 @@ pub use event::{ConsoleLevel, Event, FieldRef, MarkSource, Modifier, NavKind};
 pub use issue::{Anchor, AnchorKind, Evidence, Issue, IssueCategory, Severity, Timing};
 pub use literal::{ProtocolVersionTag, SessionSchemaTag};
 pub use messages::{
-    ClientMessage, HealthResponse, PairRequest, PairResponse, ServerMessage, SessionStartPayload,
+    ClientMessage, ControlAction, HealthResponse, PairRequest, PairResponse, ServerMessage,
+    SessionStartPayload,
 };
 pub use session::{
     AudioInfo, EnvInfo, GitInfo, ProjectRef, Session, SessionStats, SessionStatus, TabInfo,

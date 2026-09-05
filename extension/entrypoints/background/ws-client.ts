@@ -1,5 +1,5 @@
 import { PROTOCOL_VERSION } from "@qua/protocol";
-import type { ClientMessage, EnvInfo, Event, ServerMessage } from "@qua/protocol";
+import type { ClientMessage, EnvInfo, Event, ServerMessage, SessionControlAction } from "@qua/protocol";
 import type { Outbox } from "./outbox.js";
 
 /**
@@ -39,6 +39,10 @@ export interface WsClientOptions {
   onServerMessage?: (msg: ServerMessage) => void;
   onStatusChange?: (status: WsStatus) => void;
   onCaptureRequest?: (tab: number, tTargetMs: number) => void;
+  /** `session.control` (§09, D-C1-01): orden del hotkey global de la app Tauri,
+   * reenviada por el daemon. Llega tanto en el canal de control ocioso como en el
+   * de una sesión ya arrancada. */
+  onSessionControl?: (action: SessionControlAction, t: number) => void;
 }
 
 function defaultCreateSocket(url: string): WebSocketLike {
@@ -90,8 +94,13 @@ export class WsClient {
     return this.status;
   }
 
-  /** Arranca la sesión: conecta y empieza a batchear (§04). */
-  startSession(session: SessionStartInfo): void {
+  /**
+   * Conecta. Con `session`, arranca a batchear de una (§04) — el uso de siempre.
+   * Sin `session`, es el canal de control ocioso de D-P1-01: solo hace `hello` y
+   * queda escuchando `session.control` hasta que alguien llame `startSession` nuevo
+   * (con sesión) o `disconnect()`.
+   */
+  startSession(session?: SessionStartInfo): void {
     this.session = session;
     this.stopped = false;
     this.backoffMs = this.minBackoffMs;
@@ -145,6 +154,17 @@ export class WsClient {
     this.setStatus("disconnected");
   }
 
+  /** Cierra sin el protocolo de fin de sesión — para el canal de control ocioso de
+   * D-P1-01, que nunca mandó `session.start` y no tiene nada que avisarle al daemon. */
+  disconnect(): void {
+    this.stopped = true;
+    if (this.flushTimer) clearInterval(this.flushTimer);
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.socket?.close();
+    this.socket = undefined;
+    this.setStatus("disconnected");
+  }
+
   private connect(): void {
     if (this.stopped) return;
     this.setStatus("connecting");
@@ -188,6 +208,9 @@ export class WsClient {
       case "capture.request":
         this.opts.onCaptureRequest?.(msg.tab, msg.t_target);
         break;
+      case "session.control":
+        this.opts.onSessionControl?.(msg.action, msg.t);
+        break;
       default:
         break;
     }
@@ -202,17 +225,16 @@ export class WsClient {
    * como el mismo objetivo, no como una sesión nueva.
    */
   private onConnected(): void {
-    if (this.session) {
-      this.rawSend({
-        v: PROTOCOL_VERSION,
-        type: "session.start",
-        session: {
-          t0_wall: this.session.t0Wall,
-          base_url: this.session.baseUrl,
-          env: this.session.env,
-        },
-      });
-    }
+    if (!this.session) return; // canal de control ocioso (D-P1-01): solo `hello`.
+    this.rawSend({
+      v: PROTOCOL_VERSION,
+      type: "session.start",
+      session: {
+        t0_wall: this.session.t0Wall,
+        base_url: this.session.baseUrl,
+        env: this.session.env,
+      },
+    });
     void this.replayPending();
   }
 

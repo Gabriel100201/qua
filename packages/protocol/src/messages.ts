@@ -161,6 +161,27 @@ export const SessionDoneMessageSchema = z
   })
   .meta({ id: "SessionDoneMessage" });
 
+/** Acciones que `session.control` puede ordenarle al cliente. */
+export const SESSION_CONTROL_ACTIONS = ["start", "stop", "mark"] as const;
+export type SessionControlAction = (typeof SESSION_CONTROL_ACTIONS)[number];
+
+/**
+ * Orden del hotkey global (⌘⇧R / ⌘⇧E) de la app Tauri, reenviada por el daemon al
+ * cliente WS conectado (§09, `docs/DECISIONS.md` D-C1-01). Es el único mensaje
+ * servidor→cliente que existe para que un proceso externo controle una sesión ya
+ * abierta en el navegador — antes de esto, §04 solo tenía cliente→servidor para
+ * `session.start`/`session.stop`/`mark`.
+ */
+export const SessionControlMessageSchema = z
+  .object({
+    ...v,
+    type: z.literal("session.control"),
+    action: z.enum(SESSION_CONTROL_ACTIONS),
+    /** Wall-clock ms de cuándo el daemon despachó la orden — no es `t` de sesión. */
+    t: z.int(),
+  })
+  .meta({ id: "SessionControlMessage" });
+
 /** Códigos de error conocidos. `code` acepta otros: ver `docs/DECISIONS.md` (D-04). */
 export const ERROR_CODES = {
   /** Token ausente, vencido o desconocido. */
@@ -177,6 +198,8 @@ export const ERROR_CODES = {
   STORAGE: "storage",
   /** Falla del pipeline de ASR. La sesión sigue grabando. */
   ASR: "asr",
+  /** `POST /control` sin ningún cliente WS conectado para reenviarle la orden. */
+  NO_CLIENT: "no_client",
   /** Cualquier otra. */
   INTERNAL: "internal",
 } as const;
@@ -199,6 +222,7 @@ export const ServerMessageSchema = z
     TranscriptPartialMessageSchema,
     CaptureRequestMessageSchema,
     SessionDoneMessageSchema,
+    SessionControlMessageSchema,
     ErrorMessageSchema,
   ])
   .meta({ id: "ServerMessage", title: "ServerMessage" });
@@ -209,6 +233,7 @@ export type AckMessage = z.infer<typeof AckMessageSchema>;
 export type TranscriptPartialMessage = z.infer<typeof TranscriptPartialMessageSchema>;
 export type CaptureRequestMessage = z.infer<typeof CaptureRequestMessageSchema>;
 export type SessionDoneMessage = z.infer<typeof SessionDoneMessageSchema>;
+export type SessionControlMessage = z.infer<typeof SessionControlMessageSchema>;
 export type ErrorMessage = z.infer<typeof ErrorMessageSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────

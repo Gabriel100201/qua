@@ -28,6 +28,12 @@ pub struct DaemonConfig {
     /// período de fsync de §04 (2 s). Configurable por la misma regla de "nunca
     /// hardcodeado" — y porque los tests de ingesta lo necesitan más chico.
     pub fsync_interval_ms: u64,
+    /// Token de `POST /control` (ver `docs/DECISIONS.md` D-P1-01). Vacío hasta el
+    /// primer arranque de [`crate::server::prepare`], que lo genera y persiste — no
+    /// tiene un default útil porque es secreto por construcción, a diferencia de
+    /// `port`/`retention_days`.
+    #[serde(default)]
+    pub control_token: String,
 }
 
 impl Default for DaemonConfig {
@@ -36,6 +42,7 @@ impl Default for DaemonConfig {
             port: qua_protocol::DEFAULT_DAEMON_PORT,
             retention_days: 90,
             fsync_interval_ms: 2000,
+            control_token: String::new(),
         }
     }
 }

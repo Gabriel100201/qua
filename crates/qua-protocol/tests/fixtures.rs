@@ -49,6 +49,10 @@ const MANIFEST: &[(&str, Kind)] = &[
         "fixtures/messages/server-session-done.json",
         Kind::ServerMessage,
     ),
+    (
+        "fixtures/messages/server-session-control.json",
+        Kind::ServerMessage,
+    ),
     ("fixtures/messages/server-error.json", Kind::ServerMessage),
     (
         "fixtures/messages/http-pair-request.json",

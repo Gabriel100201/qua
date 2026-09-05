@@ -21,6 +21,9 @@
           "$ref": "#/$defs/SessionDoneMessage"
         },
         {
+          "$ref": "#/$defs/SessionControlMessage"
+        },
+        {
           "$ref": "#/$defs/ErrorMessage"
         }
       ],
@@ -239,6 +242,39 @@
         "type",
         "report_path",
         "issues"
+      ],
+      "additionalProperties": false
+    },
+    "SessionControlMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 1
+        },
+        "type": {
+          "type": "string",
+          "const": "session.control"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "start",
+            "stop",
+            "mark"
+          ]
+        },
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "action",
+        "t"
       ],
       "additionalProperties": false
     },

@@ -7,6 +7,15 @@ use crate::literal::ProtocolVersionTag;
 use crate::session::EnvInfo;
 use crate::utterance::Utterance;
 
+/// Acción que `session.control` le ordena al cliente (§09, `docs/DECISIONS.md` D-C1-01).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ControlAction {
+    Start,
+    Stop,
+    Mark,
+}
+
 /// Cabecera de `session.start`. Fija `t0_wall`, el origen del reloj único (§02).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SessionStartPayload {
@@ -92,6 +101,15 @@ pub enum ServerMessage {
         report_path: String,
         issues: i64,
     },
+    /// Orden del hotkey global de la app Tauri, reenviada por el daemon al cliente
+    /// WS conectado (§09, `docs/DECISIONS.md` D-C1-01). `t` es wall-clock ms de
+    /// cuándo el daemon la despachó, no un `t` de sesión.
+    #[serde(rename = "session.control")]
+    SessionControl {
+        v: ProtocolVersionTag,
+        action: ControlAction,
+        t: i64,
+    },
     #[serde(rename = "error")]
     Error {
         v: ProtocolVersionTag,
@@ -116,6 +134,8 @@ pub mod error_codes {
     pub const STORAGE: &str = "storage";
     /// Falla del pipeline de ASR. La sesión sigue grabando.
     pub const ASR: &str = "asr";
+    /// `POST /control` sin ningún cliente WS conectado para reenviarle la orden.
+    pub const NO_CLIENT: &str = "no_client";
     /// Cualquier otra.
     pub const INTERNAL: &str = "internal";
 }

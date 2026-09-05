@@ -1282,3 +1282,85 @@ sobre el mismo dispositivo de entrada sin conflicto.
 sin que el app dependa de que la extensión esté conectada — y sin ellos, dos ítems explícitos
 de §09 quedarían sin implementar. "No captura nada" se interpreta como "no es la fuente de
 la grabación de la sesión", no como "nunca abre el micrófono para nada".
+
+## P1 · Cierra la brecha de protocolo del hotkey global
+
+Cambio de contrato autorizado por el coordinador sobre D-C1-01: C1 dejó documentado que
+`packages/protocol`/`qua-protocol` necesitaban un mensaje servidor→cliente nuevo para que el
+hotkey global mueva una sesión real de la extensión, y que tocarlo estaba fuera de su
+alcance. Esta tarea lo agrega.
+
+### D-P1-01 · `session.control` + `POST /control`, y por qué la extensión necesita un canal ocioso
+
+**Decisión.** Se agrega `{ v:1, type:"session.control", action:"start"|"stop"|"mark", t }`
+como mensaje servidor→cliente (Zod + `qua-protocol`, fixture cruzada, JSON Schema
+regenerado). El daemon expone `POST /control` (interno, no versionado, mismo criterio que
+`/pair/start` de D-B1-01): body `{action}`, autenticado con un `control_token` propio —
+**no** el token de pairing de la extensión, porque lo llama la app Tauri, un proceso local
+sin `Origin` de extensión. El token se genera una sola vez (`crates/quad/src/server.rs::prepare`)
+y se persiste en `[daemon].control_token` de `config.toml`; la app lo lee con
+`quad::config::Config::load` (mismo mecanismo que ya usa para `daemon_port()`).
+
+El daemon registra el `sender` del WS conectado (`AppState.client_tx`) apenas el socket
+autentica el upgrade — **antes** de cualquier `hello`, no atado a que haya una sesión
+arrancada. `POST /control` reenvía por ahí; sin cliente conectado devuelve 503
+(`error_codes::NO_CLIENT`), sin token o con uno incorrecto, 401.
+
+**El problema real que esto resuelve.** El WS de la extensión (`ws-client.ts`) solo existía
+mientras había una sesión grabando — `SessionManager.start()` es lo único que construía un
+`WsClient` y lo conectaba, y `stop()` lo cerraba. Si el hotkey ⌘⇧R dispara con la extensión
+en `idle`, no hay ninguna conexión viva a la que el daemon pueda reenviarle nada: literalmente
+no hay a quién mandarle `session.control:start`. Esa es la mitad del problema que D-C1-01 no
+podía ver todavía porque el mensaje ni existía.
+
+**Solución.** `SessionManager` abre un **canal de control ocioso** (`this.controlWs`, un
+`WsClient` más, reusado tal cual — no es un transporte nuevo) apenas arranca el service
+worker en `idle` (`init()`), y lo vuelve a abrir después de cada `stop()`. Ese canal solo
+manda `hello` (`WsClient.startSession()` ahora acepta `session` opcional) y escucha
+`session.control`; nunca manda `session.start`. Al recibir `action:"start"`, resuelve
+`baseUrl`/`viewport` de la pestaña activa (`activeTabContext()`, `browser.scripting.executeScript`
+para el viewport — mismo permiso `scripting` que ya declaraba `wxt.config.ts`) y llama al
+`SessionManager.start()` de siempre, que cierra el canal ocioso de una (ver más abajo). Al
+recibir `stop`/`mark` mientras graba, el callback llega por el WS de la sesión real (el mismo
+`onSessionControl` se cablea en los dos `WsClient`), así que no hay entrega duplicada: nunca
+hay dos conexiones vivas al mismo tiempo — `start()` cierra el canal ocioso antes de abrir el
+de grabación, y `stop()` reabre el ocioso recién después de cerrar el de grabación.
+
+**Costo aceptado.** Cada conexión del canal ocioso manda `hello`, y `hello` del lado del
+daemon crea un directorio de sesión (`ActiveSession::create`, sin tocar ese comportamiento
+— ver "Alternativa descartada" abajo). Como el canal ocioso nunca manda `session.start`,
+esos directorios quedan huérfanos (sin `raw/meta.json`) cada vez que el service worker se
+recicla o el pairing se repite. Es exactamente el estado que D-B1-09 ya documenta y maneja:
+`qua recover` falla explícito, y `commands.rs::list_sessions` los saltea en silencio
+(`read_meta` falla, `continue`). No ensucian SQLite ni la UI — es basura de disco acotada,
+no una regresión funcional. `retention_days` de `config.toml` es el mecanismo ya previsto
+para la limpieza de sesiones viejas en general.
+
+**Alternativa descartada: hacer perezosa la creación del directorio en `hello`.** Se
+consideró mover `ActiveSession::create` a no tocar el filesystem hasta `session.start`, para
+que el canal ocioso no dejara rastro en disco. Se descartó: es un cambio de comportamiento
+documentado en D-B1-09 ("el directorio se crea en `hello`"), que además le cambia el mensaje
+de error a `qua recover` en el caso "crash entre `hello` y `session.start`" (pasaría de "no
+hay nada recuperable más allá del directorio vacío" a "no existe la sesión"). B1 ya está
+mergeada y esta tarea no tiene overlap con las tres en vuelo (G1, F1c, B6) — tocar ese
+invariante para ahorrarse unos directorios vacíos no valía el riesgo de romper algo que no se
+puede validar contra las otras tareas hasta el merge.
+
+**Alternativa descartada: reenviar `session.control` por `broadcast` a todos los WS
+conectados.** Con dos conexiones simultáneas (ocioso + grabación) esto entrega el mismo
+`mark`/`stop` dos veces — cada `WsClient` llama al mismo `SessionManager.handleControl`, y un
+`mark` duplicado es un evento inventado en la sesión, no un no-op. Por eso el diseño fuerza
+"a lo sumo una conexión viva a la vez" en vez de tolerar overlap y decidir cuál gana.
+
+### D-P1-02 · El hotkey de la app Tauri es best-effort contra `/control`
+
+**Decisión.** `apps/qua-app/src-tauri/src/hotkeys_actions.rs` dispara `POST /control` de
+forma asincrónica (`tauri::async_runtime::spawn`) sin bloquear el handler síncrono de
+`tauri-plugin-global-shortcut`. Si el daemon no responde 2xx (no está arriba, token
+desactualizado, sin cliente conectado), se loguea en `~/.qua/logs/qua-app.log` y se emite
+`hotkey-control-failed` al frontend — no hay reintento ni cola.
+
+**Por qué.** El hotkey no tiene una UI síncrona propia donde bloquear esperando la
+respuesta HTTP, y `daemon_health`/`sidecar.rs` ya establecen el precedente de "el daemon
+puede no estar listo todavía, no es una excepción" en esta app. El tray sigue reflejando el
+toggle local (§09 FSM del tray, sin cambios) independientemente de si `/control` tuvo éxito.
