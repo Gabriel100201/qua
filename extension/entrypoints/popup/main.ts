@@ -73,9 +73,10 @@ export function startQuaPopup(doc: Document = document, opts: StartQuaPopupOptio
     if (mainContainer) mainContainer.hidden = false;
     connectElements.container.hidden = true;
     if (!sessionTeardown) {
+      const client = new StatusClient();
       sessionTeardown = startPopupController({
-        client: new StatusClient(),
-    diagnostics: new PopupDiagnosticsClient(client),
+        client,
+        diagnostics: new PopupDiagnosticsClient(client),
         elements: findPopupElements(doc),
       });
     }

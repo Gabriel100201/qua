@@ -22,6 +22,11 @@ function buildDom(): void {
       <button id="qua-connect-options" hidden></button>
     </div>
     <div id="qua-main" hidden>
+      <div id="qua-error" hidden></div>
+      <span id="qua-daemon-status"></span>
+      <span id="qua-mic-status"></span>
+      <span id="qua-content-script-status"></span>
+      <button id="qua-reload-tab" hidden></button>
       <button id="qua-toggle"></button>
       <button id="qua-mark" disabled></button>
       <span id="qua-status"></span>

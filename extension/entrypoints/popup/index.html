@@ -123,6 +123,7 @@
     </style>
   </head>
   <body>
+    <!-- Estado "sin conectar" (U1/D-U1-01): un click empareja con el daemon local. -->
     <div id="qua-connect" hidden>
       <p id="qua-connect-title">Sin conectar al daemon</p>
       <p id="qua-connect-message">Un click para emparejar esta extensión con el daemon local.</p>
@@ -134,26 +135,23 @@
         <button id="qua-connect-button" type="button">Conectar</button>
         <button id="qua-connect-options" type="button" hidden>Abrir opciones</button>
       </div>
-    <header>
-      <span id="qua-status">Inactivo</span>
-      <span id="qua-duration">00:00</span>
-    </header>
-    <div id="qua-error" role="alert" hidden></div>
-    <div class="qua-diagnostics">
-      <span id="qua-daemon-status">Daemon: …</span>
-      <span id="qua-mic-status">Micrófono: …</span>
-      <span id="qua-content-script-status">Pestaña: …</span>
-      <button id="qua-reload-tab" type="button" hidden>Recargar la pestaña</button>
     </div>
-    <div class="qua-actions">
-      <button id="qua-toggle" type="button">Grabar</button>
-      <button id="qua-mark" type="button" disabled>Marcar</button>
-    </div>
+
+    <!-- UI de grabación. La franja de diagnóstico (U2) va acá adentro: los ids tienen
+         que existir UNA sola vez en el documento o `findPopupElements` agarra el
+         equivocado. -->
     <div id="qua-main" hidden>
       <header>
         <span id="qua-status">Inactivo</span>
         <span id="qua-duration">00:00</span>
       </header>
+      <div id="qua-error" role="alert" hidden></div>
+      <div class="qua-diagnostics">
+        <span id="qua-daemon-status">Daemon: …</span>
+        <span id="qua-mic-status">Micrófono: …</span>
+        <span id="qua-content-script-status">Pestaña: …</span>
+        <button id="qua-reload-tab" type="button" hidden>Recargar la pestaña</button>
+      </div>
       <div class="qua-actions">
         <button id="qua-toggle" type="button">Grabar</button>
         <button id="qua-mark" type="button" disabled>Marcar</button>
