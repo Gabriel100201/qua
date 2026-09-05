@@ -327,3 +327,98 @@ inventados.
 `Option`) — no hay un valor "vacío" honesto para ellos. Fallar es preferible a escribir
 un `session.json` con datos inventados que después alguien (B3, B4, un humano) toma
 como reales.
+
+## A2 · Service worker
+
+### A2-01 · `seq` del outbox es por sesión, no global — se resetea al arrancar
+
+**Ambigüedad.** §04 dice "`seq` es monótono creciente por sesión". El outbox vive en una
+IndexedDB de la extensión que persiste entre sesiones (y entre reciclados del service
+worker), así que había que elegir: contador global para siempre, o contador que arranca de
+nuevo en cada sesión.
+
+**Decisión.** `SessionManager.start()` llama a `outbox.reset()` (vacía lotes y el contador de
+`nextSeq`) antes de abrir el WS. Cada sesión nueva manda su primer lote con `seq=1`.
+
+**Por qué.** Es lo que dice la prosa del §04, y es lo que espera el daemon: `session_dir` es
+por sesión, y un `seq` que seguiera creciendo entre sesiones no le compraría nada a nadie del
+lado del daemon (que ni se entera de sesiones previas).
+
+**Consecuencia (no resuelta).** Si el usuario para una sesión mientras el daemon sigue caído
+y quedan lotes sin ackear, ese `reset()` los descarta al arrancar la siguiente sesión — se
+pierden. El criterio de A2 (§14) es sobre una caída *en el medio* de una sesión, no sobre un
+`stop()` mientras está caído; ese caso límite queda afuera y lo puede recuperar señalar B1.
+
+### A2-02 · Al reconectar, el cliente reenvía `session.start` con el mismo `t0_wall`
+
+**Ambigüedad.** §04 no dice qué manda el cliente cuando el WS se cae y reconecta a mitad de
+una grabación. El daemon exige `hello` → `session.start` antes de aceptar `events` (código
+`no_session`), pero una conexión nueva no tiene forma de saber que ya hubo un
+`session.start` en la conexión anterior.
+
+**Decisión.** `WsClient` guarda el `session.start` original y lo reenvía completo (mismo
+`t0_wall`, mismo `base_url`, mismo `env`) cada vez que un `hello.ok` confirma una conexión —
+la primera vez y en cada reconexión — antes de hacer el replay del outbox.
+
+**Por qué.** Es la única forma de que `events` no rebote con `no_session` tras una
+reconexión, dado el protocolo actual (no hay un mensaje "resume").
+
+**Riesgo para B1.** Asume que el daemon trata un `session.start` repetido con el mismo
+`t0_wall` como "seguí grabando en el `session_dir` que ya tenías", no como una sesión nueva.
+Si B1 lo implementa creando una sesión nueva por cada `session.start`, una reconexión
+partiría el `report.md` en dos. Falta un mensaje explícito de "resume" en el protocolo —
+reportado, no implementado (packages/protocol está congelado fuera de F0).
+
+### A2-03 · Contrato interno `chrome.runtime` (content script / popup ↔ service worker)
+
+`extension/entrypoints/background/internal-messages.ts` define un `ToBackgroundMessage` con
+los tipos `qua:events`, `qua:mark`, `qua:start-session`, `qua:stop-session`,
+`qua:get-status`. Esto **no** es parte de `@qua/protocol` (que es solo extensión ↔ daemon,
+§04): es mensajería interna de `chrome.runtime` que A2 tuvo que inventar porque el service
+worker necesita algo contra qué reaccionar.
+
+**Por qué documentarlo.** A1 (content script) y A3 (popup/options) trabajan en paralelo sin
+ver este código. Si cada una define su propio contrato de mensajería con el service worker,
+G1 (integración) tiene que reconciliar tres protocolos internos distintos. Que converjan acá
+antes de esa instancia ahorra ese trabajo.
+
+### A2-04 · BUG en `packages/protocol`: `exports`/`main`/`types` no coinciden con la salida real del build
+
+**Hallazgo, no decisión — no se tocó `packages/protocol` (está fuera de alcance).**
+
+`packages/protocol/package.json` declara `"types": "./dist/index.d.ts"` y
+`"exports"["."]` apuntando a `./dist/index.d.ts` / `./dist/index.js`. Pero su
+`tsconfig.json` tiene `"include": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]` sin
+`rootDir` acotado a `src`, así que `tsc -b` calcula la raíz común de todo lo incluido y emite
+a `dist/src/index.js` / `dist/src/index.d.ts` — un nivel más adentro de lo que el
+`package.json` promete. Cualquier consumidor externo (Node o un bundler resolviendo por
+`exports`) que haga `import "@qua/protocol"` después de `pnpm run build` se encuentra con
+`ERR_MODULE_NOT_FOUND` / `Cannot find module`.
+
+**Repro:** `cd packages/protocol && pnpm run build && node -e "require('@qua/protocol')"`
+(o el equivalente ESM) — falla. `ls dist/` muestra `src/`, `scripts/`, `test/`, no `index.js`
+en la raíz.
+
+**Por qué no lo arreglé yo:** la regla de esta ola es no tocar `packages/protocol`.
+Corregirlo es trivial (separar el `tsconfig` del build de tipos del de tests/scripts, con
+`rootDir: "src"`, o ajustar `exports` a `./dist/src/index.js`), pero es un cambio de
+contrato/build de F0 y hay tareas paralelas que también van a pisarlo si lo toco a mano.
+
+**Workaround aplicado en A2 (extension/):** `extension/tsconfig.json` tiene un `paths` que
+resuelve `@qua/protocol` directo contra `../packages/protocol/src/index.ts`, y
+`extension/vitest.config.ts` tiene el alias equivalente para Vite/Vitest. Los dos están
+marcados como temporales en un comentario: hay que borrarlos en cuanto se corrija el
+`exports` de la package. Si D1 (servidor MCP) o cualquier otro consumidor TS de
+`@qua/protocol` pisa este mismo error, este es el motivo.
+
+### A2-05 · `chrome.tabs.onActivated` no manda la pestaña de origen
+
+`TabTracker` arma el campo `from` de `tab_switch` con la última pestaña activa que vio él
+mismo (`activeTabId` en memoria), no con algo que venga de la API — `chrome.tabs.onActivated`
+solo manda `{tabId, windowId}`. Documentado acá porque no es obvio leyendo solo la spec (§03
+solo dice "`from`, `to`, `url`") y alguien podría asumir que Chrome lo da gratis.
+
+**Consecuencia.** Tras un reciclado del service worker, se pierde el `activeTabId` en
+memoria: el primer `tab_switch` después de un reciclado sale con `from: null` aunque hubiera
+una pestaña activa previa. Es aceptable — es la misma pérdida de precisión que ya acepta D-02
+para sesiones a medio grabar.
