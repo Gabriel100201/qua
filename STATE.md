@@ -34,7 +34,7 @@
 | B1 · Daemon servidor y store   | F0     | ✅ hecho | sonnet | `08520bd` | — |
 | B2 · Daemon audio y ASR        | F0     | 🟡 en curso | sonnet | — | — |
 | B3 · Correlador                | F0, F1 | 🟡 en curso | **opus** | — | — |
-| B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
+| B4 · Renderer y CLI            | F0, F1 | 🟡 en curso | sonnet | — | — |
 | C1 · App Tauri                 | B1     | ⬜ pendiente | — | — |
 | D1 · Servidor MCP              | F0     | ⬜ pendiente | — | — |
 | E1 · Source mapping            | F0     | ✅ hecho | codex luna | `296b433` | `5173056` | — |
