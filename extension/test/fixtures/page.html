@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>QUA — página de prueba de A1</title>
+  </head>
+  <body>
+    <header id="app-header">
+      <h1>Agendi — semana</h1>
+      <button
+        data-testid="nuevo-turno"
+        aria-label="Nuevo turno"
+        class="px-3 py-1.5 text-sm rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800"
+      >
+        Nuevo turno
+      </button>
+
+      <!-- id generado por una lib (Radix/React useId) — debe descartarse en el nivel 2 -->
+      <button id=":r3:" class="icon-btn">☰</button>
+    </header>
+
+    <main id="main-content">
+      <section aria-label="Grilla de la semana">
+        <ul id="turnos-list">
+          <li class="turno-item">Lunes 9:00 — Control</li>
+          <li class="turno-item">Martes 10:00 — Consulta</li>
+          <li class="turno-item">Miércoles 11:00 — Seguimiento</li>
+        </ul>
+      </section>
+
+      <div role="dialog" aria-label="Confirmar turno" id="dialog-confirmar">
+        <p>¿Confirmar el turno?</p>
+        <button class="confirmar">Confirmar</button>
+      </div>
+
+      <form id="form-paciente">
+        <label for="campo-nombre">Nombre</label>
+        <input id="campo-nombre" name="nombre" type="text" />
+
+        <label for="campo-email">Email</label>
+        <input id="campo-email" name="email" type="email" />
+
+        <label for="campo-password">Contraseña</label>
+        <input id="campo-password" name="password" type="password" />
+
+        <input name="cc" type="text" autocomplete="cc-number" placeholder="Tarjeta" />
+
+        <button type="submit">Guardar</button>
+      </form>
+
+      <!-- subárbol privado: nada de texto debería salir de acá -->
+      <div data-private id="zona-privada">
+        <span id="texto-secreto">Diagnóstico confidencial del paciente</span>
+      </div>
+
+      <!-- contenedor donde el test simula la apertura de un modal (mutation burst) -->
+      <div id="modal-root"></div>
+
+      <div id="scroll-target" style="height: 4000px;">contenido largo para scroll</div>
+    </main>
+  </body>
+</html>
