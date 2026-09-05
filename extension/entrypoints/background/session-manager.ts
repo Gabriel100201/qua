@@ -13,6 +13,7 @@ import {
   isCaptureErrorMessage,
   isCaptureStartedMessage,
   isRecordingChunkMessage,
+  toAudioFrameBytes,
   type OffscreenInboundMessage,
 } from "../offscreen/lib/messages.js";
 
@@ -145,7 +146,8 @@ export class SessionManager {
    */
   handleOffscreenMessage(msg: unknown): boolean {
     if (isAudioFrameMessage(msg)) {
-      this.ws?.sendBinary(msg.bytes.buffer.slice(msg.bytes.byteOffset, msg.bytes.byteOffset + msg.bytes.byteLength));
+      const bytes = toAudioFrameBytes(msg);
+      this.ws?.sendBinary(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
       return true;
     }
     if (isAudioGapMessage(msg)) {

@@ -97,9 +97,22 @@ export function isConnectionStateMessage(msg: unknown): msg is ConnectionStateMe
  * Guardas del lado service worker (§5.4, G1): los mensajes que el offscreen doc
  * manda hacia arriba. Simétricas a las de arriba, que son las que el offscreen doc
  * usa para validar lo que le llega del service worker.
+ *
+ * `msg.bytes` NO llega como `Uint8Array` del otro lado: `chrome.runtime.sendMessage`
+ * no preserva typed arrays (los serializa como objeto plano `{0: n, 1: n, ...}`,
+ * sin `Array.isArray` ni `.length` — comprobado en vivo con una sesión real, ver
+ * D-G1-08 en `docs/DECISIONS.md`). Por eso acá solo se valida `type`, y
+ * `toAudioFrameBytes` reconstruye el `Uint8Array` de verdad en el punto de uso.
  */
 export function isAudioFrameMessage(msg: unknown): msg is AudioFrameMessage {
-  return isRecord(msg) && msg.type === "qua:audio-frame" && msg.bytes instanceof Uint8Array;
+  return isRecord(msg) && msg.type === "qua:audio-frame" && !!msg.bytes && typeof msg.bytes === "object";
+}
+
+/** Reconstruye el `Uint8Array` de un `AudioFrameMessage` ya deserializado — ver la
+ * guarda de arriba para por qué no llega como `Uint8Array` de entrada. */
+export function toAudioFrameBytes(msg: AudioFrameMessage): Uint8Array {
+  if (msg.bytes instanceof Uint8Array) return msg.bytes;
+  return Uint8Array.from(Object.values(msg.bytes as unknown as Record<string, number>));
 }
 
 export function isAudioGapMessage(msg: unknown): msg is AudioGapMessage {

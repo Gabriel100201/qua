@@ -1390,3 +1390,42 @@ archivo — la build ya mostraba advertencias de ese estilo sobre comentarios de
 **Impacto verificado.** Con esto, una sesión E2E real con
 `--use-fake-device-for-media-stream` + `--use-file-for-fake-audio-capture` sobre
 `fixtures/audio/es-hover-sidebar.wav` deja de tener `raw/audio.pcm` en 0 bytes.
+
+### D-G1-08 · `chrome.runtime.sendMessage` no preserva `Uint8Array` — llega como objeto plano
+
+**Contexto.** Con el worklet ya compilando (D-G1-07), la sesión E2E seguía sin
+transcripción: `qua:audio-frame` SÍ llegaba al service worker (confirmado con logging
+en vivo), pero `raw/audio.pcm` quedaba en 0 bytes. La guarda `isAudioFrameMessage`
+chequeaba `msg.bytes instanceof Uint8Array` — y esa condición daba `false` en
+producción. Depurado en vivo: `Array.isArray(msg.bytes)` también da `false`,
+`msg.bytes.length` es `undefined`, y `Object.keys(msg.bytes)` da `['0','1','2',...]`.
+`chrome.runtime.sendMessage`/`onMessage` **no preserva typed arrays** al cruzar de un
+contexto de extensión a otro (offscreen doc → service worker): el `Uint8Array` que
+`offscreen/main.ts` manda llega del otro lado convertido a un objeto plano indexado
+por string, sin ninguna de las dos marcas (`Array.isArray`, `instanceof
+Uint8Array`) que uno esperaría. Esto es distinto de un `MessagePort` real (el que
+usa el worklet para hablar con `audio-capture.ts` en el mismo hilo del offscreen
+doc, que sí preserva el `Uint8Array` — por eso ese primer tramo nunca mostró el
+problema).
+
+**Decisión.** `isAudioFrameMessage` (`offscreen/lib/messages.ts`) ya no exige
+`instanceof Uint8Array`, solo el `type`. `toAudioFrameBytes` reconstruye el array
+real con `Uint8Array.from(Object.values(msg.bytes))` — el orden de
+`Object.values` sobre claves enteras está garantizado ascendente por la spec de JS,
+así que los bytes quedan en el orden correcto sin necesidad de conocer la
+longitud de antemano.
+
+**Por qué no se encontró antes.** Ningún test de A2/A3 ejercita el mensaje
+`qua:audio-frame` cruzando de verdad `chrome.runtime.sendMessage` entre dos
+contextos reales — los tests de `audio-capture.ts` inyectan callbacks directos, y
+no había ningún test de `session-manager.ts` para el lado de recepción (no existía
+`handleOffscreenMessage` hasta esta misma tarea). Es la clase de bug que solo un
+`chrome.runtime.sendMessage` real entre dos páginas de extensión reales expone.
+
+**Impacto verificado.** Con este fix, la sesión E2E completa (Chrome real +
+extensión real + daemon real, audio fake vía
+`--use-file-for-fake-audio-capture` sobre `fixtures/audio/es-hover-sidebar.wav`)
+produce una `Utterance` real, transcripta por whisper, y el correlador la ancla
+con confianza 0.80 vía deixis. `report.md` sale con la transcripción y el issue
+anclado — no vacío. **Este es el primer `report.md` de punta a punta con
+contenido real que produjo el proyecto.**
