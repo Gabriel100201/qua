@@ -31,7 +31,7 @@
 | A1 · Content script            | F0     | ⬜ pendiente | — | — |
 | A2 · Service worker            | F0     | ⬜ pendiente | — | — |
 | A3 · Offscreen + UI            | F0     | ⬜ pendiente | — | — |
-| B1 · Daemon servidor y store   | F0     | ✅ hecho | Sonnet | *(ver bitácora)* |
+| B1 · Daemon servidor y store   | F0     | ✅ hecho | Sonnet | `08520bd` |
 | B2 · Daemon audio y ASR        | F0     | ⬜ pendiente | — | — |
 | B3 · Correlador                | F0, F1 | ⬜ pendiente | — | — |
 | B4 · Renderer y CLI            | F0, F1 | ⬜ pendiente | — | — |
