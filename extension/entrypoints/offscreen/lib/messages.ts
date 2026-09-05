@@ -93,6 +93,31 @@ export function isConnectionStateMessage(msg: unknown): msg is ConnectionStateMe
   return isRecord(msg) && msg.type === "qua:connection-state" && typeof msg.connected === "boolean";
 }
 
+/**
+ * Guardas del lado service worker (§5.4, G1): los mensajes que el offscreen doc
+ * manda hacia arriba. Simétricas a las de arriba, que son las que el offscreen doc
+ * usa para validar lo que le llega del service worker.
+ */
+export function isAudioFrameMessage(msg: unknown): msg is AudioFrameMessage {
+  return isRecord(msg) && msg.type === "qua:audio-frame" && msg.bytes instanceof Uint8Array;
+}
+
+export function isAudioGapMessage(msg: unknown): msg is AudioGapMessage {
+  return isRecord(msg) && msg.type === "qua:audio-gap" && typeof msg.duration_ms === "number";
+}
+
+export function isCaptureStartedMessage(msg: unknown): msg is CaptureStartedMessage {
+  return isRecord(msg) && msg.type === "qua:capture-started";
+}
+
+export function isCaptureErrorMessage(msg: unknown): msg is CaptureErrorMessage {
+  return isRecord(msg) && msg.type === "qua:capture-error" && typeof msg.message === "string";
+}
+
+export function isRecordingChunkMessage(msg: unknown): msg is RecordingChunkMessage {
+  return isRecord(msg) && msg.type === "qua:recording-chunk";
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object";
 }

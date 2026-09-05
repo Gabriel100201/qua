@@ -1140,3 +1140,132 @@ placeholder.
 (§8.2: `report.refined.md`, "sin pisar el original") para que el resto del flujo (una
 futura tarea que sí cablee un LLM) tenga algo sobre qué iterar, sin fingir una
 integración que no existe.
+
+## G1 · Integración y packaging
+
+### D-G1-01 · `quad::pipeline::process` cablea B2+B3+B4 en `finalize`, sin capturas de pantalla en vivo
+
+**Contexto.** D-B1-04 dejó `session.stop` respondiendo con `status=processing` y 0
+issues a propósito, con los traits de `qua_core::ingest::pipeline` (`AsrPipeline`,
+`Correlator`, `Renderer`) como el contrato para que alguien los uniera. La nota de B4
+al final de D-B4-09 (arriba) ya dejaba el cableado concreto anotado: correr
+`qua_core::correlate::correlate` sobre `session.events` + `session.utterances`, leídas
+de `[correlator]` en `config.toml`.
+
+**Decisión.** `crates/quad/src/pipeline.rs::process` hace exactamente eso más la parte
+de ASR que faltaba: transcribe `raw/audio.pcm` por lotes reconstruyendo los frames de
+20 ms tal como llegarían por WS (mismo pipeline síncrono jitter+ring+VAD+whisper que
+B2 testeó en `asr_pipeline.rs`), corre el correlador, y deja `session.status = Ready`.
+`finalize()` en `ws.rs` la llama en un `spawn_blocking` (whisper y el correlador son
+CPU-bound) antes de responder `session.done`; `qua reprocess` la llama también, pero
+solo re-transcribe si `utterances` está vacío — así tunear `[correlator]` sobre una
+sesión ya grabada sigue siendo barato, que es el criterio de aceptación de B4.
+
+**Lo que queda afuera, a propósito.** El paso 9 de §07 (`Correlation.captures`, el
+pedido de `capture.request`) es un round-trip en vivo por WS: el daemon le pide a la
+extensión un frame del ring y la extensión responde con `frame` (jpeg). Cuando
+`process` corre (adentro de `finalize`, después de que la sesión ya cerró, o en
+`reprocess`, minutos u horas después) esa conexión ya no existe. Cablear esto bien
+requiere que el loop de mensajes de `ws.rs` intercale `capture.request`/`frame` con
+`events`/`mark`/`frame de audio` mientras la sesión sigue viva — un cambio de
+arquitectura del server, no de este módulo. `process` descarta `captures` sin más:
+`render_session` ya degrada correctamente a "sin recorte" (D-B4-05), así que
+`report.md` sale válido, solo que sin evidencia visual en los issues anclados a
+elemento. **Pendiente para una tarea futura.**
+
+**Por qué no bloqueé G1 en esto.** El criterio de aceptación de G1 (§14) es "una sesión
+grabada de punta a punta produce un report.md válido" — no exige capturas. Bloquear la
+integración completa por una mejora de evidencia visual habría dejado sin cablear lo
+que sí es indispensable (ASR + correlador). Ver también la brecha de protocolo que
+reportó A3 (más abajo, sin resolver): ni siquiera hay mensaje de subida de
+`audio.opus`, así que el round-trip de capturas no era la única pieza de vivo que
+faltaba.
+
+### D-G1-02 · `qua process` no se agregó como subcomando nuevo
+
+**Contexto.** Podría haberse expuesto `quad::pipeline::process` como un subcomando de
+CLI separado (`qua process <id>`), pero eso hubiera creado dos caminos para la misma
+operación: `reprocess` ya es "correr el pipeline sobre una sesión grabada", y agregar
+`process` al lado habría sido una distinción sin diferencia real, además de una
+superficie de API nueva que nadie pidió en §6.2.
+
+**Decisión.** `reprocess` es el único punto de entrada de CLI para correr el pipeline
+completo (o solo el correlador, si ya hay utterances). `finalize` en el daemon llama a
+`quad::pipeline::process` directamente, sin pasar por CLI.
+
+### D-G1-03 · El contrato interno A1/A3 ↔ A2 nunca se probó junto, y no coincidía
+
+**Contexto.** Cada tarea de la extensión (A1 content script, A2 service worker, A3
+popup/offscreen/options) tiene su propia suite de tests, pero ninguna corre contra el
+código real de las otras — cada una mockea el lado de enfrente. Al cablear una sesión
+real de punta a punta (criterio de G1) aparecieron tres mensajes de `chrome.runtime`
+donde el emisor y el receptor NO coincidían, y que ningún test detectaba:
+
+1. `content/lib/emit.ts` manda `{type: "qua:event", event}` (un evento por mensaje);
+   `background/index.ts` solo entendía `{type: "qua:events", items: Event[]}` (lote).
+   Resultado: **ningún evento del content script llegaba nunca al service worker** —
+   el `sendMessage` no tiraba (A1 lo diseñó para no tirar nunca) y el handler
+   devolvía `{ok:false, error:"mensaje desconocido"}` que nadie miraba.
+2. `popup/lib/status-client.ts` manda `{type: "qua:start-session"}` sin `baseUrl` ni
+   `viewport` (el popup no tiene ese contexto — vive en su propia página); el tipo en
+   `internal-messages.ts` los pedía como campos requeridos. `sessions.start(undefined,
+   undefined)` habría arrancado una sesión con `base_url` inválido para el daemon.
+3. El botón de marcador del popup manda `{type: "qua:trigger-mark"}`;
+   `internal-messages.ts` solo tenía `"qua:mark"`.
+
+**Decisión.** Se ajustó `internal-messages.ts` + `background/index.ts` para hablar el
+protocolo que A1 y A3 ya tienen testeado (en vez de tocar `emit.ts`/`status-client.ts`,
+que sí tienen tests que fijan su formato de salida). `qua:start-session` ahora resuelve
+`baseUrl`/`viewport` en el propio service worker contra la pestaña activa
+(`browser.tabs.query` + `browser.scripting.executeScript`, permiso `scripting` ya
+declarado en `wxt.config.ts`).
+
+**Por qué no hay test que lo hubiera atrapado antes.** Ninguna de las tres tareas
+declaraba dependencia de las otras dos para el *wiring* de mensajería interna (§14 solo
+las liga por `packages/protocol`, el contrato con el daemon) — es exactamente la clase
+de bug que un test de integración real (G1) existe para encontrar. Pendiente: agregar
+un test de `background/index.ts` que ejercite el router de mensajes contra los shapes
+reales de A1/A3, para que esto no se repita.
+
+**Lo que sigue sin empujarse en vivo:** `popup/lib/status-client.ts` escucha pushes de
+`onStatus`/`onTranscript`, pero el service worker nunca los manda — no hay
+`browser.runtime.sendMessage` de status/transcript hacia el popup en ningún lado. El
+popup sigue funcionando (arranca/para sesión, `qua:get-status` bajo pedido responde
+bien), solo que no se actualiza solo mientras queda abierto. Fuera del alcance del
+criterio de aceptación de G1 (el report.md no depende de la UI del popup); queda para
+una tarea futura.
+
+### D-G1-04 · Wiring de WXT: content script + offscreen doc + relay de audio
+
+**Contexto.** `extension/entrypoints/content/index.ts` era un módulo que se autoarrancaba
+por un guard manual (`if (chrome.runtime?.id)`), no un content script real de WXT — sin
+`defineContentScript`, `wxt build` nunca lo iba a inyectar en ninguna página (`wxt.config.ts`
+ya lo anticipaba: "A1 ... van a necesitar ampliar manifest acá"). Por el otro lado, nadie
+llamaba nunca a `chrome.offscreen.createDocument`: A3 dejó todo el lado del offscreen doc
+(`AudioCapture`, el framer PCM, el contrato de mensajes) listo y testeado, pero A2 nunca lo
+disparó ni recibió sus mensajes — `session-manager.ts` no conocía `qua:audio-frame`.
+
+**Decisión.**
+- `content/index.ts` ahora envuelve `startQuaContentScript` con
+  `defineContentScript({ matches: ["<all_urls>"], runAt: "document_start", main })`.
+- `SessionManager.start()`/`stop()` crean/cierran el offscreen doc
+  (`browser.offscreen.hasDocument`/`createDocument`/`closeDocument`, permiso `offscreen`
+  ya declarado) y mandan `qua:start-capture`/`qua:stop-capture`. Si falla (sin permiso de
+  mic, por ejemplo) la sesión sigue igual sin audio — no bloquea eventos+DOM (§15).
+- `SessionManager.handleOffscreenMessage` (llamado desde el mismo listener de
+  `browser.runtime.onMessage` que ya existía en `background/index.ts`, antes de tratar el
+  mensaje como `ToBackgroundMessage`) relaya `qua:audio-frame` a `WsClient.sendBinary`
+  (ya existía, sin nada que lo llamara) y arma el `Event` `audio_gap` desde
+  `qua:audio-gap`. `qua:capture-started`/`qua:capture-error`/`qua:recording-chunk` se
+  reciben pero no disparan nada más (el opus de respaldo sigue sin camino de subida,
+  D-13).
+- El estado de la conexión WS se relaya al offscreen doc (`qua:connection-state`) vía
+  `onStatusChange` de `WsClient`, para el buffer de 30 s de A3.
+- `extension/package.json`: `"build": "wxt build"` (era un stub). Requiere que
+  `@qua/protocol` y `@qua/source-resolver` ya estén compilados (`dist/` — están en
+  `.gitignore`, así que hace falta `pnpm --filter @qua/protocol --filter
+  @qua/source-resolver run build` antes, o `pnpm -w run build` desde la raíz).
+
+**Por qué.** Esto es literalmente "cablear la extensión" (§14, criterio de G1): sin esto,
+`wxt build` no produce nada cargable y ninguna sesión real habría llegado con audio al
+daemon aunque B2/B3/B4 estuvieran perfectos del otro lado.

@@ -7,6 +7,17 @@ import { WsClient } from "./ws-client.js";
 import { TabTracker } from "./tabs.js";
 import { ScreenshotRing } from "./screenshots.js";
 import { chromeVersion, extVersion, generateSessionId, platformName } from "./env.js";
+import {
+  isAudioFrameMessage,
+  isAudioGapMessage,
+  isCaptureErrorMessage,
+  isCaptureStartedMessage,
+  isRecordingChunkMessage,
+  type OffscreenInboundMessage,
+} from "../offscreen/lib/messages.js";
+
+const OFFSCREEN_URL = "offscreen.html";
+const OFFSCREEN_JUSTIFICATION = "Captura audio del micrófono durante la sesión (§05.4).";
 
 const TOKEN_STORAGE_KEY = "qua:daemon-token";
 
@@ -92,6 +103,16 @@ export class SessionManager {
     await this.fsm.confirmRecording();
     this.tabs.start();
     this.screenshots.start();
+
+    // Audio (§05.4, A3): no bloquea la sesión si falla — un usuario sin mic o sin
+    // permiso concedido todavía sigue grabando eventos + DOM (§15, riesgo conocido:
+    // "el permiso de micrófono falla silenciosamente en el offscreen doc").
+    try {
+      await this.ensureOffscreenDocument();
+      this.sendToOffscreen({ type: "qua:start-capture", t0Wall });
+    } catch (err) {
+      console.warn("[qua] no se pudo arrancar la captura de audio", err);
+    }
   }
 
   async stop(): Promise<void> {
@@ -101,6 +122,12 @@ export class SessionManager {
     await this.fsm.stop();
     this.tabs.stop();
     this.screenshots.stop();
+    this.sendToOffscreen({ type: "qua:stop-capture" });
+    try {
+      if (await browser.offscreen.hasDocument()) await browser.offscreen.closeDocument();
+    } catch (err) {
+      console.warn("[qua] no se pudo cerrar el offscreen doc", err);
+    }
     await this.ws?.stop(this.now());
     this.ws = undefined;
     await this.fsm.finish();
@@ -110,9 +137,59 @@ export class SessionManager {
     this.onEvent(event);
   }
 
+  /**
+   * Mensajes que suben del offscreen doc (§5.4, D-11 de A3): frames de audio ya
+   * empaquetados, huecos de buffer, y el estado de la captura. Devuelve `true` si el
+   * mensaje era de este contrato — así `background/index.ts` sabe que no tiene que
+   * tratarlo también como `ToBackgroundMessage`.
+   */
+  handleOffscreenMessage(msg: unknown): boolean {
+    if (isAudioFrameMessage(msg)) {
+      this.ws?.sendBinary(msg.bytes.buffer.slice(msg.bytes.byteOffset, msg.bytes.byteOffset + msg.bytes.byteLength));
+      return true;
+    }
+    if (isAudioGapMessage(msg)) {
+      this.enqueue({ t: this.now(), k: "audio_gap", duration_ms: msg.duration_ms } as Event);
+      return true;
+    }
+    if (isCaptureErrorMessage(msg)) {
+      console.warn("[qua] error de captura de audio", msg.message);
+      return true;
+    }
+    // `qua:capture-started` no necesita acción; `qua:recording-chunk` (backup opus)
+    // todavía no tiene camino de subida al daemon — ver D-13 en docs/DECISIONS.md.
+    if (isCaptureStartedMessage(msg) || isRecordingChunkMessage(msg)) {
+      return true;
+    }
+    return false;
+  }
+
   private onEvent(event: Event): void {
     if (this.fsm.current.phase !== "recording") return;
     this.ws?.enqueue(event);
+  }
+
+  private sendToOffscreen(msg: OffscreenInboundMessage): void {
+    try {
+      const maybePromise = browser.runtime.sendMessage(msg) as unknown;
+      if (maybePromise && typeof (maybePromise as Promise<unknown>).catch === "function") {
+        (maybePromise as Promise<unknown>).catch(() => {
+          // El offscreen doc puede no estar listo todavía — se ignora, igual que en
+          // el resto de la mensajería interna (mismo patrón que `content/lib/emit.ts`).
+        });
+      }
+    } catch {
+      // Contexto de extensión invalidado — nunca debe tirar hacia acá.
+    }
+  }
+
+  private async ensureOffscreenDocument(): Promise<void> {
+    if (await browser.offscreen.hasDocument()) return;
+    await browser.offscreen.createDocument({
+      url: OFFSCREEN_URL,
+      reasons: ["USER_MEDIA"],
+      justification: OFFSCREEN_JUSTIFICATION,
+    });
   }
 
   private async openTransport(t0Wall: number, baseUrl: string, env: EnvInfo): Promise<void> {
@@ -125,6 +202,9 @@ export class SessionManager {
       onCaptureRequest: (tab, tTarget) => {
         const frame = this.screenshots.closestTo(tab, tTarget);
         if (frame) this.ws?.sendFrame(frame.t, frame.tab, frame.jpegB64);
+      },
+      onStatusChange: (status) => {
+        this.sendToOffscreen({ type: "qua:connection-state", connected: status === "connected" });
       },
     });
     this.ws.startSession({ t0Wall, baseUrl, env });
