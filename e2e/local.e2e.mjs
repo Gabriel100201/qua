@@ -36,6 +36,8 @@ const { values: opts } = parseArgs({
     loop: { type: "boolean", default: false },
     click: { type: "boolean", default: false },
     out: { type: "string" },
+    // Guarda una captura del popup con el reporte listo (la usa el README).
+    "popup-shot": { type: "string" },
     timeout: { type: "string", default: "1800" },
   },
 });
@@ -224,6 +226,10 @@ async function main() {
       connectVisible: !document.getElementById("qua-connect")?.hidden,
     }));
     log("popup:", JSON.stringify(popupText));
+    if (opts["popup-shot"]) {
+      await popup.setViewportSize({ width: 360, height: 480 });
+      await popup.locator("body").screenshot({ path: opts["popup-shot"] });
+    }
     assert(!popupText.connectVisible, "el popup no debería pedir conectar un daemon");
 
     assert(session.report_md.startsWith("# QUA"), "report.md sin header");

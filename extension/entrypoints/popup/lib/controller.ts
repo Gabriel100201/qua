@@ -101,7 +101,8 @@ const MIC_LABELS: Record<MicPermissionState, string> = {
 
 const CONTENT_SCRIPT_LABELS: Record<ContentScriptDiagnosis, string> = {
   inyectado: "Pestaña: lista",
-  hace_falta_recargar: "Pestaña: recargá para grabar",
+  // D-L1-06: al grabar, el SW inyecta el content script solo: no hace falta recargar.
+  hace_falta_recargar: "Pestaña: lista (se prepara al grabar)",
   desconocido: "Pestaña: sin datos",
 };
 
@@ -237,7 +238,7 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
       : DAEMON_LABELS[daemon];
     elements.micStatusLabel.textContent = MIC_LABELS[mic];
     elements.contentScriptStatusLabel.textContent = CONTENT_SCRIPT_LABELS[contentScript];
-    elements.reloadTabButton.hidden = contentScript !== "hace_falta_recargar";
+    elements.reloadTabButton.hidden = true; // D-L1-06: ya no hace falta recargar a mano
   }
 
   const onReloadTabClick = () => {

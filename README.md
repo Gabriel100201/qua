@@ -1,13 +1,82 @@
-# QUA
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.png">
+    <img src="assets/wordmark.png" alt="QUA" width="360">
+  </picture>
+</p>
 
-Un QA que mira todo mientras hablás. Grabás una sesión en el navegador, hablás en voz alta
-sobre lo que ves, y QUA produce un `report.md` con cada comentario anclado al elemento, la
-ruta o la sesión donde lo dijiste — con selector, geometría, clases de Tailwind, archivo
-fuente y evidencia de consola y red.
+<p align="center">
+  <strong>Hablás sobre lo que ves. QUA lo convierte en un reporte anclado a cada elemento.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Chrome-MV3-4285F4?logo=googlechrome&logoColor=white" alt="Chrome MV3">
+  <img src="https://img.shields.io/badge/Whisper-WebGPU-111111" alt="Whisper en WebGPU">
+  <img src="https://img.shields.io/badge/Rust-%E2%86%92%20WASM-B7410E?logo=rust&logoColor=white" alt="Rust a WASM">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
+</p>
+
+---
+
+Probás una web y vas diciendo en voz alta lo que ves: *"este botón no hace nada"*, *"acá el
+texto se corta"*. QUA graba la sesión, transcribe tu voz y ancla cada comentario al elemento
+que estabas mirando o clickeando, con selector, geometría, clases, ruta, errores de consola,
+requests y una captura recortada. El resultado es un `report.md` listo para pegarle a tu agente
+de código, a Linear o a Slack.
+
+**Todo pasa dentro de Chrome.** No hay app, ni servidor, ni cuenta: Whisper corre en tu GPU con
+WebGPU y el audio nunca sale del navegador.
+
+<table>
+<tr>
+<td width="300" valign="top"><img src="docs/ejemplos/popup-local.png" alt="Popup de QUA" width="300"></td>
+<td valign="top">
+
+```markdown
+## 01 · bug · high
+**Dicho** (00:01:26) — "Actualmente si presiono uno me lleva al
+proyecto. Pero quizás lo mejor sería que cuando lo presione se
+abra una pantalla propia por proyecto"
+
+**Ancla** `#project-gallery > a:nth-of-type(2)`
+  · confianza 0.74 · click −0.7s
+**Elemento** el enlace que dice "PediloApp Sistema de pedidos…"
+**Geometría** 314×310 px @ (697, 335) · viewport 1710×981 @2x
+**Captura** ![](assets/i01.png)
+```
+
+</td>
+</tr>
+</table>
+
+### Cómo funciona
+
+```
+ micrófono ─▶ silero VAD ─▶ Whisper large-v3-turbo ─┐   (offscreen doc, WebGPU)
+                                                    ├─▶ correlador ─▶ report.md + capturas
+ DOM: clicks, hover, foco, consola, red, rutas ─────┘   (Rust compilado a WASM)
+```
+
+El correlador no es un join por timestamp: puntúa los elementos con los que interactuaste
+hacia atrás en el tiempo (uno habla *después* de ver la cosa), entiende deixis en español
+(*"este"*, *"acá"*, *"la sección de arriba"*) y, ante la duda, ancla a la ruta en vez de
+inventar un elemento.
+
+### Medido, no prometido
+
+Sobre sesiones reales, contra la versión anterior que corría whisper.cpp nativo:
+
+| Qué | Resultado |
+|---|---|
+| Diferencia de transcripción | **1,0 %** de las palabras |
+| Issues del reporte | **los mismos**, con las mismas anclas |
+| Procesar 2,5 min de audio | **77 s** con GPU |
+| Del click en *Grabar* al primer audio | **~200 ms** |
+
+Detalle de cada medición en [`docs/DECISIONS.md`](docs/DECISIONS.md) (sección L1).
 
 - **Spec:** [`docs/SPEC.md`](docs/SPEC.md) — fuente de verdad.
 - **Estado:** [`STATE.md`](STATE.md) — tablero de tareas y bitácora.
-- **Decisiones de implementación:** [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## Instalación y uso — solo la extensión (modo local)
 

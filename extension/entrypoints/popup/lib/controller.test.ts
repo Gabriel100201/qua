@@ -423,15 +423,15 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
     expect(elements.errorBanner.textContent).toBe("");
   });
 
-  it("sin content script en la pestaña activa: label distinto + botón de recargar visible", async () => {
+  it("sin content script en la pestaña activa: no pide recargar, se inyecta al grabar (D-L1-06)", async () => {
     const elements = buildElements();
     const { client } = fakeClient(IDLE_STATUS);
     const diagnostics = fakeDiagnostics({ getContentScriptStatus: vi.fn().mockResolvedValue("hace_falta_recargar") });
     mount({ client, elements, diagnostics });
     await flushAsync();
 
-    expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: recargá para grabar");
-    expect(elements.reloadTabButton.hidden).toBe(false);
+    expect(elements.contentScriptStatusLabel.textContent).toBe("Pestaña: lista (se prepara al grabar)");
+    expect(elements.reloadTabButton.hidden).toBe(true);
   });
 
   it("con content script inyectado: el botón de recargar queda oculto", async () => {
@@ -470,7 +470,6 @@ describe("startPopupController — errores reales, no silenciosos (D-U2-01)", ()
     const diagnostics = fakeDiagnostics({ getContentScriptStatus });
     mount({ client, elements, diagnostics });
     await flushAsync();
-    expect(elements.reloadTabButton.hidden).toBe(false);
 
     elements.reloadTabButton.click();
     await flushAsync();
