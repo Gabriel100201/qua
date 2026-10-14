@@ -5,6 +5,6 @@
   <key>NSMicrophoneUsageDescription</key>
   <string>QUA necesita el micrófono para grabar tus comentarios hablados durante una sesión de prueba.</string>
   <key>LSUIElement</key>
-  <true/>
+  <false/>
 </dict>
 </plist>

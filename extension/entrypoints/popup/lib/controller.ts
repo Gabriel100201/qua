@@ -4,6 +4,7 @@ import { IDLE_STATUS, type CommandResult } from "./status-client.js";
 import type { PopupStatus, PopupSessionState } from "./messages.js";
 import type { Unsubscribe } from "./status-client.js";
 import type { ContentScriptDiagnosis, DaemonDiagnosis, MicPermissionState } from "./diagnostics.js";
+import type { ReadyReport } from "./report-actions.js";
 
 /** Lo mínimo que el controller necesita del transporte — ver `status-client.ts` para la implementación real.
  * `start`/`stop`/`mark` devuelven `CommandResult`: D-U2-01 (docs/DECISIONS.md) — un fallo real (sin
@@ -40,6 +41,15 @@ export interface PopupElements {
   contentScriptStatusLabel: HTMLElement;
   /** Visible solo cuando el content script de la pestaña activa hace falta recargar. */
   reloadTabButton: HTMLButtonElement;
+  reportActions?: HTMLElement;
+  copyReportButton?: HTMLButtonElement;
+  openFolderButton?: HTMLButtonElement;
+}
+
+export interface ReportActionsLike {
+  getLastReport(): Promise<ReadyReport | null>;
+  copyLastReport(): Promise<void>;
+  revealLastReport(): Promise<void>;
 }
 
 export interface PopupControllerOptions {
@@ -64,6 +74,7 @@ export interface PopupControllerOptions {
    * hace el trabajo real.
    */
   pollIntervalMs?: number;
+  reportActions?: ReportActionsLike;
 }
 
 const STATUS_LABELS: Record<PopupSessionState, string> = {
@@ -107,7 +118,7 @@ export type Teardown = () => void;
  * navegador de verdad.
  */
 export function startPopupController(opts: PopupControllerOptions): Teardown {
-  const { client, elements, diagnostics } = opts;
+  const { client, elements, diagnostics, reportActions } = opts;
   const now = opts.now ?? (() => Date.now());
   const setIntervalFn = opts.setIntervalFn ?? setInterval;
   const clearIntervalFn = opts.clearIntervalFn ?? clearInterval;
@@ -116,6 +127,9 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
 
   let status: PopupStatus = IDLE_STATUS;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
+  let reportReady = false;
+  let reportBeforeRecording: string | null = null;
+  let waitingForNewReport = false;
 
   function renderStatus(): void {
     elements.statusLabel.textContent = STATUS_LABELS[status.state];
@@ -159,6 +173,7 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
    * explícitamente es `setError`/`applyCommandResult`.
    */
   function applyStatus(next: PopupStatus): void {
+    if (next.state === "recording" && status.state !== "recording") waitingForNewReport = true;
     status = { ...next, lastError: next.lastError ?? status.lastError ?? null };
     renderStatus();
   }
@@ -204,9 +219,47 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
       .then(() => refreshDiagnostics());
   };
 
+  async function refreshReport(): Promise<void> {
+    if (!reportActions || !elements.reportActions) return;
+    if (status.state === "starting" || status.state === "stopping") {
+      if (elements.reportActions) elements.reportActions.hidden = true;
+      return;
+    }
+    try {
+      const ready = await reportActions.getLastReport();
+      if (status.state === "recording") {
+        reportBeforeRecording = ready?.path ?? null;
+        elements.reportActions.hidden = true;
+        return;
+      }
+      if (waitingForNewReport && ready?.path === reportBeforeRecording) {
+        elements.reportActions.hidden = true;
+        return;
+      }
+      reportReady = ready !== null;
+      if (reportReady) waitingForNewReport = false;
+      elements.reportActions.hidden = !reportReady;
+    } catch {
+      elements.reportActions.hidden = true;
+    }
+  }
+
+  const onCopyReport = () => {
+    if (!reportActions || !reportReady || !elements.copyReportButton) return;
+    const button = elements.copyReportButton;
+    button.disabled = true;
+    void reportActions.copyLastReport().then(() => {
+      button.textContent = "¡Copiado!";
+      setTimeout(() => { button.textContent = "Copiar reporte"; }, 1500);
+    }).catch((e: unknown) => setError(String(e))).finally(() => { button.disabled = false; });
+  };
+  const onOpenFolder = () => void reportActions?.revealLastReport().catch((e: unknown) => setError(String(e)));
+
   elements.toggleButton.addEventListener("click", onToggleClick);
   elements.markButton.addEventListener("click", onMarkClick);
   elements.reloadTabButton.addEventListener("click", onReloadTabClick);
+  elements.copyReportButton?.addEventListener("click", onCopyReport);
+  elements.openFolderButton?.addEventListener("click", onOpenFolder);
 
   const unsubStatus = client.onStatus(applyStatus);
   const unsubTranscript = client.onTranscript(appendTranscript);
@@ -217,6 +270,7 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
       // (D-U2-01). Si un tick falla, el próximo lo vuelve a intentar.
     });
     void refreshDiagnostics();
+    void refreshReport();
   }
 
   renderStatus();
@@ -228,6 +282,7 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
       // StatusClientLike de test podría. Se queda con IDLE_STATUS, ya renderizado.
     });
   void refreshDiagnostics();
+  void refreshReport();
   // D-U3-01: mientras el popup siga abierto, el estado real (fase, franja de
   // diagnóstico) se re-consulta cada `pollIntervalMs` — es lo que hace que
   // apretar Grabar/Detener se vea sin cerrar y reabrir el popup.
@@ -237,6 +292,8 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
     elements.toggleButton.removeEventListener("click", onToggleClick);
     elements.markButton.removeEventListener("click", onMarkClick);
     elements.reloadTabButton.removeEventListener("click", onReloadTabClick);
+    elements.copyReportButton?.removeEventListener("click", onCopyReport);
+    elements.openFolderButton?.removeEventListener("click", onOpenFolder);
     unsubStatus();
     unsubTranscript();
     if (pollTimer !== null) clearIntervalFn(pollTimer);

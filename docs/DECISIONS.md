@@ -2410,3 +2410,30 @@ call-sites de Rust que construían un `TargetRef` a mano
 `extension/`, 62 en `packages/protocol`, el resto en los paquetes chicos) y
 `~/.cargo/bin/cargo test --workspace` (todos los binarios, sidecars compilados
 primero vía `apps/qua-app/scripts/build-sidecars.sh` — D-M1-03) quedan verdes.
+### D-DIST-01 · El último reporte se consulta al daemon, no depende de `session.done`
+
+El cliente cerraba el WebSocket inmediatamente después de `session.stop`, mientras el daemon
+procesa ASR antes de emitir `session.done`. El popup ahora consulta `GET /last/report` con el
+mismo token+Origin del pairing y muestra las acciones sólo cuando el archivo existe. Esto
+además sobrevive cerrar/reabrir el popup. `POST /last/reveal` delega al SO sin exponer una
+ruta arbitraria: siempre abre el directorio de la última sesión indexada con reporte.
+
+### D-DIST-02 · Sin `[[projects]]`, el nombre visible es el host
+
+El mapeo a repo sigue siendo enriquecimiento opcional. En vez de `unknown`, una URL no
+mapeada usa su host (`pediloapp.com`) como etiqueta; el renderer omite `Fuente` cuando no
+hay datos, sin placeholders. La única información adicional con repo sigue siendo la fuente/git.
+
+### D-DIST-03 · El DMG distribuye la app y la extensión como recurso
+
+`build-dmg-app.sh` compila extensión y sidecars antes de Tauri. La carpeta Chrome MV3 se
+incluye en `QUA.app/Contents/Resources/extension` y el onboarding resuelve esa ruta mediante
+la API de recursos, para que el usuario pueda cargarla sin conocer el repo. Firma y
+notarización quedan fuera por falta de Developer ID; Gatekeeper se explica en el flujo visible.
+
+### D-DIST-04 · Abrir QUA siempre muestra ventana y sólo permite una instancia
+
+Una app `LSUIElement` sin ícono de Dock que sólo abre onboarding una vez puede quedar viva sin
+ninguna señal visible. QUA ahora muestra onboarding en cada lanzamiento; cerrar conserva el modo
+tray. `tauri-plugin-single-instance` se registra primero y convierte aperturas posteriores en
+un foco de la ventana existente, evitando dos sidecars compitiendo por el puerto 7331.

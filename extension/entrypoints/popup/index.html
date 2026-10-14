@@ -248,6 +248,9 @@
         margin-bottom: 6px;
       }
 
+      #qua-report-actions { display: flex; gap: 8px; margin: 0 0 10px; }
+      #qua-report-actions[hidden] { display: none; }
+
       #qua-transcript {
         height: 170px;
         overflow-y: auto;
@@ -308,6 +311,10 @@
         <button id="qua-mark" class="qua-btn-secondary" type="button" disabled>Marcar</button>
       </div>
       <div class="qua-meta">Eventos: <span id="qua-events-count">0</span></div>
+      <div id="qua-report-actions" hidden>
+        <button id="qua-copy-report" class="qua-btn-primary" type="button">Copiar reporte</button>
+        <button id="qua-open-folder" class="qua-btn-secondary" type="button">Abrir carpeta</button>
+      </div>
       <div id="qua-transcript"></div>
     </div>
     <script type="module" src="./index.ts"></script>

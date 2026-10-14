@@ -11,7 +11,18 @@
   },
   "app": {
     "withGlobalTauri": false,
-    "windows": [],
+    "windows": [
+      {
+        "label": "main",
+        "title": "QUA",
+        "url": "index.html#/onboarding",
+        "width": 1040,
+        "height": 700,
+        "minWidth": 760,
+        "minHeight": 480,
+        "visible": true
+      }
+    ],
     "security": {
       "csp": null,
       "assetProtocol": {
@@ -31,6 +42,9 @@
       "icons/icon.ico"
     ],
     "externalBin": ["binaries/quad", "binaries/qua"],
+    "resources": {
+      "../../../extension/build/chrome-mv3": "extension"
+    },
     "macOS": {
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "12.0"

@@ -49,7 +49,7 @@ Con el daemon corriendo:
    código de 6 dígitos (`POST /pair/start` + `POST /pair`, el flujo de siempre).
 3. Desde el popup de la extensión: "Grabar", hablá en voz alta sobre lo que ves, "Detener".
    `quad` corre ASR + correlador + render solo al recibir `session.stop`.
-4. `qua sessions` / `qua show <id>` para ver el reporte.
+4. Cuando termine el procesamiento, usá **Copiar reporte** en el popup. También podés usar `qua last` o `qua last --copy`.
 
 Este es el camino que verifiqué corriendo cada comando de este pase (build, daemon,
 `qua sessions`/`show`/`reprocess`, y el `e2e/` completo — ver §6 más abajo). **La app de
@@ -60,15 +60,18 @@ completo vía tray/hotkey no tiene una prueba automática todavía.
 
 ### 1. El daemon (`quad` + `qua`)
 
-**Opción A — `.dmg` precompilado (solo CLI, sin la app de bandeja):**
+**Opción A — `.dmg` completo (app, daemon, CLI y extensión):**
 
 ```bash
-./packaging/macos/build-dmg.sh          # arma target/dist/qua-cli-macos-<version>.dmg
-open target/dist/qua-cli-macos-*.dmg    # montalo, corré ./install.sh desde el volumen
+./packaging/macos/build-dmg-app.sh
+open target/release/bundle/dmg/QUA_*.dmg
 ```
 
-El binario no está firmado (no hay Developer ID de Apple en este entorno) — el
-`.dmg` trae las instrucciones de Gatekeeper (`xattr -d com.apple.quarantine`).
+Arrastrá QUA a Aplicaciones y abrila. Como no hay Developer ID en este entorno, usá
+clic derecho → Abrir; si macOS la bloquea, Configuración del Sistema → Privacidad y
+seguridad → Abrir de todas formas. El onboarding muestra la ruta exacta de la extensión
+incluida y los pasos para cargarla en Chrome. `build-dmg.sh` sigue disponible para quien
+quiera solamente los binarios CLI.
 
 **Opción B — compilar y correr directo:**
 
@@ -131,6 +134,8 @@ no hace falta ningún paso manual después.
 ```bash
 qua sessions              # lista las sesiones grabadas, más recientes primero
 qua show <id>              # report.md de una sesión (default)
+qua last                   # report.md más reciente
+qua last --copy            # lo copia al portapapeles
 qua show <id> --format json   # session.json completo
 qua reprocess <id>         # re-corre el pipeline (para tunear [correlator] en config.toml)
 ```
