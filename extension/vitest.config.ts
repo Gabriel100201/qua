@@ -14,6 +14,6 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    include: ["entrypoints/**/*.test.ts", "test/**/*.test.ts"],
+    include: ["entrypoints/**/*.test.ts", "shared/**/*.test.ts", "test/**/*.test.ts"],
   },
 });

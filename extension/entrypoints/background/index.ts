@@ -1,7 +1,7 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { browser } from "wxt/browser";
 import type { ViewportInfo } from "@qua/protocol";
-import { SessionManager, type SessionTab } from "./session-manager.js";
+import { LocalSessionManager, type SessionTab } from "./local-session-manager.js";
 import { startKeepalive } from "./keepalive.js";
 import type { StatusResponse, ToBackgroundMessage } from "./internal-messages.js";
 
@@ -20,7 +20,7 @@ async function resolveActiveTabSessionInfo(): Promise<{
 }> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab?.id || !tab.url) {
-    throw new Error("[qua] no hay pestaña activa para arrancar la sesión.");
+    throw new Error("No hay una pestaña activa para grabar.");
   }
   let viewport = DEFAULT_VIEWPORT;
   try {
@@ -36,13 +36,22 @@ async function resolveActiveTabSessionInfo(): Promise<{
   return { baseUrl: tab.url, viewport, tab: { id: tab.id, title: tab.title ?? "" } };
 }
 
+/**
+ * Modo local (D-L1-01): no hay daemon ni pairing. El service worker junta eventos y
+ * capturas en IndexedDB y, al detener, el offscreen doc transcribe y arma el reporte.
+ */
 export default defineBackground(() => {
-  const sessions = new SessionManager();
+  const sessions = new LocalSessionManager();
   void sessions.init();
 
+  // Primer uso: el permiso de micrófono solo se puede dar desde una página visible de
+  // la extensión, así que options se abre sola al instalar (onboarding de D4).
+  browser.runtime.onInstalled.addListener(({ reason }) => {
+    if (reason === "install") void browser.runtime.openOptionsPage();
+  });
+
   startKeepalive(() => {
-    // Red de seguridad de §5.3: no hace falta lógica acá, el timer del alarm ya
-    // despertó el service worker y eso alcanza para resetear el timeout de 30 s.
+    // Red de seguridad de §5.3: despertar el worker alcanza para resetear el timeout.
   });
 
   browser.runtime.onMessage.addListener(
@@ -53,7 +62,7 @@ export default defineBackground(() => {
       }
       handleMessage(message as ToBackgroundMessage)
         .then(sendResponse)
-        .catch((err: unknown) => sendResponse({ ok: false, error: String(err) }));
+        .catch((err: unknown) => sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) }));
       return true; // respuesta async
     },
   );
@@ -76,14 +85,20 @@ export default defineBackground(() => {
       case "qua:stop-session":
         await sessions.stop();
         return { ok: true };
-      case "qua:get-status":
+      case "qua:get-status": {
+        const latest = await sessions.latestSession().catch(() => undefined);
         return {
           phase: sessions.getPhase(),
-          wsStatus: sessions.getWsStatus(),
-          paired: await sessions.isPaired(),
+          paired: true,
           startedAtWall: sessions.getStartedAtWall(),
           eventsCount: sessions.getEventsCount(),
+          lastError: sessions.getLastError(),
+          micReady: sessions.isMicReady(),
+          latest: latest
+            ? { id: latest.id, status: latest.status, progress: latest.progress, issues: latest.issues, error: latest.error }
+            : null,
         };
+      }
       default:
         return { ok: false, error: "mensaje desconocido" };
     }
@@ -91,9 +106,12 @@ export default defineBackground(() => {
 
   browser.commands?.onCommand.addListener((command: string) => {
     if (command === "toggle_recording") {
-      // El start real necesita `baseUrl`/`viewport` de la pestaña activa — eso lo
-      // dispara el popup (A3). El hotkey solo puede parar una grabación en curso.
-      if (sessions.getPhase() === "recording") void sessions.stop();
+      // Sin daemon, el hotkey (global, D-L1-01) arranca y para: el SW resuelve la
+      // pestaña activa igual que cuando lo pide el popup.
+      // Sin popup abierto no hay dónde mostrar un error en el momento: queda en
+      // `lastError` y el popup lo muestra la próxima vez que se abra.
+      if (sessions.getPhase() === "recording") void sessions.stop().catch((e: unknown) => sessions.reportError(e));
+      else if (sessions.getPhase() === "idle") void sessions.startOnActiveTab().catch((e: unknown) => sessions.reportError(e));
     } else if (command === "drop_mark") {
       sessions.enqueue({ t: Date.now(), k: "mark", source: "hotkey" });
     }

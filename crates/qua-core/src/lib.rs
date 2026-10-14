@@ -12,9 +12,11 @@ pub mod asr;
 pub mod correlate;
 pub mod ingest;
 pub mod render;
+#[cfg(feature = "native")]
 pub mod store;
 
 pub use ingest::{
     build_session, read_meta, recover_session, RawAudioLog, RawEventLog, RecoverError, SessionMeta,
 };
+#[cfg(feature = "native")]
 pub use store::{apply_schema, StoreError, SCHEMA_SQL};

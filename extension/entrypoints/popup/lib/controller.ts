@@ -22,6 +22,8 @@ export interface StatusClientLike {
  * pestaña activa. Ver `diagnostics.ts` para la implementación real de cada chequeo. */
 export interface DiagnosticsClientLike {
   getDaemonStatus(): Promise<DaemonDiagnosis>;
+  /** Modo local (D-L1-01): reemplaza la línea del daemon por el estado de whisper. */
+  getEngineLabel?(): Promise<string>;
   getMicStatus(): Promise<MicPermissionState>;
   getContentScriptStatus(): Promise<ContentScriptDiagnosis>;
   reloadActiveTab(): Promise<void>;
@@ -103,6 +105,22 @@ const CONTENT_SCRIPT_LABELS: Record<ContentScriptDiagnosis, string> = {
   desconocido: "Pestaña: sin datos",
 };
 
+/** Modo local (D-L1-01): qué está haciendo el offscreen doc con la sesión que terminó. */
+export function processingLabel(progress?: { stage: string; done: number; total: number }): string {
+  if (!progress) return "Procesando…";
+  const pct = progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
+  switch (progress.stage) {
+    case "modelo":
+      return `Bajando el modelo de voz… ${pct}% (solo la primera vez)`;
+    case "voz":
+      return `Buscando dónde hablaste… ${pct}%`;
+    case "transcripcion":
+      return `Transcribiendo… ${progress.done}/${progress.total}`;
+    default:
+      return "Armando el reporte…";
+  }
+}
+
 const DEFAULT_MAX_TRANSCRIPT_LINES = 50;
 /** D-U3-01: 500 ms — rápido para sentirse "en vivo", lo bastante espaciado para no
  * saturar `chrome.runtime.sendMessage` mientras el popup queda abierto de fondo. */
@@ -131,11 +149,19 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
   let reportBeforeRecording: string | null = null;
   let waitingForNewReport = false;
 
+  function isProcessing(): boolean {
+    return status.state === "idle" && status.latest?.status === "processing";
+  }
+
   function renderStatus(): void {
-    elements.statusLabel.textContent = STATUS_LABELS[status.state];
+    elements.statusLabel.textContent = isProcessing()
+      ? processingLabel(status.latest?.progress)
+      : status.state === "recording" && status.micReady === false
+        ? "Abriendo el micrófono… esperá para hablar"
+        : STATUS_LABELS[status.state];
     elements.eventsCountLabel.textContent = String(status.eventsCount);
     elements.toggleButton.textContent = status.state === "recording" ? "Detener" : "Grabar";
-    elements.toggleButton.disabled = status.state === "starting" || status.state === "stopping";
+    elements.toggleButton.disabled = status.state === "starting" || status.state === "stopping" || isProcessing();
     elements.markButton.disabled = status.state !== "recording";
     renderDuration();
     renderError();
@@ -206,7 +232,9 @@ export function startPopupController(opts: PopupControllerOptions): Teardown {
       diagnostics.getMicStatus().catch((): MicPermissionState => "unknown"),
       diagnostics.getContentScriptStatus().catch((): ContentScriptDiagnosis => "desconocido"),
     ]);
-    elements.daemonStatusLabel.textContent = DAEMON_LABELS[daemon];
+    elements.daemonStatusLabel.textContent = diagnostics.getEngineLabel
+      ? await diagnostics.getEngineLabel().catch(() => "Motor: sin datos")
+      : DAEMON_LABELS[daemon];
     elements.micStatusLabel.textContent = MIC_LABELS[mic];
     elements.contentScriptStatusLabel.textContent = CONTENT_SCRIPT_LABELS[contentScript];
     elements.reloadTabButton.hidden = contentScript !== "hace_falta_recargar";

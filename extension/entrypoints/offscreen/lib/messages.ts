@@ -33,7 +33,29 @@ export interface ConnectionStateMessage {
   connected: boolean;
 }
 
-export type OffscreenInboundMessage = StartCaptureMessage | StopCaptureMessage | ConnectionStateMessage;
+/**
+ * SW → offscreen (modo local, D-L1-01). Fin de sesión: el offscreen suelta el mic y
+ * procesa ahí mismo (VAD + whisper + correlador + render), con el audio que ya tiene
+ * en memoria y los eventos y capturas que el SW dejó en IndexedDB.
+ */
+export interface ProcessSessionMessage {
+  type: "qua:process-session";
+  sessionId: string;
+  tStop: number;
+  endedAt: string;
+}
+
+/** SW → offscreen. Empezar a bajar/cargar whisper sin esperar al fin de la sesión. */
+export interface PreloadModelMessage {
+  type: "qua:preload-model";
+}
+
+export type OffscreenInboundMessage =
+  | StartCaptureMessage
+  | StopCaptureMessage
+  | ConnectionStateMessage
+  | ProcessSessionMessage
+  | PreloadModelMessage;
 
 /** Offscreen → SW. Un frame binario ya codificado con el layout de §04, listo para el WS. */
 export interface AudioFrameMessage {
@@ -74,7 +96,23 @@ export interface RecordingChunkMessage {
   blob: Blob;
 }
 
+/** Offscreen → SW. Terminó de procesar (bien o mal); el SW ya puede cerrar el documento. */
+export interface ProcessDoneMessage {
+  type: "qua:process-done";
+  sessionId: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** Offscreen → SW. Estado del modelo de whisper — el offscreen no tiene `chrome.storage`. */
+export interface ModelStateMessage {
+  type: "qua:model-state";
+  state: unknown;
+}
+
 export type OffscreenOutboundMessage =
+  | ProcessDoneMessage
+  | ModelStateMessage
   | AudioFrameMessage
   | AudioGapMessage
   | CaptureStartedMessage
@@ -91,6 +129,22 @@ export function isStopCaptureMessage(msg: unknown): msg is StopCaptureMessage {
 
 export function isConnectionStateMessage(msg: unknown): msg is ConnectionStateMessage {
   return isRecord(msg) && msg.type === "qua:connection-state" && typeof msg.connected === "boolean";
+}
+
+export function isProcessSessionMessage(msg: unknown): msg is ProcessSessionMessage {
+  return isRecord(msg) && msg.type === "qua:process-session" && typeof msg.sessionId === "string";
+}
+
+export function isPreloadModelMessage(msg: unknown): msg is PreloadModelMessage {
+  return isRecord(msg) && msg.type === "qua:preload-model";
+}
+
+export function isProcessDoneMessage(msg: unknown): msg is ProcessDoneMessage {
+  return isRecord(msg) && msg.type === "qua:process-done" && typeof msg.sessionId === "string";
+}
+
+export function isModelStateMessage(msg: unknown): msg is ModelStateMessage {
+  return isRecord(msg) && msg.type === "qua:model-state";
 }
 
 /**

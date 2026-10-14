@@ -2437,3 +2437,134 @@ Una app `LSUIElement` sin ícono de Dock que sólo abre onboarding una vez puede
 ninguna señal visible. QUA ahora muestra onboarding en cada lanzamiento; cerrar conserva el modo
 tray. `tauri-plugin-single-instance` se registra primero y convierte aperturas posteriores en
 un foco de la ventana existente, evitando dos sidecars compitiendo por el puerto 7331.
+
+## L1 · Modo local: QUA sin app ni daemon
+
+Pedido de Gabriel (2026-10-14): que QUA funcione entero sin instalar una app. Hoy hacen
+falta cuatro procesos (extensión, `quad`, app Tauri, `qua-mcp`), un pairing y compilar
+Rust. Condición: si la transcripción en el navegador sale muy mala, se vuelve atrás.
+
+### D-L1-01 · Todo corre dentro de la extensión; Rust se reusa como WASM
+
+| Pieza de `quad` | En el modo local |
+|---|---|
+| whisper.cpp (large-v3-turbo) | el mismo modelo vía transformers.js 3.8, WebGPU (encoder fp16 + decoder q4) o WASM q8 sin GPU |
+| silero VAD vía `ort` | el mismo `silero_vad.onnx` vía onnxruntime-web, con la misma llamada (`[1,512]`, estado `[2,1,128]`) |
+| segmentador, correlador, render | `qua-core` compilado a wasm32 (`crates/qua-wasm`), sin reescribir nada |
+| `~/.qua/sessions/` + SQLite | IndexedDB `qua-local` (eventos, sesiones, capturas) |
+| hotkey global de la app Tauri | `chrome.commands` con `global: true` (Ctrl+Shift+1 / Ctrl+Shift+2) |
+| pairing de 6 dígitos | no existe: no hay nada que conectar |
+| `qua-mcp` | "Copiar reporte" y "Descargar" (`Descargas/qua/<id>/report.md` + `assets/`) |
+
+`qua-core` gana la feature `native` (default) que agrupa whisper-rs, rusqlite,
+voice_activity_detector y ureq. Sin ella compila a `wasm32-unknown-unknown`; `quad` y
+`qua-mcp` la piden explícita. `cargo test` de los crates nativos sigue verde.
+
+**Dónde corre cada cosa.** El SW junta eventos (lotes de 500 ms a IndexedDB) y el ring
+de capturas. El offscreen doc guarda el PCM en memoria (`PcmStore`, ubicado por el `t_ms`
+de cada frame) y al detener procesa ahí mismo: es el único contexto con WebGPU y sin el
+límite de vida del service worker. El modelo empieza a cargarse al arrancar la grabación,
+en paralelo.
+
+**Capturas.** `quad` nunca usó los `CaptureRequest` del paso 9 (D-G1-01): la sesión ya
+había terminado cuando corría el pipeline. Acá la sesión entera está en el navegador, así
+que cada issue con ancla de elemento y confianza ≥ 0.5 recibe el recorte del frame más
+cercano (si está a menos de 3 s). Para eso el ring en IndexedDB pasa de 40 frames a 30
+minutos de retención.
+
+### D-L1-02 · Medición antes de decidir: calidad y paridad
+
+Sobre sesiones reales de Gabriel (`~/.qua/sessions`), con el mismo pipeline TS que usa la
+extensión corrido en Node (`onnxruntime-node`):
+
+- **Segmentación idéntica**: mismas utterances y mismos `t_start` al milisegundo que `quad`.
+- **Transcripción**: large-v3-turbo difiere de whisper.cpp en 0,5–0,6 % de las palabras
+  (puntuación, "uno" → "1"). whisper-small difiere en 8 % y rompe frases que el correlador
+  necesita ("Después esto me gusta" → "y le ponen a tomar uja"): por eso el default es turbo.
+- **Correlador**: con las mismas utterances, `qua-wasm` da los mismos issues que `quad`
+  en las 9 sesiones (solo cambia el último decimal de un `f64` y la etiqueta del proyecto,
+  que ahora es el host — D-DIST-02).
+- **`t_end`**: whisper.cpp termina cada utterance en el fin del segmento del VAD (±12 ms);
+  el timestamp que predice transformers.js cae 400–600 ms antes, y eso rompía la fusión
+  del paso 1 (`merge_gap_ms`). Se usa el fin del segmento. Con eso, mismos issues, anclas y
+  categorías que `quad` en las sesiones medidas.
+- `avg_logprob` y `no_speech_prob` (filtro de ruido del paso 2) se calculan con un logits
+  processor propio, porque transformers.js no los expone.
+
+En Chrome de verdad (Chrome for Testing, Mac con Apple Silicon, WebGPU):
+
+- **Laboratorio** (`e2e/asr-lab.mjs`, build con `QUA_LAB=1`): PCM crudo de una sesión de 153 s
+  → 0,3 % de diferencia con whisper.cpp, 34/34 utterances, 65 s de proceso con el modelo ya
+  en caché. Con o sin `return_timestamps`, igual.
+- **E2E completo** (`e2e/local.e2e.mjs`): la misma sesión reproducida como micrófono falso,
+  grabada, transcripta y reportada por la extensión → 1,0 % de diferencia, 34/34
+  utterances, 72 s de proceso, 2 capturas recortadas. La primera corrida baja el modelo
+  (~1 GB): 83 s en esta conexión.
+- **Trampa del E2E**: el WAV ya pasó por supresión de ruido y AGC cuando se grabó. Si el
+  micrófono falso lo vuelve a procesar, se pierden tramos enteros de voz (15,5 % de
+  diferencia, 31/34 utterances). El E2E compila con `WXT_QUA_RAW_MIC=1`, que apaga ese
+  procesamiento solo en ese build. Con un micrófono real el audio pasa una sola vez, igual
+  que con `quad`: el código de captura no cambió.
+
+### D-L1-04 · Sin WebGPU se usa whisper-small
+
+Medido en Chrome con `e2e/asr-lab.mjs` sobre una sesión de 109 s, WASM de un solo hilo
+(sin aislamiento de origen no hay SharedArrayBuffer):
+
+| Modelo | Diferencia con whisper.cpp | Tiempo de proceso |
+|---|---|---|
+| turbo, WebGPU (default) | 0,5 % | 58 s |
+| turbo, WASM q8 | 0,5 % | 1745 s (29 min) |
+| small, WASM q8 | 2,6 % | 324 s |
+| base, WASM q8 | 12,7 % | 82 s |
+
+Turbo sin GPU es inusable y base se equivoca demasiado. Sin WebGPU se carga small, y el
+popup lo dice ("sin GPU: más lento y menos preciso").
+
+### D-L1-05 · El micrófono tardaba hasta 13 s en entregar audio (bug que ya existía)
+
+Con un clip corto el E2E daba cero utterances de forma intermitente. Instrumentando la
+captura (`capture` en la fila de la sesión): `getUserMedia` tardaba 1–2 s y
+`audioWorklet.addModule` entre 0,3 y 6,3 s, y no se capturaba nada hasta que terminaban
+los dos. El primer frame llegaba entre 1,3 y 13 s después de apretar Grabar: todo lo que
+se dijera antes se perdía. El código de captura es el mismo de la era daemon; el E2E
+viejo no lo detectaba porque aceptaba cero utterances con una advertencia.
+
+- El worklet pesaba 95 KB porque `pcm-framer` importaba `@qua/protocol` entero (zod
+  incluido). Con `"sideEffects": false` en `packages/protocol` queda en 2,5 KB.
+- `AudioCapture.start` prepara el `AudioContext` y el worklet en paralelo con el micrófono.
+- El popup dice "Abriendo el micrófono… esperá para hablar" hasta `qua:capture-started`.
+- La precarga del modelo solo corre si nunca se bajó: inicializar ~1 GB en la GPU durante
+  la grabación también competía con el hilo de audio.
+
+Resultado: primer frame a ~200 ms en 4 de 4 corridas. Sesión real de 153 s con el build
+final: 1,0 % de diferencia con whisper.cpp, 34/34 utterances, 7 issues (los mismos 7 de
+`quad`), 3 capturas, 77 s de proceso.
+
+### D-L1-06 · Grabar en una pestaña abierta antes de instalar ya no pierde los clicks
+
+Primera prueba real de Gabriel: reporte con "0 issues + 2 sin anclar" y solo la ruta `/`
+(el `nav` sintético del SW). La pestaña estaba abierta desde antes de cargar la extensión,
+y Chrome no inyecta los `content_scripts` del manifest en pestañas existentes: no llegó
+ningún evento. Antes había que ver el aviso "recargá la pestaña" en el popup. Ahora, al
+grabar y al cambiar de pestaña durante la grabación, el SW manda `qua:ping` y si nadie
+contesta inyecta `content-scripts/content.js` con `chrome.scripting`. El content script
+tiene una guarda contra doble inyección.
+
+### D-L1-07 · Las capturas fallaban en pantallas retina
+
+Segunda prueba real de Gabriel: issue anclado con confianza 1.00 pero sin captura. El ring
+reduce cada frame a 1280 px de ancho (§5.3) y el recorte escalaba el rect por el `dpr`:
+en su Mac (1710 px CSS a 2x) el rect caía debajo del borde del frame, el recorte quedaba
+de 0 px y el issue salía sin imagen. En el E2E no se veía porque la ventana medía justo
+1280 px a 1x. `crop` de qua-wasm ahora recibe el ancho del viewport y escala por
+`ancho del frame / ancho del viewport`; test en Rust con el caso exacto.
+
+### D-L1-03 · Lo que se pierde, a propósito
+
+- **MCP**: sin proceso local no hay servidor stdio. El reporte se copia o se baja a una
+  carpeta que el agente lee. El daemon y `qua-mcp` siguen en el repo y compilan.
+- **Priming con `vocab.txt`**: transformers.js 3.8 no acepta `initial_prompt` en whisper. Con
+  turbo no se notó en las sesiones medidas.
+- **Timestamps por palabra** (`words`): quedan vacíos. El correlador no los usa.
+- **Sesiones de más de 30 min**: las capturas del principio se podan del ring.

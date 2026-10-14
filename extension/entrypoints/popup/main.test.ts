@@ -3,11 +3,8 @@ import { startQuaPopup } from "./main.js";
 import { TOKEN_STORAGE_KEY } from "../../shared/storage-keys.js";
 
 /**
- * Integración del popup completo (D-U1-01): antes de esto, sin token, el
- * popup mostraba "Grabar" igual y se tragaba el error en silencio al hacer
- * click (ver `docs/DECISIONS.md`, bug de `TOKEN_STORAGE_KEY`). Ahora sin
- * token muestra "Conectar", y si el daemon está caído lo dice con esas
- * palabras.
+ * Integración del popup completo. En el modo local (D-L1-01) no hay daemon ni
+ * pairing: con o sin token, el popup abre directo en la UI de grabación.
  */
 function buildDom(): void {
   document.body.innerHTML = `
@@ -37,24 +34,8 @@ function buildDom(): void {
   `;
 }
 
-describe("startQuaPopup — sin token", () => {
-  it("muestra el estado 'Sin conectar al daemon' con el botón Conectar, y no la UI de grabación", async () => {
-    buildDom();
-    const storage = { get: vi.fn().mockResolvedValue({}), set: vi.fn() };
-    const isDaemonRunningFn = vi.fn().mockResolvedValue(true);
-
-    startQuaPopup(document, { connectionDeps: { storage }, isDaemonRunningFn });
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(document.getElementById("qua-connect")!.hidden).toBe(false);
-    expect(document.getElementById("qua-main")!.hidden).toBe(true);
-    expect(document.getElementById("qua-connect-title")!.textContent).toBe("Sin conectar al daemon");
-    expect((document.getElementById("qua-connect-button") as HTMLButtonElement).hidden).toBe(false);
-  });
-
-  it("con el daemon caído, dice 'El daemon no está corriendo' con el comando para levantarlo", async () => {
+describe("startQuaPopup — modo local (D-L1-01)", () => {
+  it("sin token va directo a la UI de grabación y nunca le pregunta nada al daemon", async () => {
     buildDom();
     const storage = { get: vi.fn().mockResolvedValue({}), set: vi.fn() };
     const isDaemonRunningFn = vi.fn().mockResolvedValue(false);
@@ -64,29 +45,9 @@ describe("startQuaPopup — sin token", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(document.getElementById("qua-connect-title")!.textContent).toBe("El daemon no está corriendo");
-    expect(document.getElementById("qua-connect-command")!.textContent).toBe("./target/release/quad");
-    expect((document.getElementById("qua-connect-command-row") as HTMLElement).hidden).toBe(false);
-  });
-
-  it("un click en Conectar empareja y pasa a la UI de grabación normal", async () => {
-    buildDom();
-    const storage = { get: vi.fn().mockResolvedValue({}), set: vi.fn().mockResolvedValue(undefined) };
-    const isDaemonRunningFn = vi.fn().mockResolvedValue(true);
-    const autoPairFn = vi.fn().mockResolvedValue({ ok: true, response: { token: "a".repeat(64), daemon_version: "0.1.0" } });
-
-    startQuaPopup(document, { connectionDeps: { storage }, isDaemonRunningFn, autoPairFn });
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    (document.getElementById("qua-connect-button") as HTMLButtonElement).click();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(document.getElementById("qua-connect")!.hidden).toBe(true);
     expect(document.getElementById("qua-main")!.hidden).toBe(false);
+    expect(document.getElementById("qua-connect")!.hidden).toBe(true);
+    expect(isDaemonRunningFn).not.toHaveBeenCalled();
   });
 });
 

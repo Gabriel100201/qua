@@ -2,13 +2,21 @@ import { AUDIO_SAMPLE_RATE } from "@qua/protocol";
 import { GapBuffer } from "./gap-buffer.js";
 import { nowMs } from "./clock.js";
 
+/**
+ * Solo para los E2E que reproducen una grabación ya procesada como micrófono falso
+ * (`WXT_QUA_RAW_MIC=1`, ver e2e/local.e2e.mjs): pasarla otra vez por supresión de
+ * ruido y ganancia automática borra tramos de voz enteros (medido en D-L1-02: 15,5 % de
+ * diferencia contra 1,0 %). Un micrófono real pasa una sola vez, igual que con `quad`.
+ */
+const RAW_MIC = import.meta.env?.WXT_QUA_RAW_MIC === "1";
+
 /** Constraints exactas de §5.4 — no tocar sin actualizar la spec. */
 export const MIC_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
     channelCount: 1,
     echoCancellation: false,
-    noiseSuppression: true,
-    autoGainControl: true,
+    noiseSuppression: !RAW_MIC,
+    autoGainControl: !RAW_MIC,
   },
 };
 
@@ -93,18 +101,35 @@ export class AudioCapture {
     }
   }
 
+  /** Cuándo terminó cada paso del arranque (epoch ms), para diagnosticar demoras. */
+  timings: Record<string, number> = {};
+
   async start(opts: StartAudioCaptureOptions): Promise<void> {
     const getUserMedia = this.deps.getUserMedia ?? defaultGetUserMedia;
+    this.timings = { startCalled: Date.now() };
+
+    // El micrófono y el worklet no dependen uno del otro: se preparan en paralelo. Medido
+    // en D-L1-02, cargar el worklet puede tardar segundos en una máquina cargada, y todo
+    // lo que se diga antes de que termine se pierde.
+    const worklet = this.prepareWorklet().then(
+      () => null,
+      (err: unknown) => err,
+    );
 
     try {
       this.stream = await getUserMedia(MIC_CONSTRAINTS);
+      this.timings.gotMic = Date.now();
     } catch (err) {
+      await worklet;
+      this.closeContext();
       this.callbacks.onError?.(`getUserMedia falló: ${errorMessage(err)}`);
       return;
     }
 
+    const workletError = await worklet;
     try {
-      await this.startWorklet(opts);
+      if (workletError) throw workletError;
+      this.connectWorklet(opts);
     } catch (err) {
       this.releaseMic();
       this.callbacks.onError?.(`AudioWorklet falló: ${errorMessage(err)}`);
@@ -115,16 +140,19 @@ export class AudioCapture {
     this.callbacks.onStarted?.();
   }
 
-  private async startWorklet(opts: StartAudioCaptureOptions): Promise<void> {
+  private async prepareWorklet(): Promise<void> {
     const createAudioContext = this.deps.createAudioContext ?? defaultCreateAudioContext;
-    const createWorkletNode = this.deps.createWorkletNode ?? defaultCreateWorkletNode;
     const workletUrl = this.deps.workletUrl ?? defaultWorkletUrl();
-
     this.ctx = createAudioContext();
+    this.timings.ctxState = this.ctx.state === "running" ? 1 : 0;
     await this.ctx.audioWorklet.addModule(workletUrl);
+    this.timings.workletLoaded = Date.now();
+  }
 
-    const source = this.ctx.createMediaStreamSource(this.stream!);
-    this.node = createWorkletNode(this.ctx);
+  private connectWorklet(opts: StartAudioCaptureOptions): void {
+    const createWorkletNode = this.deps.createWorkletNode ?? defaultCreateWorkletNode;
+    const source = this.ctx!.createMediaStreamSource(this.stream!);
+    this.node = createWorkletNode(this.ctx!);
     this.node.port.onmessage = (event: MessageEvent) => this.handleWorkletMessage(event);
     // El worklet cuenta muestras, no lee el reloj (ver `pcm-framer.ts`): acá se
     // calcula una sola vez el offset `t_ms` del primer frame respecto de
@@ -175,7 +203,10 @@ export class AudioCapture {
     this.node = null;
 
     this.releaseMic();
+    this.closeContext();
+  }
 
+  private closeContext(): void {
     void this.ctx?.close().catch(() => {
       // El AudioContext ya puede estar cerrado — no hay nada que hacer.
     });

@@ -61,9 +61,8 @@ export interface StartQuaPopupOptions {
 }
 
 /**
- * Arranca el popup real contra `document` y `chrome.runtime` (D-U1-01): sin
- * token muestra el estado "Sin conectar al daemon" (un click en "Conectar",
- * sin código de 6 dígitos); con token, la UI de grabación de siempre.
+ * Arranca el popup real contra `document` y `chrome.runtime`. En el modo local
+ * (D-L1-01) va directo a la UI de grabación: no hay daemon ni pairing.
  */
 export function startQuaPopup(doc: Document = document, opts: StartQuaPopupOptions = {}): Teardown {
   const mainContainer = doc.getElementById("qua-main");
@@ -104,15 +103,11 @@ export function startQuaPopup(doc: Document = document, opts: StartQuaPopupOptio
     });
   }
 
-  getStoredToken(opts.connectionDeps)
-    .then((token) => {
-      if (tornDown) return;
-      if (token) showMain();
-      else showConnect();
-    })
-    .catch(() => {
-      if (!tornDown) showConnect();
-    });
+  // Modo local (D-L1-01): no hay daemon que emparejar, la UI de grabación va directo.
+  // `showConnect` queda para un modo daemon opcional; hoy no se usa.
+  void getStoredToken;
+  void showConnect;
+  if (!tornDown) showMain();
 
   return () => {
     tornDown = true;

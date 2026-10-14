@@ -1,5 +1,6 @@
 import { checkMicPermission, type MicPermissionDeps, type MicPermissionState } from "../../options/lib/mic-permission.js";
 import type { StatusClient } from "./status-client.js";
+import { MODEL_STATE_KEY, type ModelState } from "../../../shared/local/model-state.js";
 
 /**
  * Franja de estado del popup (§04, D-U2-01 en docs/DECISIONS.md): el problema real
@@ -99,8 +100,30 @@ export { checkMicPermission };
  * controller define el contrato que necesita, esto lo cumple (mismo espíritu que
  * `StatusClientLike`).
  */
+/** Modo local (D-L1-01): la línea "Motor" de la franja, desde el último estado que el
+ * offscreen doc reportó al SW (`chrome.storage.local`). */
+export function engineLabel(state: ModelState | undefined): string {
+  switch (state?.status) {
+    case "listo":
+      return state.device === "webgpu" ? "Motor: listo (GPU)" : "Motor: listo (sin GPU: más lento y menos preciso)";
+    case "descargando":
+      return state.total > 0
+        ? `Motor: bajando ${Math.round((state.loaded / state.total) * 100)}%`
+        : "Motor: bajando…";
+    case "error":
+      return "Motor: no pude cargar el modelo";
+    default:
+      return "Motor: se baja al grabar por primera vez";
+  }
+}
+
 export class PopupDiagnosticsClient {
   constructor(private readonly client: Pick<StatusClient, "getStatus">) {}
+
+  async getEngineLabel(): Promise<string> {
+    const stored = await chrome.storage.local.get(MODEL_STATE_KEY);
+    return engineLabel(stored[MODEL_STATE_KEY] as ModelState | undefined);
+  }
 
   getDaemonStatus(): Promise<DaemonDiagnosis> {
     return getDaemonDiagnosis(this.client);

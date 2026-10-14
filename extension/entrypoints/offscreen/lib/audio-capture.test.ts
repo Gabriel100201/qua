@@ -177,12 +177,22 @@ describe("AudioCapture.start — §5.4 de punta a punta", () => {
 });
 
 describe("AudioCapture — manejo de errores", () => {
-  it("si getUserMedia rechaza, avisa onError y no toca AudioContext", async () => {
+  it("si getUserMedia rechaza, avisa onError y cierra el AudioContext que se preparó en paralelo", async () => {
     const s = setup({ getUserMedia: vi.fn().mockRejectedValue(new Error("Permission denied")) });
     await s.capture.start({ t0Wall: 0 });
     expect(s.callbacks.onError).toHaveBeenCalledWith(expect.stringContaining("getUserMedia falló"));
-    expect(s.createAudioContext).not.toHaveBeenCalled();
+    expect(s.close).toHaveBeenCalledTimes(1);
     expect(s.callbacks.onStarted).not.toHaveBeenCalled();
+  });
+
+  it("prepara el worklet sin esperar al micrófono (D-L1-02: cargarlo puede tardar segundos)", async () => {
+    let releaseMic: (s: MediaStream) => void = () => undefined;
+    const s = setup({ getUserMedia: vi.fn(() => new Promise<MediaStream>((r) => (releaseMic = r))) });
+    const started = s.capture.start({ t0Wall: 0 });
+    await Promise.resolve();
+    expect(s.addModule).toHaveBeenCalledTimes(1); // el mic todavía no respondió
+    releaseMic({ getTracks: () => [] } as unknown as MediaStream);
+    await started;
   });
 
   it("si addModule del worklet falla, suelta el micrófono y avisa onError", async () => {

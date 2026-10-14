@@ -113,7 +113,7 @@ impl AsrConfig {
         })
     }
 
-    fn from_toml_str(text: &str) -> Result<Self, toml::de::Error> {
+    pub fn from_toml_str(text: &str) -> Result<Self, toml::de::Error> {
         let file: ConfigFile = toml::from_str(text)?;
         Ok(file.asr)
     }

@@ -14,6 +14,11 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   runAt: "document_start",
   main() {
+    // El SW también lo inyecta a mano en pestañas abiertas antes de instalar
+    // (`ensureContentScript`): si por una carrera llega dos veces, no duplica listeners.
+    const w = window as unknown as { __quaContentScript?: boolean };
+    if (w.__quaContentScript) return;
+    w.__quaContentScript = true;
     startQuaContentScript();
   },
 });

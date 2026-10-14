@@ -32,6 +32,9 @@ interface BackgroundStatusResponse {
    * todavía no reciclado) responde sin estos campos (D-U3-01). */
   startedAtWall?: number | null;
   eventsCount?: number;
+  lastError?: string | null;
+  micReady?: boolean;
+  latest?: PopupStatus["latest"];
 }
 
 function isBackgroundStatusResponse(v: unknown): v is BackgroundStatusResponse {
@@ -64,9 +67,11 @@ export class StatusClient {
       state: result.value.phase,
       startedAtWall: result.value.startedAtWall ?? IDLE_STATUS.startedAtWall,
       eventsCount: result.value.eventsCount ?? IDLE_STATUS.eventsCount,
-      lastError: null,
+      lastError: result.value.lastError ?? null,
       paired: result.value.paired,
       wsStatus: result.value.wsStatus,
+      latest: result.value.latest ?? null,
+      ...(result.value.micReady === undefined ? {} : { micReady: result.value.micReady }),
     };
   }
 

@@ -176,8 +176,8 @@
     <section>
       <h2>Micrófono</h2>
       <p class="qua-hint">
-        Necesario una sola vez: el offscreen document no puede pedir este permiso por su cuenta
-        (§5.4), así que se otorga acá y queda para siempre en este origen.
+        Necesario una sola vez: Chrome solo deja pedir el micrófono desde una página visible de
+        la extensión, así que se concede acá y queda guardado.
       </p>
       <div class="qua-row">
         <button id="qua-mic-button" type="button">Dar permiso de micrófono</button>
@@ -187,8 +187,22 @@
     </section>
 
     <section>
+      <h2>Modelo de voz</h2>
+      <p class="qua-hint">
+        QUA transcribe en tu máquina: el audio nunca sale del navegador. El modelo (Whisper
+        large-v3-turbo, cerca de 1 GB) se baja una sola vez. Si no lo bajás ahora, se baja solo
+        mientras grabás tu primera sesión.
+      </p>
+      <div class="qua-row">
+        <button id="qua-model-button" type="button">Bajar el modelo ahora</button>
+        <span id="qua-model-status">Consultando…</span>
+      </div>
+      <span id="qua-model-message" class="qua-message"></span>
+    </section>
+
+    <!-- Modo daemon (opcional, pre D-L1-01): oculto. El modo local no necesita pairing. -->
+    <section hidden>
       <h2>Emparejar con el daemon</h2>
-      <p class="qua-hint">Ingresá el código de 6 dígitos que muestra la app QUA.</p>
       <form id="qua-pair-form" class="qua-row">
         <input id="qua-pair-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" />
         <button id="qua-pair-button" type="submit">Conectar</button>

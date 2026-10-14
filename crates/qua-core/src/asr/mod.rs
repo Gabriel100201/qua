@@ -14,18 +14,24 @@
 
 pub mod config;
 pub mod jitter;
+#[cfg(feature = "native")]
 pub mod model;
 pub mod pipeline;
 pub mod prompt;
 pub mod queue;
 pub mod ring;
 pub mod vad;
+#[cfg(feature = "native")]
 pub mod whisper;
 
 pub use config::AsrConfig;
+#[cfg(feature = "native")]
 pub use model::{ensure_model, DownloadProgress, ModelError, ModelSpec, BASE, LARGE_V3_TURBO_Q5_0};
-pub use pipeline::{run_whisper_worker, AudioFrontend, PromptState};
+pub use pipeline::{AudioFrontend, PromptState};
+#[cfg(feature = "native")]
+pub use pipeline::run_whisper_worker;
 pub use prompt::{build_initial_prompt, ensure_vocab_seeded, DEFAULT_VOCAB};
+#[cfg(feature = "native")]
 pub use whisper::{WhisperWorker, WhisperWorkerError};
 
 /// `~/.qua`, la raíz de todo lo que este módulo persiste (modelos, vocab, config).

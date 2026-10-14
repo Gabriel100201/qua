@@ -34,4 +34,16 @@ export interface StatusResponse {
    * Cuenta al encolar, no al `ack` del daemon (D-U3-01): un contador que se queda
    * congelado esperando la confirmación de red es peor que uno optimista. */
   eventsCount: number;
+  /** Modo local (D-L1-01): último error real (mic, procesamiento) para el popup. */
+  lastError?: string | null;
+  /** Durante la grabación: `false` hasta que el micrófono entrega audio de verdad. */
+  micReady?: boolean;
+  /** La sesión más reciente, para que el popup muestre el progreso o el reporte. */
+  latest?: {
+    id: string;
+    status: "recording" | "processing" | "ready" | "failed";
+    progress?: { stage: string; done: number; total: number };
+    issues?: number;
+    error?: string;
+  } | null;
 }

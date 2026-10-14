@@ -38,6 +38,7 @@ describe("StatusClient.getStatus", () => {
       lastError: null,
       paired: true,
       wsStatus: "connected",
+      latest: null,
     });
     expect(sendMessage).toHaveBeenCalledWith({ type: "qua:get-status" });
   });

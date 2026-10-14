@@ -13,6 +13,7 @@
 //! `docs/DECISIONS.md`: se usa 32 ms porque es lo único que el modelo permite; la
 //! diferencia con la spec es un redondeo del modelo, no una decisión de diseño.
 
+#[cfg(feature = "native")]
 use voice_activity_detector::VoiceActivityDetector;
 
 /// Tamaño de chunk que el modelo silero v5 exige a 16 kHz. Ver el módulo doc.
@@ -30,6 +31,7 @@ pub trait SpeechProbability {
     fn speech_probability(&mut self, chunk: &[f32]) -> f32;
 }
 
+#[cfg(feature = "native")]
 impl SpeechProbability for VoiceActivityDetector {
     fn speech_probability(&mut self, chunk: &[f32]) -> f32 {
         self.predict(chunk.iter().copied())
@@ -38,6 +40,7 @@ impl SpeechProbability for VoiceActivityDetector {
 
 /// Construye el detector silero de 16 kHz que usa el pipeline real (no-op en tests,
 /// que usan un mock de [`SpeechProbability`]).
+#[cfg(feature = "native")]
 pub fn new_silero_16k() -> Result<VoiceActivityDetector, voice_activity_detector::Error> {
     VoiceActivityDetector::builder()
         .sample_rate(16_000i64)

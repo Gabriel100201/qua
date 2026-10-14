@@ -7,26 +7,33 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[features]
+# `native`: whisper.cpp, silero vía ort, SQLite y descarga del modelo. Lo usan quad y
+# qua-mcp. Sin él, qua-core compila a wasm32 con el correlador, el segmentador y el
+# render — lo que usa la extensión en modo local (D-L1-01).
+default = ["native"]
+native = ["dep:rusqlite", "dep:voice_activity_detector", "dep:ureq", "dep:whisper-rs"]
+
 [dependencies]
 qua-protocol.workspace = true
 image.workspace = true
 regex.workspace = true
-rusqlite.workspace = true
+rusqlite = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-voice_activity_detector = "0.2"
+voice_activity_detector = { version = "0.2", optional = true }
 sha2 = "0.10"
-ureq = "3"
+ureq = { version = "3", optional = true }
 toml = "1"
 num_cpus = "1"
 tracing = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-whisper-rs = { version = "0.16", features = ["metal"] }
+whisper-rs = { version = "0.16", features = ["metal"], optional = true }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-whisper-rs = "0.16"
+whisper-rs = { version = "0.16", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

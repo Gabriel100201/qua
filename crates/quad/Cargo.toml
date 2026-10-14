@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 qua-protocol.workspace = true
-qua-core.workspace = true
+qua-core = { workspace = true, features = ["native"] }
 tokio.workspace = true
 axum.workspace = true
 futures-util.workspace = true

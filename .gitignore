@@ -16,3 +16,7 @@ models/
 apps/qua-app/src-tauri/binaries/
 apps/qua-app/dist/
 apps/qua-app/src-tauri/gen/
+
+# Modo local (D-L1-01): los genera `pnpm build:wasm` y `scripts/copy-ort.mjs`
+extension/shared/qua-wasm/
+extension/public/ort/

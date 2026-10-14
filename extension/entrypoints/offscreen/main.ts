@@ -1,27 +1,43 @@
 import {
-  isConnectionStateMessage,
+  isPreloadModelMessage,
+  isProcessSessionMessage,
   isStartCaptureMessage,
   isStopCaptureMessage,
   type OffscreenInboundMessage,
   type OffscreenOutboundMessage,
 } from "./lib/messages.js";
 import { AudioCapture, type AudioCaptureDeps } from "./lib/audio-capture.js";
+import { PcmStore } from "./lib/pcm-store.js";
+import { processLocalSession, readFramesFromRing, type LocalProcessorDeps } from "./lib/local-processor.js";
+import { LocalStore } from "../../shared/local/store.js";
 
 export interface StartOffscreenOptions {
   deps?: AudioCaptureDeps;
   /** Inyectable para tests: por defecto usa `chrome.runtime`. */
   runtime?: typeof chrome.runtime;
+  /** Motor local (whisper + qua-wasm). Por defecto se importa a demanda: es pesado y
+   * los tests de captura no lo necesitan. */
+  processor?: () => Promise<Omit<LocalProcessorDeps, "onModelState">>;
 }
 
 export type Teardown = () => void;
 
+async function defaultProcessor(): Promise<Omit<LocalProcessorDeps, "onModelState">> {
+  const engine = await import("../../shared/local/engine.js");
+  return {
+    store: new LocalStore(),
+    loadWasm: engine.loadQuaWasm,
+    transcribe: engine.transcribe,
+    readFrames: (from, to) => readFramesFromRing(from, to),
+  };
+}
+
 /**
- * Instala el listener de `chrome.runtime.onMessage` que recibe las órdenes
- * del service worker (§5.4, ver `lib/messages.ts`) y arranca/para
- * `AudioCapture` en consecuencia. Framework-agnóstico a propósito, mismo
- * patrón que `content/main.ts` (A1): el wiring real de WXT (manifest,
- * `chrome.offscreen.createDocument`) es del scaffold compartido, ver
- * `docs/DECISIONS.md` D-11.
+ * Offscreen doc del modo local (§5.4 + D-L1-01). Captura el micrófono como siempre,
+ * pero en vez de mandar los frames al SW para el WebSocket los guarda acá
+ * (`PcmStore`): el audio nunca sale de este documento. Al fin de la sesión el SW
+ * manda `qua:process-session` y el procesamiento entero corre acá, que es el único
+ * contexto de la extensión con WebGPU y sin el límite de vida del service worker.
  */
 export function startQuaOffscreen(opts: StartOffscreenOptions = {}): Teardown {
   const runtime = opts.runtime ?? (typeof chrome !== "undefined" ? chrome.runtime : undefined);
@@ -40,22 +56,50 @@ export function startQuaOffscreen(opts: StartOffscreenOptions = {}): Teardown {
     }
   };
 
+  const pcm = new PcmStore();
   const capture = new AudioCapture(opts.deps ?? {}, {
-    onFrame: (bytes) => send({ type: "qua:audio-frame", bytes }),
-    onGap: (duration_ms) => send({ type: "qua:audio-gap", duration_ms }),
-    onRecordingChunk: (blob) => send({ type: "qua:recording-chunk", blob }),
+    onFrame: (bytes) => pcm.push(bytes),
     onError: (message) => send({ type: "qua:capture-error", message }),
     onStarted: () => send({ type: "qua:capture-started" }),
   });
 
+  let startMsgWall = 0;
+  let engine: Promise<Omit<LocalProcessorDeps, "onModelState">> | undefined;
+  const getEngine = () => (engine ??= (opts.processor ?? defaultProcessor)());
+  const onModelState = (state: unknown) => send({ type: "qua:model-state", state });
+
+  async function preload(): Promise<void> {
+    const loaded = await getEngine();
+    void loaded.loadWasm();
+    const { loadAsr } = await import("../../shared/local/engine.js");
+    await loadAsr(onModelState);
+  }
+
   const listener = (message: unknown) => {
     const msg = message as OffscreenInboundMessage;
     if (isStartCaptureMessage(msg)) {
+      pcm.clear();
+      startMsgWall = Date.now();
       void capture.start({ t0Wall: msg.t0Wall, startSeq: msg.startSeq });
     } else if (isStopCaptureMessage(msg)) {
       capture.stop();
-    } else if (isConnectionStateMessage(msg)) {
-      capture.setConnected(msg.connected);
+    } else if (isPreloadModelMessage(msg)) {
+      // Mientras el usuario graba, whisper se baja/carga en paralelo: al detener, casi
+      // siempre ya está listo. Un fallo acá no corta nada — se reintenta al procesar.
+      if (!opts.processor) void preload().catch(() => undefined);
+    } else if (isProcessSessionMessage(msg)) {
+      capture.stop();
+      const audio = pcm.pcm();
+      const stats = { ...pcm.stats, ...capture.timings, startMsgWall, stopWall: Date.now() };
+      void getEngine()
+        .then((deps) =>
+          processLocalSession({ ...deps, onModelState }, msg.sessionId, audio, msg.tStop, msg.endedAt, stats),
+        )
+        .then(
+          () => send({ type: "qua:process-done", sessionId: msg.sessionId, ok: true }),
+          (err: unknown) => send({ type: "qua:process-done", sessionId: msg.sessionId, ok: false, error: String(err) }),
+        )
+        .finally(() => pcm.clear());
     }
   };
 

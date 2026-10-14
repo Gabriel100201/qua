@@ -26,6 +26,8 @@ export default defineConfig({
   // todo lo que empieza con punto en el selector de archivos — cargar la extensión
   // sin empaquetar se vuelve innecesariamente difícil.
   outDir: "build",
+  // El laboratorio de ASR (D-L1-02) solo entra en builds de desarrollo: QUA_LAB=1.
+  filterEntrypoints: process.env.QUA_LAB === "1" ? undefined : ["background", "content", "offscreen", "popup", "options", "pcm-tap-processor"],
   manifest: {
     name: "QUA",
     permissions: [
@@ -39,16 +41,29 @@ export default defineConfig({
       // abrir el micrófono mediante getUserMedia(). Sin él responde
       // NotSupportedError aun cuando macOS ya haya autorizado a Chrome.
       "audioCapture",
+      // Modo local (D-L1-01): los pesos de whisper (~800 MB) quedan en la Cache API
+      // del origen de la extensión, y el reporte se baja con `chrome.downloads`.
+      "unlimitedStorage",
+      "downloads",
     ],
+    // onnxruntime-web y qua-wasm compilan WebAssembly en el offscreen doc. MV3 lo
+    // permite solo con 'wasm-unsafe-eval'; el resto del código sigue siendo 'self'.
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+    },
     host_permissions: ["<all_urls>"],
     commands: {
+      // Globales (D-L1-01): reemplazan al hotkey de la app Tauri y andan aunque Chrome
+      // no tenga el foco. Chrome solo acepta sugerir Ctrl+Shift+[0-9] para globales.
       toggle_recording: {
-        suggested_key: { default: "Ctrl+Shift+R" },
+        suggested_key: { default: "Ctrl+Shift+1" },
         description: "Empezar/parar la grabación de sesión",
+        global: true,
       },
       drop_mark: {
-        suggested_key: { default: "Ctrl+Shift+E" },
+        suggested_key: { default: "Ctrl+Shift+2" },
         description: "Marcador de precisión",
+        global: true,
       },
     },
   },

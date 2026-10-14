@@ -9,7 +9,29 @@ fuente y evidencia de consola y red.
 - **Estado:** [`STATE.md`](STATE.md) — tablero de tareas y bitácora.
 - **Decisiones de implementación:** [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
-## Instalación y uso
+## Instalación y uso — solo la extensión (modo local)
+
+QUA es **una extensión de Chrome y nada más**: no hay app, daemon ni pairing. La extensión
+graba, transcribe con Whisper en tu GPU (WebGPU) y arma el reporte sin que el audio salga
+del navegador. Ver D-L1-01 en `docs/DECISIONS.md`.
+
+1. Instalá la extensión. Se abre sola la página de configuración: dale permiso al
+   micrófono y, si querés, bajá el modelo de voz (~1 GB, una sola vez).
+2. Abrí la página a revisar, apretá **Grabar** (o `Ctrl+Shift+1` desde cualquier app) y
+   hablá en voz alta sobre lo que ves.
+3. **Detener**. Al rato el popup muestra **Copiar reporte** (lo pegás en tu agente, Linear
+   o Slack) y **Descargar** (`Descargas/qua/<id>/report.md` con sus capturas).
+
+Para compilarla desde el repo:
+
+```bash
+pnpm install
+pnpm --filter @qua/extension run build:wasm   # qua-core → WebAssembly (necesita Rust + wasm-pack)
+pnpm --filter @qua/extension run build        # → extension/build/chrome-mv3
+node e2e/local.e2e.mjs                         # sesión real en Chrome, sin daemon
+```
+
+## Modo daemon (anterior)
 
 Hay una app de bandeja (Tauri 2, `apps/qua-app`) con tray, hotkeys globales, onboarding y
 sidecar del daemon — y también se puede usar sin ella: `quad` corrido directo desde la

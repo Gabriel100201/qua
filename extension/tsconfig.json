@@ -13,8 +13,10 @@
     // pasó a A3 (4 archivos de test sin poder cargar @qua/source-resolver).
     "paths": {
       "@qua/protocol": ["../packages/protocol/src/index.ts"],
-      "@qua/source-resolver": ["../packages/source-resolver/src/index.ts"]
+      "@qua/source-resolver": ["../packages/source-resolver/src/index.ts"],
+      // onnxruntime-web publica sus tipos fuera de "exports"; sin esto TS no los ve.
+      "onnxruntime-web": ["node_modules/onnxruntime-web/types.d.ts"]
     }
   },
-  "include": ["entrypoints/**/*.ts", "test/**/*.ts"]
+  "include": ["entrypoints/**/*.ts", "shared/**/*.ts", "test/**/*.ts"]
 }

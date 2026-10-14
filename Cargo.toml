@@ -5,6 +5,7 @@ members = [
   "crates/qua-core",
   "crates/quad",
   "crates/qua-mcp",
+  "crates/qua-wasm",
   "apps/qua-app/src-tauri",
 ]
 
@@ -17,7 +18,7 @@ authors = ["Gabriel Funes"]
 
 [workspace.dependencies]
 qua-protocol = { path = "crates/qua-protocol" }
-qua-core = { path = "crates/qua-core" }
+qua-core = { path = "crates/qua-core", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 rusqlite = { version = "0.32", features = ["bundled"] }

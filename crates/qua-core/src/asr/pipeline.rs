@@ -20,6 +20,7 @@ use crate::asr::prompt::build_initial_prompt;
 use crate::asr::queue::PendingSegment;
 use crate::asr::ring::{i16_to_f32, RingBuffer, SAMPLE_RATE_HZ};
 use crate::asr::vad::{Segmenter, SegmenterParams, SpeechProbability};
+#[cfg(feature = "native")]
 use crate::asr::whisper::{WhisperWorker, WhisperWorkerError};
 
 const MS_PER_SEC: u64 = 1000;
@@ -150,6 +151,7 @@ impl PromptState {
 /// una `Utterance` por segmento, hasta que el canal se cierra (fin de sesión).
 /// Pensado para correr en su propio hilo (`std::thread::spawn`) — un solo
 /// `WhisperContext` por worker, nunca compartido entre hilos concurrentemente.
+#[cfg(feature = "native")]
 pub fn run_whisper_worker(
     mut worker: WhisperWorker,
     cfg: &AsrConfig,

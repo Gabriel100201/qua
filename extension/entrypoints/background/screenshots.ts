@@ -6,6 +6,12 @@ export const SCREENSHOT_RING_SIZE = 40;
 export const SCREENSHOT_FPS = 1;
 export const SCREENSHOT_WIDTH = 1280;
 export const SCREENSHOT_QUALITY = 60;
+/**
+ * Modo local (D-L1-01): el procesamiento corre al final de la sesión, así que el ring
+ * en IndexedDB tiene que cubrirla entera, no solo los últimos 40 s. Lo que tenga más
+ * de esto se poda; a 1 fps y ~80 KB por frame son ~150 MB como máximo.
+ */
+export const SCREENSHOT_RETENTION_MS = 30 * 60 * 1000;
 
 export interface ScreenshotFrame {
   t: number;
@@ -105,13 +111,13 @@ export class ScreenshotRing {
 
   private async push(frame: ScreenshotFrame): Promise<void> {
     this.frames.push(frame);
-    const evicted = this.frames.length > SCREENSHOT_RING_SIZE ? this.frames.shift() : undefined;
+    if (this.frames.length > SCREENSHOT_RING_SIZE) this.frames.shift();
 
     const db = await this.dbPromise;
     const tx = db.transaction(FRAMES_STORE, "readwrite");
     const store = tx.objectStore(FRAMES_STORE);
     store.put(frame);
-    if (evicted) store.delete(evicted.t);
+    store.delete(IDBKeyRange.upperBound(frame.t - SCREENSHOT_RETENTION_MS, true));
     await txDone(tx);
   }
 

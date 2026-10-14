@@ -31,6 +31,16 @@ export interface PopupStatus {
    * seguir en `recording` mientras el WS está caído a mitad de una reconexión. */
   paired?: boolean;
   wsStatus?: "disconnected" | "connecting" | "connected";
+  /** `false` mientras el micrófono todavía se está abriendo (lo hablado ahí se pierde). */
+  micReady?: boolean;
+  /** Modo local (D-L1-01): la sesión más reciente — progreso mientras se procesa. */
+  latest?: {
+    id: string;
+    status: "recording" | "processing" | "ready" | "failed";
+    progress?: { stage: string; done: number; total: number };
+    issues?: number;
+    error?: string;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

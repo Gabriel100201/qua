@@ -1,4 +1,5 @@
 import { startOnboardingController, type OnboardingElements, type Teardown } from "./lib/controller.js";
+import { startModelDownload } from "./lib/model-download.js";
 
 export type { Teardown };
 
@@ -22,5 +23,13 @@ export function findOnboardingElements(doc: Document): OnboardingElements {
 
 /** Arranca options.html real contra `document`. */
 export function startQuaOptions(doc: Document = document): Teardown {
-  return startOnboardingController({ elements: findOnboardingElements(doc) });
+  const stopOnboarding = startOnboardingController({ elements: findOnboardingElements(doc) });
+  const button = doc.getElementById("qua-model-button") as HTMLButtonElement | null;
+  const status = doc.getElementById("qua-model-status");
+  const message = doc.getElementById("qua-model-message");
+  const stopModel = button && status && message ? startModelDownload({ button, status, message }) : () => undefined;
+  return () => {
+    stopOnboarding();
+    stopModel();
+  };
 }
