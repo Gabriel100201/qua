@@ -5,7 +5,7 @@
 > **Se actualiza después de cada tarea terminada.**
 
 - **Spec:** `docs/SPEC.md` — fuente de verdad. La §14 tiene el plan de tareas completo.
-- **Repo:** `/Users/gabrielfunes/Projects/personal/qua` · git local, sin remote (decisión de Gabriel).
+- **Repo:** github.com/Gabriel100201/qua (público desde 2026-10-14; antes era solo local).
 - **Arrancado:** 2026-09-04 ~23:00 -03 (sesión nocturna de Gabriel, desatendida).
 
 ## Reglas que no se negocian
