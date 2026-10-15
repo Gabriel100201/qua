@@ -57,6 +57,14 @@ function toTab(tabId: number, message: unknown): void {
   }
 }
 
+/** Estado de la grabación en curso que tiene que sobrevivir a que Chrome recicle el worker. */
+const LIVE_KEY = "qua:live";
+interface LiveState {
+  overlayTab: number | undefined;
+  marks: number[];
+  micReady: boolean;
+}
+
 async function activeTabId(): Promise<number | undefined> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
   return tab?.id;
@@ -99,9 +107,16 @@ export class LocalSessionManager {
   async init(): Promise<void> {
     const state = await this.fsm.load();
     if (state.phase === "recording" && state.session) {
+      // Lo que vive en memoria se pierde con el worker: sin la pestaña de la pastilla,
+      // la pastilla seguía "grabando" para siempre aunque se detuviera.
+      const live = (await browser.storage.session.get(LIVE_KEY))[LIVE_KEY] as LiveState | undefined;
+      this.overlayTab = live?.overlayTab ?? (await activeTabId());
+      this.marks = live?.marks ?? [];
+      this.micReady = live?.micReady ?? true;
       this.tabs.start();
       this.screenshots.start();
       this.startFlushing();
+      browser.tabs.onActivated.addListener(this.onTabActivated);
       return;
     }
     if (state.phase === "starting" || state.phase === "stopping") {
@@ -136,6 +151,7 @@ export class LocalSessionManager {
     const t = this.now();
     this.marks.push(t);
     this.enqueue({ t, k: "mark", source } as Event);
+    void this.saveLive();
     void this.broadcast();
   }
 
@@ -210,6 +226,7 @@ export class LocalSessionManager {
     this.micReady = false;
     this.marks = [];
     this.overlayTab = tab?.id;
+    await this.saveLive();
 
     // Ver el comentario equivalente en `SessionManager.start`: el `nav` de carga
     // ocurrió antes de grabar, así que se reconstruye con la URL ya conocida.
@@ -260,6 +277,7 @@ export class LocalSessionManager {
     });
     await this.fsm.finish();
     this.watchProcessing();
+    void this.broadcast(); // la pastilla pasa a "procesando" ya, sin esperar el primer tick
 
     if (await browser.offscreen.hasDocument()) {
       this.sendToOffscreen({ type: "qua:process-session", sessionId: session.sessionId, tStop, endedAt });
@@ -310,9 +328,19 @@ export class LocalSessionManager {
     return { kind: "hidden" };
   }
 
+  /** Lo que tiene que mostrar la pastilla de una pestaña que pregunta (al cargar o al
+   * resincronizarse). Solo la pestaña de la pastilla la ve; si el worker se recicló y no
+   * sabe cuál es, la adopta. */
+  async overlayStateFor(tabId: number): Promise<OverlayState> {
+    this.overlayTab ??= tabId;
+    if (tabId !== this.overlayTab) return { kind: "hidden" };
+    return this.overlayState();
+  }
+
   /** Lleva el estado a la pastilla y al ícono de la barra. */
   async broadcast(): Promise<void> {
     const state = await this.overlayState();
+    this.overlayTab ??= await activeTabId().catch(() => undefined);
     if (this.overlayTab !== undefined) {
       toTab(this.overlayTab, { type: "qua:overlay", state });
     }
@@ -370,6 +398,7 @@ export class LocalSessionManager {
     }
     if (isCaptureStartedMessage(msg)) {
       this.micReady = true;
+      void this.saveLive();
       void this.broadcast();
       return true;
     }
@@ -392,6 +421,7 @@ export class LocalSessionManager {
     // La pastilla acompaña a la pestaña activa: se va de la anterior y aparece en la nueva.
     const prev = this.overlayTab;
     this.overlayTab = tabId;
+    void this.saveLive();
     if (prev !== undefined && prev !== tabId) toTab(prev, { type: "qua:overlay", state: { kind: "hidden" } });
     void this.ensureContentScript(tabId).then(() => this.broadcast());
   };
@@ -430,6 +460,11 @@ export class LocalSessionManager {
   private stopFlushing(): void {
     if (this.flushTimer) clearInterval(this.flushTimer);
     this.flushTimer = undefined;
+  }
+
+  private async saveLive(): Promise<void> {
+    const live: LiveState = { overlayTab: this.overlayTab, marks: this.marks, micReady: this.micReady };
+    await browser.storage.session?.set({ [LIVE_KEY]: live }).catch(() => undefined);
   }
 
   private async flush(): Promise<void> {

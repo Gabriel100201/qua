@@ -2594,6 +2594,13 @@ un punto por issue al terminar). Se borraron el popup y las opciones del modo da
 - **Carrera al despertar el service worker.** Los mensajes llegaban antes de que el manager
   leyera su estado y el popup veía "inactivo" con una grabación en curso. El SW ahora hace
   `await ready` antes de atender cualquier mensaje.
+- **La pastilla quedaba "grabando" después de detener.** Si Chrome reciclaba el worker a
+  mitad de una grabación, la FSM se recuperaba pero la pestaña de la pastilla, las marcas y
+  `micReady` vivían solo en memoria: detener andaba, pero ningún aviso llegaba a la pastilla
+  (ni el "listo" con **Ver reporte**). Ahora se guardan en `storage.session` (`qua:live`) y
+  se restauran en `init`; la pastilla pasa a "Deteniendo" al tocar detener y se resincroniza
+  sola cada 2 s mientras está visible. Probado en Chrome matando el worker a mitad de la
+  grabación.
 
 ### D-L1-10 · Diferencias con el diseño
 

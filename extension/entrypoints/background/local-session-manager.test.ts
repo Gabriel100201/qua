@@ -131,6 +131,25 @@ describe("LocalSessionManager (modo local, D-L1-01)", () => {
     expect(executeScript).not.toHaveBeenCalled();
   });
 
+  it("si Chrome recicla el worker a mitad de grabación, detener igual le avisa a la pastilla", async () => {
+    const { manager, store } = await setup();
+    fakeBrowser.tabs.sendMessage = vi.fn().mockResolvedValue({ type: "qua:pong" }) as never;
+    await manager.start("https://pediloapp.com/", VIEWPORT, { id: 9, title: "Pedilo" });
+    manager.mark("popup");
+
+    // Worker nuevo: misma base y mismo storage, nada en memoria.
+    const sendToTab = vi.fn().mockResolvedValue(undefined);
+    fakeBrowser.tabs.sendMessage = sendToTab as never;
+    const reborn = new LocalSessionManager(store, () => 1_700_000_005_000);
+    await reborn.init();
+    expect(reborn.getPhase()).toBe("recording");
+    expect(reborn.getMarks()).toHaveLength(1);
+    expect(await reborn.overlayStateFor(4)).toEqual({ kind: "hidden" }); // otra pestaña no la ve
+
+    await reborn.stop();
+    await vi.waitFor(() => expect(sendToTab).toHaveBeenCalledWith(9, expect.objectContaining({ type: "qua:overlay", state: expect.objectContaining({ kind: "processing" }) })));
+  });
+
   it("los eventos fuera de una grabación se ignoran", async () => {
     const { manager } = await setup();
     manager.enqueue({ t: 1, k: "mark", source: "popup" });

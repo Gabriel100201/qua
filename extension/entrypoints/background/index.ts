@@ -42,7 +42,12 @@ export default defineBackground(() => {
       const a = message;
       if (a.action === "mark") sessions.mark("popup");
       else if (a.action === "stop") void sessions.stop().catch((e: unknown) => sessions.reportError(e));
-      else if (a.action === "open-report" && a.sessionId) void browser.tabs.create({ url: reportUrl(a.sessionId) });
+      else if (a.action === "open-report") {
+        void (async () => {
+          const id = a.sessionId ?? (await sessions.latestSession().catch(() => undefined))?.id;
+          if (id) await browser.tabs.create({ url: reportUrl(id) });
+        })();
+      }
       else if (a.action === "fix-mic") void browser.tabs.create({ url: extUrl("/onboarding.html#microfono") });
       sendResponse({ ok: true });
       return true;
@@ -77,7 +82,7 @@ export default defineBackground(() => {
       case "qua:overlay-hello": {
         // Una pestaña recién cargada pregunta si tiene que mostrar la pastilla.
         const tabId = sender.tab?.id;
-        return { state: tabId !== undefined ? await sessions.overlayState() : { kind: "hidden" } };
+        return { state: tabId !== undefined ? await sessions.overlayStateFor(tabId) : { kind: "hidden" } };
       }
       case "qua:get-status":
         return status(message.seen === true);

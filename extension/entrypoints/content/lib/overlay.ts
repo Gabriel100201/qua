@@ -124,6 +124,8 @@ export function installOverlay(doc: Document = document): Teardown {
     if (!b || b.disabled || moved) return;
     const act = b.dataset.act as OverlayAction["action"];
     send(act, state.kind === "ready" ? state.sessionId : undefined);
+    // Detener responde al toque; el service worker confirma con el estado real.
+    if (act === "stop") { state = { kind: "processing", label: "Deteniendo", progress: 0 }; render(); }
   });
 
   // Arrastrable a cualquier esquina; recuerda la esquina por sitio.
@@ -172,8 +174,23 @@ export function installOverlay(doc: Document = document): Teardown {
   };
   chrome.runtime.onMessage.addListener(onMessage);
 
+  // Si un aviso del service worker se pierde (Chrome lo recicló, la pestaña estaba en
+  // segundo plano), la pastilla no puede quedar mostrando un estado viejo: se resincroniza.
+  const hello = () => {
+    try {
+      void Promise.resolve(chrome.runtime.sendMessage?.({ type: "qua:overlay-hello" })).then((r: { state?: OverlayState } | undefined) => {
+        if (!r?.state || JSON.stringify(r.state) === JSON.stringify(state)) return;
+        if (r.state.kind === "recording" && state.kind === "recording") { state = r.state; return; }
+        state = r.state;
+        render();
+      }).catch(() => undefined);
+    } catch { /* contexto sin runtime (tests) o extensión recargada */ }
+  };
+  let ticks = 0;
+
   // El reloj corre en la pastilla sin esperar mensajes.
   tick = setInterval(() => {
+    if (state.kind !== "hidden" && state.kind !== "ready" && ++ticks % 8 === 0) hello();
     if (state.kind !== "recording") return;
     const read = pill.querySelector("[data-clock]");
     if (read && !pill.classList.contains("flash")) read.textContent = clock(Date.now() - state.startedAtWall);
@@ -181,11 +198,7 @@ export function installOverlay(doc: Document = document): Teardown {
 
   // Una pestaña recién cargada pregunta si hay algo que mostrar (navegó mientras graba).
   void chrome.storage?.local?.get(cornerKey).then((v) => { if (v[cornerKey]) corner = v[cornerKey] as Corner; }).catch(() => undefined);
-  try {
-    void Promise.resolve(chrome.runtime.sendMessage?.({ type: "qua:overlay-hello" })).then((r: { state?: OverlayState } | undefined) => {
-      if (r?.state) { state = r.state; render(); }
-    }).catch(() => undefined);
-  } catch { /* contexto sin runtime (tests) */ }
+  hello();
 
   return () => {
     chrome.runtime.onMessage.removeListener(onMessage);
