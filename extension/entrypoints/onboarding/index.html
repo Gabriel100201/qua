@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bienvenido a QUA</title>
+  </head>
+  <body>
+    <!-- Diseño 2026-10 (Penpot "QUA" → Primera vez). -->
+    <main id="welcome" class="welcome" hidden>
+      <div id="welcome-icon"></div>
+      <h1>Hablá mientras probás una web.</h1>
+      <p class="lead">QUA escucha lo que decís, mira dónde hacés click y arma un reporte con cada cosa anclada al elemento exacto. Todo pasa en tu navegador.</p>
+      <button id="start" class="qua-btn is-primary is-center start" type="button">Empezar</button>
+      <div class="scenes">
+        <figure class="scene">
+          <div class="card"><div class="rec"><span id="sc-ring"></span><span id="sc-bars"></span><span class="qua-num t">02:41</span></div><div class="said">“este botón no hace nada”</div></div>
+          <figcaption>Hablás mientras probás</figcaption>
+        </figure>
+        <figure class="scene">
+          <div class="card"><div class="lines"><i style="width:100%"></i><i style="width:66%"></i></div><div class="focus"><span class="fake-btn">Guardar</span></div></div>
+          <figcaption>Se ancla a lo que tocaste</figcaption>
+        </figure>
+        <figure class="scene">
+          <div class="card"><div class="rec"><span id="sc-ready"></span><span class="t2">7 issues</span></div><ul class="items"><li style="--w:82%"></li><li style="--w:62%"></li><li style="--w:74%"></li></ul></div>
+          <figcaption>Te queda el reporte</figcaption>
+        </figure>
+      </div>
+    </main>
+
+    <main id="setup" class="setup" hidden>
+      <section class="left">
+        <div id="art" class="art"></div>
+        <h1 id="left-title"></h1>
+        <p id="left-body" class="lead"></p>
+      </section>
+      <section class="right">
+        <ol id="steps" class="steps"></ol>
+      </section>
+    </main>
+    <div id="chrome-prompt" class="chrome-prompt" hidden>
+      <div class="cp-row"><span class="cp-ic"></span><b>QUA quiere usar tu micrófono</b></div>
+      <div class="cp-actions"><span class="cp-btn">Bloquear</span><span class="cp-btn is-allow">Permitir</span></div>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

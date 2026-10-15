@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reporte de QUA</title>
+  </head>
+  <body>
+    <!-- Diseño 2026-10 (Penpot "QUA" → Reporte). -->
+    <main class="page">
+      <nav class="top"><span id="app"></span><button id="to-sessions" class="qua-link" type="button">Sesiones</button></nav>
+      <header class="head">
+        <div>
+          <h1 id="where"></h1>
+          <p id="context" class="context"></p>
+        </div>
+        <div class="actions">
+          <button id="copy-all" class="qua-btn is-primary" type="button"></button>
+          <button id="download" class="qua-btn is-icon" type="button" title="Descargar" aria-label="Descargar"></button>
+        </div>
+      </header>
+      <section class="timeline" aria-label="Línea de tiempo de la sesión">
+        <div id="track" class="track"></div>
+        <div id="ticks" class="ticks qua-num"></div>
+      </section>
+      <div id="filters" class="filters" role="toolbar" aria-label="Filtrar por tipo"></div>
+      <ol id="issues" class="issues"></ol>
+      <section id="unanchored-wrap" class="more" hidden>
+        <h2>Sin anclar</h2>
+        <p class="qua-gray">Cosas que dijiste sin mirar ni tocar nada: quedan con la ruta.</p>
+        <ul id="unanchored" class="unanchored"></ul>
+      </section>
+      <details class="more transcript">
+        <summary><h2>Transcripción completa</h2></summary>
+        <pre id="transcript"></pre>
+      </details>
+      <p id="missing" class="missing" hidden>No encontré ese reporte. Puede que lo hayas borrado desde Ajustes.</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

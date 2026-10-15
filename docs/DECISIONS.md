@@ -2568,3 +2568,40 @@ de 0 px y el issue salía sin imagen. En el E2E no se veía porque la ventana me
   turbo no se notó en las sesiones medidas.
 - **Timestamps por palabra** (`words`): quedan vacíos. El correlador no los usa.
 - **Sesiones de más de 30 min**: las capturas del principio se podan del ring.
+
+### D-L1-08 · Rediseño de la UI (2026-10)
+
+Toda la UI de la extensión se rediseñó en Penpot (archivo "QUA") y se implementó completa:
+popup con estados e historial, primera vez en cuatro pasos, pastilla en la página, ícono de
+la barra dibujado por estado, notificación al terminar, visor del reporte y Ajustes. Una
+sola marca guía todo: el anillo (gira abriendo el mic, late grabando, se llena procesando,
+un punto por issue al terminar). Se borraron el popup y las opciones del modo daemon
+(pairing, conexión, descarga manual del modelo); el daemon sigue compilando aparte.
+
+### D-L1-09 · Bugs que aparecieron al implementarla
+
+- **El content script moría en `document_start`.** `observers.ts` observaba `doc.body`, que
+  todavía es `null` en ese momento: tiraba y no se instalaba nada más. Ahora observa
+  `documentElement` y `main.ts` instala cada parte en su propio `try`.
+- **La migración de IndexedDB quedaba bloqueada.** Subir `qua-local` a v2 para guardar el
+  audio esperaba para siempre si había otra conexión abierta (popup, offscreen). El audio
+  va a una base aparte, `qua-audio`; `qua-local` sigue en v1 y las conexiones se cierran en
+  `onversionchange`.
+- **Sesiones trabadas en "procesando".** Si Chrome cerraba el documento offscreen a mitad
+  de camino, la sesión quedaba en `processing` para siempre. Al iniciar y al grabar, una
+  sesión así sin offscreen pasa a `failed` ("Se interrumpió el procesamiento") y se puede
+  reintentar desde el audio guardado.
+- **Carrera al despertar el service worker.** Los mensajes llegaban antes de que el manager
+  leyera su estado y el popup veía "inactivo" con una grabación en curso. El SW ahora hace
+  `await ready` antes de atender cualquier mensaje.
+
+### D-L1-10 · Diferencias con el diseño
+
+- **Historial desde el header**: el diseño no tenía cómo llegar al historial desde el popup;
+  se agregó un botón de reloj.
+- **"Ver reporte" en el estado listo**, además de copiar y descargar, para abrir el visor.
+- **Probar el micrófono en Ajustes es un botón**, no un medidor siempre encendido: tenerlo
+  en vivo dejaba el micrófono abierto (y el indicador de Chrome prendido) mientras la
+  página estuviera abierta.
+- **Sin modo oscuro todavía** en las páginas: el diseño es claro. El ícono de la barra sí
+  se adapta al tema de Chrome.

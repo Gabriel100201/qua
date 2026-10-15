@@ -1,0 +1,49 @@
+@import "../../shared/ui/base.css";
+
+body { width: 340px; min-height: 400px; }
+main { display: flex; flex-direction: column; }
+
+.bar { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 20px; border-bottom: 1px solid var(--line); }
+.place { flex: 1; min-width: 0; color: var(--gray); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.title { flex: 1; font-weight: 600; font-size: 15px; }
+.glyphs { display: flex; gap: 6px; align-items: center; }
+.glyph { position: relative; display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; color: var(--ink); background: none; border: 0; padding: 0; border-radius: 7px; }
+button.glyph { cursor: pointer; }
+button.glyph:hover { background: var(--white); }
+.glyph .dot { position: absolute; top: 2px; right: 1px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink); }
+.glyph .dot.is-wait { background: var(--screen); box-shadow: inset 0 0 0 1.6px var(--gray); }
+.glyph .dot.is-err { background: var(--red); }
+
+.ring { display: block; margin: 20px auto 0; width: 300px; height: 170px; padding: 0; border: 0; background: none; border-radius: 50%; }
+.ring[data-action] { cursor: pointer; }
+.ring[data-action]:hover .qua-ring circle[r="56"] { stroke-width: 3.2; }
+.ring:disabled { cursor: default; }
+.ring.is-mini { height: 96px; display: flex; align-items: center; justify-content: center; margin-top: 40px; }
+
+.reading { margin-top: 12px; text-align: center; font: 500 30px/1.25 var(--font); }
+.reading.is-placeholder { color: var(--placeholder); }
+.reading.is-red { color: var(--red); }
+.reading.is-title { font-size: 22px; margin-top: 16px; }
+.caption { margin: 6px 24px 0; text-align: center; color: var(--gray); font-size: 13px; line-height: 1.45; }
+
+.controls { display: flex; gap: 8px; justify-content: center; align-items: center; padding: 20px 20px 20px; min-height: 80px; }
+.controls .qua-btn { flex: 1; }
+.controls .qua-btn.is-icon { flex: 0 0 40px; }
+.controls .note { color: var(--gray); font-size: 12px; text-align: center; }
+.error { margin: -8px 20px 16px; color: var(--red-text); font-size: 12px; text-align: center; }
+
+/* Historial: cada sesión es su anillo con un punto por issue. */
+.history { list-style: none; margin: 0; padding: 8px; }
+.history li { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; cursor: pointer; }
+.history li + li { box-shadow: 0 -1px 0 var(--line); }
+.history li:hover { background: var(--white); box-shadow: none; }
+.history li:hover + li { box-shadow: none; }
+.history .where { flex: 1; min-width: 0; }
+.history .d { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history .m { color: var(--gray); font-size: 12px; margin-top: 2px; }
+.history .n { font-weight: 500; min-width: 30px; text-align: right; }
+.history .n.is-zero { color: var(--gray); font-weight: 400; font-size: 13px; }
+.history .act { color: var(--gray); display: inline-flex; background: none; border: 0; padding: 4px; border-radius: 6px; cursor: pointer; }
+.history .act:hover { color: var(--ink); }
+.history .empty { justify-content: center; color: var(--gray); cursor: default; }
+.foot { text-align: center; color: var(--gray); font-size: 12px; padding: 4px 20px 20px; }

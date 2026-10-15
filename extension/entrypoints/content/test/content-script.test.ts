@@ -225,3 +225,15 @@ describe("content script — página de prueba (§14, criterio de A1)", () => {
     expect(document.querySelector(sel)).toBe(after);
   });
 });
+
+describe("content script en document_start", () => {
+  it("arranca aunque todavía no exista <body> (antes tiraba y mataba todo)", async () => {
+    const { startQuaContentScript } = await import("../main.js");
+    const body = document.body;
+    body.remove();
+    const events: unknown[] = [];
+    expect(() => startQuaContentScript({ emit: (e) => events.push(e), autoLoadSourceResolver: false, overlay: false })()).not.toThrow();
+    document.documentElement.appendChild(body);
+    expect(events.some((e) => (e as { k: string }).k === "nav")).toBe(true);
+  });
+});

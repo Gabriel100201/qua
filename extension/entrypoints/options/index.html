@@ -2,214 +2,62 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <!-- El diálogo embebido de chrome://extensions no expone getUserMedia. -->
-    <meta name="manifest.open_in_tab" content="true" />
-    <title>QUA — configuración</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: #f7f7f8;
-        --bg-elevated: #ffffff;
-        --bg-muted: #f1f1f3;
-        --fg: #18181b;
-        --fg-muted: #52525b;
-        --fg-subtle: #71717a;
-        --border: #e4e4e7;
-        --border-strong: #d4d4d8;
-        --accent: #2563eb;
-        --accent-hover: #1d4ed8;
-        --accent-fg: #ffffff;
-        --success-fg: #15803d;
-        --success-bg: #f0fdf4;
-        --success-border: #bbf7d0;
-        --focus-ring: #2563eb;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #19191c;
-          --bg-elevated: #232326;
-          --bg-muted: #29292d;
-          --fg: #f4f4f5;
-          --fg-muted: #a1a1aa;
-          --fg-subtle: #8b8b93;
-          --border: #38383d;
-          --border-strong: #46464c;
-          --accent: #3b82f6;
-          --accent-hover: #60a5fa;
-          --accent-fg: #0b1220;
-          --success-fg: #86efac;
-          --success-bg: rgba(21, 128, 61, 0.16);
-          --success-border: #166534;
-          --focus-ring: #60a5fa;
-        }
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        max-width: 480px;
-        margin: 32px auto;
-        padding: 0 16px;
-        font: 14px/1.5 -apple-system, system-ui, "Segoe UI", sans-serif;
-        color: var(--fg);
-        background: var(--bg);
-      }
-
-      h1 {
-        font-size: 24px;
-        margin: 0 0 2px;
-      }
-
-      .qua-subtitle {
-        color: var(--fg-muted);
-        margin: 0 0 24px;
-      }
-
-      section {
-        background: var(--bg-elevated);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 18px;
-        margin-bottom: 16px;
-      }
-
-      h2 {
-        font-size: 18px;
-        margin: 0 0 6px;
-      }
-
-      p.qua-hint {
-        color: var(--fg-muted);
-        margin: 0 0 14px;
-      }
-
-      button {
-        font: inherit;
-        padding: 7px 14px;
-        border: 1px solid var(--border-strong);
-        border-radius: 7px;
-        background: var(--bg-elevated);
-        color: var(--fg);
-        cursor: pointer;
-      }
-
-      button:hover:not(:disabled) {
-        border-color: var(--fg-subtle);
-      }
-
-      button:disabled {
-        opacity: 0.5;
-        cursor: default;
-      }
-
-      button:focus-visible,
-      input:focus-visible {
-        outline: 2px solid var(--focus-ring);
-        outline-offset: 2px;
-      }
-
-      #qua-mic-button,
-      #qua-pair-button {
-        border: none;
-        background: var(--accent);
-        color: var(--accent-fg);
-        font-weight: 600;
-      }
-
-      #qua-mic-button:hover:not(:disabled),
-      #qua-pair-button:hover:not(:disabled) {
-        background: var(--accent-hover);
-      }
-
-      input {
-        font: inherit;
-        padding: 7px 8px;
-        border: 1px solid var(--border-strong);
-        border-radius: 7px;
-        background: var(--bg-elevated);
-        color: var(--fg);
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 3px;
-        text-align: center;
-        width: 110px;
-      }
-
-      .qua-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      #qua-mic-status {
-        font-size: 11px;
-        color: var(--fg-muted);
-        background: var(--bg-muted);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        padding: 3px 10px;
-      }
-
-      /* Sin ganchos de clase en el JS: el botón queda disabled solo cuando el
-         permiso ya está concedido (ver options/lib/controller.ts), así que ese
-         estado real del DOM alcanza para marcar la insignia como éxito. */
-      .qua-row:has(#qua-mic-button:disabled) #qua-mic-status {
-        color: var(--success-fg);
-        background: var(--success-bg);
-        border-color: var(--success-border);
-      }
-
-      .qua-message {
-        display: block;
-        margin-top: 10px;
-        color: var(--fg-muted);
-        min-height: 1.2em;
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ajustes de QUA</title>
   </head>
   <body>
-    <h1>QUA</h1>
-    <p class="qua-subtitle">Configuración</p>
+    <!-- Diseño 2026-10 (Penpot "QUA" → Ajustes). Cada sección: glifo + título, contenido a la derecha. -->
+    <main class="page">
+      <span id="app"></span>
+      <h1>Ajustes</h1>
 
-    <section>
-      <h2>Micrófono</h2>
-      <p class="qua-hint">
-        Necesario una sola vez: Chrome solo deja pedir el micrófono desde una página visible de
-        la extensión, así que se concede acá y queda guardado.
-      </p>
-      <div class="qua-row">
-        <button id="qua-mic-button" type="button">Dar permiso de micrófono</button>
-        <span id="qua-mic-status">Consultando…</span>
-      </div>
-      <span id="qua-mic-message" class="qua-message"></span>
-    </section>
+      <section class="sec">
+        <div class="sec-head"><span class="ic" data-icon="engine"></span><div><h2>Motor de voz</h2><p class="sub">Transcribe en tu máquina. El audio nunca sale de Chrome.</p></div></div>
+        <div class="sec-body">
+          <div class="row"><span id="engine-ring"></span><div><p id="engine-title" class="strong"></p><p id="engine-detail" class="sub"></p></div></div>
+          <div class="row"><button id="delete-model" class="qua-btn" type="button"></button><span class="hint">Se vuelve a bajar en la próxima grabación.</span></div>
+        </div>
+      </section>
 
-    <section>
-      <h2>Modelo de voz</h2>
-      <p class="qua-hint">
-        QUA transcribe en tu máquina: el audio nunca sale del navegador. El modelo (Whisper
-        large-v3-turbo, cerca de 1 GB) se baja una sola vez. Si no lo bajás ahora, se baja solo
-        mientras grabás tu primera sesión.
-      </p>
-      <div class="qua-row">
-        <button id="qua-model-button" type="button">Bajar el modelo ahora</button>
-        <span id="qua-model-status">Consultando…</span>
-      </div>
-      <span id="qua-model-message" class="qua-message"></span>
-    </section>
+      <section class="sec">
+        <div class="sec-head"><span class="ic" data-icon="mic"></span><div><h2>Micrófono</h2><p class="sub">Para escucharte mientras probás.</p></div></div>
+        <div class="sec-body">
+          <p class="state"><i id="mic-dot" class="dot"></i><span id="mic-state"></span></p>
+          <div class="row"><button id="mic-test" class="qua-btn" type="button"></button><span id="mic-bars" class="bars" aria-hidden="true"></span></div>
+          <button id="mic-settings" class="qua-link" type="button"></button>
+        </div>
+      </section>
 
-    <!-- Modo daemon (opcional, pre D-L1-01): oculto. El modo local no necesita pairing. -->
-    <section hidden>
-      <h2>Emparejar con el daemon</h2>
-      <form id="qua-pair-form" class="qua-row">
-        <input id="qua-pair-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" />
-        <button id="qua-pair-button" type="submit">Conectar</button>
-      </form>
-      <span id="qua-pair-message" class="qua-message"></span>
-    </section>
+      <section class="sec">
+        <div class="sec-head"><span class="ic" data-icon="keyboard"></span><div><h2>Atajos</h2><p class="sub">Andan aunque Chrome no esté al frente.</p></div></div>
+        <div class="sec-body">
+          <div class="keys-line"><span id="k-rec" class="qua-keys"></span>Grabar y detener</div>
+          <div class="keys-line"><span id="k-mark" class="qua-keys"></span>Marcar un momento</div>
+          <button id="shortcuts" class="qua-link" type="button"></button>
+        </div>
+      </section>
 
-    <script type="module" src="./index.ts"></script>
+      <section class="sec">
+        <div class="sec-head"><span class="ic" data-icon="clock"></span><div><h2>Sesiones guardadas</h2><p class="sub">Quedan en este navegador hasta que las borres.</p></div></div>
+        <div class="sec-body">
+          <div><p id="sessions-count" class="strong"></p><p id="sessions-size" class="sub"></p></div>
+          <button id="delete-sessions" class="qua-btn" type="button"></button>
+          <p id="confirm" class="confirm" hidden>
+            <span>Se borran todas las sesiones, con su audio y sus capturas.</span>
+            <button id="confirm-yes" class="qua-btn is-primary" type="button">Borrar todas</button>
+            <button id="confirm-no" class="qua-link" type="button">Cancelar</button>
+          </p>
+        </div>
+      </section>
+
+      <section class="sec">
+        <div class="sec-head"><span class="ic" data-icon="shield"></span><div><h2>Privacidad</h2></div></div>
+        <div class="sec-body">
+          <p class="prose">QUA no tiene servidor. El audio, la transcripción, las capturas y los reportes se procesan y se guardan en tu navegador. Lo único que se descarga de internet es el modelo de voz, una vez.</p>
+        </div>
+      </section>
+      <p id="version" class="version"></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
   </body>
 </html>

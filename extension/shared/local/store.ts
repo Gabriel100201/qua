@@ -13,6 +13,13 @@ const DB_VERSION = 1;
 const EVENTS = "events";
 const SESSIONS = "sessions";
 const ASSETS = "assets";
+const AUDIO = "audio";
+/**
+ * El audio va en una base aparte y no como store nuevo de `qua-local`: subir la versión
+ * de `qua-local` queda bloqueado si cualquier contexto viejo tiene la base abierta (pasó
+ * con un perfil que ya tenía sesiones), y entonces todo lo que lee la base se cuelga.
+ */
+const AUDIO_DB = "qua-audio";
 
 export type LocalSessionStatus = "recording" | "processing" | "ready" | "failed";
 
@@ -49,6 +56,10 @@ export interface LocalSession {
   transcript?: string;
   session_json?: string;
   issues?: number;
+  /** ms desde el inicio de cada issue y de cada marca: ubican los puntos sobre el anillo y la línea de tiempo. */
+  issue_times?: number[];
+  mark_times?: number[];
+  duration_ms?: number;
   /** Nombres de los PNG guardados en `assets` (p.ej. `i01.png`). */
   assets?: string[];
   updated_at: number;
@@ -84,7 +95,15 @@ function done(tx: IDBTransaction): Promise<void> {
 export class LocalStore {
   private readonly db: Promise<IDBDatabase>;
 
+  private readonly audioDb: Promise<IDBDatabase>;
+
   constructor(name = LOCAL_DB_NAME, factory: IDBFactory = indexedDB) {
+    this.audioDb = new Promise((resolve, reject) => {
+      const open = factory.open(name === LOCAL_DB_NAME ? AUDIO_DB : `${name}-audio`, 1);
+      open.onupgradeneeded = () => open.result.createObjectStore(AUDIO);
+      open.onsuccess = () => { open.result.onversionchange = () => open.result.close(); resolve(open.result); };
+      open.onerror = () => reject(open.error);
+    });
     this.db = new Promise((resolve, reject) => {
       const open = factory.open(name, DB_VERSION);
       open.onupgradeneeded = () => {
@@ -96,7 +115,11 @@ export class LocalStore {
         const assets = db.createObjectStore(ASSETS, { keyPath: "key" });
         assets.createIndex("bySession", "sessionId");
       };
-      open.onsuccess = () => resolve(open.result);
+      open.onsuccess = () => {
+        // Si alguna vez otra versión necesita actualizar la base, esta conexión no la traba.
+        open.result.onversionchange = () => open.result.close();
+        resolve(open.result);
+      };
       open.onerror = () => reject(open.error);
     });
   }
@@ -169,6 +192,69 @@ export class LocalStore {
     const tx = db.transaction(ASSETS, "readonly");
     const rows = await req<AssetRow[]>(tx.objectStore(ASSETS).index("bySession").getAll(sessionId));
     return rows.map((r) => ({ name: r.name, bytes: r.bytes }));
+  }
+
+  async putAudio(sessionId: string, pcm: Int16Array): Promise<void> {
+    const db = await this.audioDb;
+    const tx = db.transaction(AUDIO, "readwrite");
+    // PCM 16 kHz mono i16, tal cual (sin contenedor).
+    tx.objectStore(AUDIO).put(pcm.slice().buffer, sessionId);
+    await done(tx);
+  }
+
+  async audio(sessionId: string): Promise<Int16Array | undefined> {
+    const db = await this.audioDb;
+    const buf = await req<ArrayBuffer | undefined>(db.transaction(AUDIO, "readonly").objectStore(AUDIO).get(sessionId));
+    return buf ? new Int16Array(buf) : undefined;
+  }
+
+  /** Borra todo lo de una sesión: fila, eventos, capturas y audio. */
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.dropEvents(sessionId);
+    const adb = await this.audioDb;
+    const atx = adb.transaction(AUDIO, "readwrite");
+    atx.objectStore(AUDIO).delete(sessionId);
+    await done(atx);
+    const db = await this.db;
+    const tx = db.transaction([SESSIONS, ASSETS], "readwrite");
+    tx.objectStore(SESSIONS).delete(sessionId);
+    const idx = tx.objectStore(ASSETS).index("bySession");
+    await new Promise<void>((resolve, reject) => {
+      const c = idx.openCursor(IDBKeyRange.only(sessionId));
+      c.onsuccess = () => { const cur = c.result; if (!cur) return resolve(); cur.delete(); cur.continue(); };
+      c.onerror = () => reject(c.error);
+    });
+    await done(tx);
+  }
+
+  async deleteAll(): Promise<void> {
+    const db = await this.db;
+    const tx = db.transaction([EVENTS, SESSIONS, ASSETS], "readwrite");
+    for (const s of [EVENTS, SESSIONS, ASSETS]) tx.objectStore(s).clear();
+    await done(tx);
+    const adb = await this.audioDb;
+    const atx = adb.transaction(AUDIO, "readwrite");
+    atx.objectStore(AUDIO).clear();
+    await done(atx);
+  }
+
+  /** Cuánto ocupan las sesiones (audio + capturas + reportes), aproximado. */
+  async approxBytes(): Promise<number> {
+    const db = await this.db;
+    const tx = db.transaction([SESSIONS, ASSETS], "readonly");
+    const [sessions, assets] = await Promise.all([
+      req<LocalSession[]>(tx.objectStore(SESSIONS).getAll()),
+      req<AssetRow[]>(tx.objectStore(ASSETS).getAll()),
+    ]);
+    const adb = await this.audioDb;
+    const audio = await req<ArrayBuffer[]>(adb.transaction(AUDIO, "readonly").objectStore(AUDIO).getAll());
+    const text = sessions.reduce((n, s) => n + (s.report_md?.length ?? 0) + (s.session_json?.length ?? 0) + (s.transcript?.length ?? 0), 0);
+    return text + assets.reduce((n, a) => n + a.bytes.byteLength, 0) + audio.reduce((n, b) => n + (b?.byteLength ?? 0), 0);
+  }
+
+  async count(): Promise<number> {
+    const db = await this.db;
+    return req<number>(db.transaction(SESSIONS, "readonly").objectStore(SESSIONS).count());
   }
 
   /** Borra los eventos crudos de una sesión ya procesada (quedan dentro de `session_json`). */

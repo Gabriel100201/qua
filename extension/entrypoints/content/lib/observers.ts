@@ -106,7 +106,10 @@ function installMutationObserver(target: ObserversTarget, emit: EmitFn, opts: In
       } as Event);
     }
   });
-  observer.observe(doc.body, { childList: true, subtree: true });
+  // En `document_start` todavía no hay `body`: `documentElement` ya existe y su subárbol
+  // incluye al `body` que se agregue después. Observar `null` tiraba y mataba al content
+  // script entero (desde A1: se perdían el ping, el `nav` inicial y la pastilla).
+  observer.observe(doc.body ?? doc.documentElement, { childList: true, subtree: true });
 
   return () => observer.disconnect();
 }

@@ -27,7 +27,7 @@ export default defineConfig({
   // sin empaquetar se vuelve innecesariamente difícil.
   outDir: "build",
   // El laboratorio de ASR (D-L1-02) solo entra en builds de desarrollo: QUA_LAB=1.
-  filterEntrypoints: process.env.QUA_LAB === "1" ? undefined : ["background", "content", "offscreen", "popup", "options", "pcm-tap-processor"],
+  filterEntrypoints: process.env.QUA_LAB === "1" ? undefined : ["background", "content", "offscreen", "popup", "options", "onboarding", "report", "pcm-tap-processor"],
   manifest: {
     name: "QUA",
     permissions: [
@@ -45,9 +45,14 @@ export default defineConfig({
       // del origen de la extensión, y el reporte se baja con `chrome.downloads`.
       "unlimitedStorage",
       "downloads",
+      // Aviso de "reporte listo" y copiarlo desde ese aviso (offscreen con reason CLIPBOARD).
+      "notifications",
+      "clipboardWrite",
     ],
     // onnxruntime-web y qua-wasm compilan WebAssembly en el offscreen doc. MV3 lo
     // permite solo con 'wasm-unsafe-eval'; el resto del código sigue siendo 'self'.
+    // La pastilla en la página usa Instrument Sans desde la extensión.
+    web_accessible_resources: [{ resources: ["fonts/*.woff2"], matches: ["<all_urls>"] }],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },

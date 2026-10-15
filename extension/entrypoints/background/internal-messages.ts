@@ -18,7 +18,10 @@ export type ToBackgroundMessage =
   | { type: "qua:trigger-mark" }
   | { type: "qua:start-session" }
   | { type: "qua:stop-session" }
-  | { type: "qua:get-status" };
+  | { type: "qua:get-status"; seen?: boolean }
+  | { type: "qua:retry"; sessionId: string }
+  | { type: "qua:scheme"; dark: boolean }
+  | { type: "qua:overlay-hello" };
 
 export interface StatusResponse {
   phase: "idle" | "starting" | "recording" | "stopping";
@@ -38,6 +41,11 @@ export interface StatusResponse {
   lastError?: string | null;
   /** Durante la grabación: `false` hasta que el micrófono entrega audio de verdad. */
   micReady?: boolean;
+  /** ms desde el inicio de cada marca de la sesión en curso. */
+  marks?: number[];
+  /** La pestaña activa: qué se va a grabar y si Chrome deja hacerlo. */
+  tab?: { url: string; recordable: boolean };
+  model?: { status: string; device?: string; loaded?: number; total?: number; message?: string };
   /** La sesión más reciente, para que el popup muestre el progreso o el reporte. */
   latest?: {
     id: string;
@@ -45,5 +53,9 @@ export interface StatusResponse {
     progress?: { stage: string; done: number; total: number };
     issues?: number;
     error?: string;
+    baseUrl?: string;
+    durationMs?: number;
+    issueTimes?: number[];
+    updatedAt?: number;
   } | null;
 }

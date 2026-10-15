@@ -1,0 +1,81 @@
+/*
+ * Estilos base de QUA (diseño 2026-10, Penpot "QUA" → Sistema). Lo importan el popup y
+ * las páginas de la extensión. La pastilla en la página lleva su copia en el shadow DOM.
+ *
+ * Un solo color fuera del gris: el rojo, y solo cuando graba o algo falló.
+ */
+:root {
+  --ink: #1d1e20;
+  --gray: #6b6d70; /* rótulo: texto secundario (4,7:1 sobre la pantalla) */
+  --placeholder: #85878a; /* lecturas grandes en reposo (≥ 24 px) */
+  --disabled: #9a9c9e; /* solo controles deshabilitados */
+  --faint: #c4c6c1; /* onda en silencio, bordes de botón */
+  --line: #dcddd9; /* separadores, pista del progreso */
+  --screen: #f4f4f1; /* fondo */
+  --white: #ffffff;
+  --red: #e0352b; /* tally: grabando o error (formas y texto ≥ 24 px) */
+  --red-text: #c42a21; /* rojo para texto chico */
+  --red-soft: #fbe6e4;
+  --radius: 10px;
+  --font: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  background: var(--screen);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p { margin: 0; font-weight: inherit; }
+
+.qua-num { font-variant-numeric: tabular-nums; }
+.qua-gray { color: var(--gray); }
+.qua-red { color: var(--red-text); }
+
+/* Señalar algo es rodearlo: el foco es un anillo de 2 px que copia la forma. */
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.qua-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 40px; padding: 0 14px;
+  border: 1.2px solid var(--faint); border-radius: var(--radius);
+  background: transparent; color: var(--ink);
+  font: 600 14px/1 var(--font); cursor: pointer;
+}
+.qua-btn:hover:not(:disabled) { border-color: var(--ink); }
+.qua-btn.is-primary { background: var(--ink); border-color: var(--ink); color: var(--screen); }
+.qua-btn.is-primary:hover:not(:disabled) { background: #000; }
+.qua-btn.is-center { justify-content: center; }
+.qua-btn.is-icon { width: 40px; padding: 0; justify-content: center; }
+.qua-btn:disabled { color: var(--disabled); border-color: var(--line); cursor: default; }
+.qua-btn.is-primary:disabled { background: var(--faint); border-color: var(--faint); color: var(--screen); }
+
+.qua-key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 40px; height: 28px; padding: 0 8px;
+  border: 1.2px solid var(--faint); border-radius: 7px;
+  font: 500 12px/1 var(--font); color: var(--gray);
+}
+.qua-keys { display: inline-flex; gap: 6px; }
+
+.qua-link { background: none; border: 0; padding: 0; font: 500 13px/1.3 var(--font); color: var(--ink); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.qua-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Motion: solo lo que cuenta un estado. */
+@keyframes qua-spin { to { transform: rotate(360deg); } }
+.qua-spin { transform-origin: 150px 85px; animation: qua-spin 1.2s linear infinite; }
+.qua-mini .qua-spin { transform-origin: center; transform-box: view-box; }
+@keyframes qua-pop { from { opacity: 0; transform: scale(0.4); } }
+.qua-issue { transform-box: fill-box; transform-origin: center; animation: qua-pop 240ms ease-out backwards; animation-delay: calc(var(--i) * 60ms); }
+@keyframes qua-breathe { 50% { opacity: 0.35; } }
+.qua-halo { animation: qua-breathe 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .qua-spin, .qua-issue, .qua-halo { animation: none; }
+}

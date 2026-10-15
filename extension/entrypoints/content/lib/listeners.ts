@@ -2,7 +2,7 @@ import type { Event, Modifier } from "@qua/protocol";
 import type { EmitFn } from "./emit.js";
 import { buildTargetRef, type BuildTargetRefOptions } from "./target.js";
 import { buildFieldRef } from "./field.js";
-import { closestInteractive } from "./dom.js";
+import { closestInteractive, isQuaUi } from "./dom.js";
 import { nowMs } from "./clock.js";
 import type { Teardown } from "./hooks.js";
 
@@ -43,6 +43,7 @@ export function installListeners(target: ListenersTarget, emit: EmitFn, opts: In
 
   // ── click ──────────────────────────────────────────────────────────────
   const onClick = (e: MouseEvent) => {
+    if (isQuaUi(e.target)) return;
     const el = e.target instanceof Element ? closestInteractive(e.target) : null;
     if (!el) return;
     emit({
@@ -57,7 +58,7 @@ export function installListeners(target: ListenersTarget, emit: EmitFn, opts: In
 
   // ── focusin ────────────────────────────────────────────────────────────
   const onFocusIn = (e: FocusEvent) => {
-    if (!(e.target instanceof Element)) return;
+    if (!(e.target instanceof Element) || isQuaUi(e.target)) return;
     emit({ t: nowMs(), k: "focus_change", target: buildTargetRef(e.target, trOpts) } as Event);
   };
   doc.addEventListener("focusin", onFocusIn, { capture: true });
@@ -152,6 +153,7 @@ export function installListeners(target: ListenersTarget, emit: EmitFn, opts: In
 
   const onMouseOver = (e: MouseEvent) => {
     if (!(e.target instanceof Element)) return;
+    if (isQuaUi(e.target)) { finalizeHover(); return; }
     const interactive = closestInteractive(e.target);
     if (interactive === hoverEl) return;
     finalizeHover();

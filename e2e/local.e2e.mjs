@@ -10,7 +10,7 @@
 //   --profile conserva el perfil (y la Cache API con el modelo) entre corridas: sin
 //   eso, cada corrida baja whisper de nuevo.
 
-import { chromium } from "playwright";
+import { launchQua } from "./lib.mjs";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -112,21 +112,18 @@ async function main() {
   let context;
   let exitCode = 1;
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      headless: false,
-      ignoreDefaultArgs: ["--disable-extensions", "--disable-component-extensions-with-background-pages"],
+    const launched = await launchQua({
+      extensionDir: EXTENSION_OUTPUT,
+      profile: profileDir,
       args: [
-        `--disable-extensions-except=${EXTENSION_OUTPUT}`,
-        `--load-extension=${EXTENSION_OUTPUT}`,
         "--use-fake-device-for-media-stream",
         "--use-fake-ui-for-media-stream",
         `--use-file-for-fake-audio-capture=${opts.wav}${opts.loop ? "" : "%noloop"}`,
         "--enable-unsafe-webgpu",
-        "--no-first-run",
-        "--no-default-browser-check",
       ],
     });
-    const background = await findExtensionServiceWorker(context, 15_000);
+    context = launched.ctx;
+    const background = launched.sw;
     log(`extensión ${new URL(background.url()).host}`);
 
     const page = await context.newPage();
@@ -215,22 +212,18 @@ async function main() {
       log(`resultado en ${opts.out}`);
     }
 
-    // El popup real: con la sesión lista tiene que ofrecer copiar y bajar el reporte.
+    // El popup real: con la sesión lista tiene que ofrecer copiar, ver y bajar el reporte.
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${new URL(background.url()).host}/popup.html`);
-    await popup.waitForSelector("#qua-report-actions:not([hidden])", { timeout: 10_000 });
+    await popup.waitForSelector("#controls .qua-btn.is-primary", { timeout: 10_000 });
     const popupText = await popup.evaluate(() => ({
-      status: document.getElementById("qua-status")?.textContent,
-      engine: document.getElementById("qua-daemon-status")?.textContent,
-      actions: [...document.querySelectorAll("#qua-report-actions button")].map((b) => b.textContent),
-      connectVisible: !document.getElementById("qua-connect")?.hidden,
+      reading: document.getElementById("reading")?.textContent,
+      caption: document.getElementById("caption")?.textContent,
+      actions: [...document.querySelectorAll("#controls button")].map((b) => b.textContent || b.getAttribute("aria-label")),
     }));
     log("popup:", JSON.stringify(popupText));
-    if (opts["popup-shot"]) {
-      await popup.setViewportSize({ width: 360, height: 480 });
-      await popup.locator("body").screenshot({ path: opts["popup-shot"] });
-    }
-    assert(!popupText.connectVisible, "el popup no debería pedir conectar un daemon");
+    assert(popupText.actions.includes("Copiar reporte"), "el popup no ofrece copiar el reporte");
+    if (opts["popup-shot"]) await popup.locator("body").screenshot({ path: opts["popup-shot"] });
 
     assert(session.report_md.startsWith("# QUA"), "report.md sin header");
     assert(parsed.events.length > 0, "sin eventos: el content script no llegó");

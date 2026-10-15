@@ -29,7 +29,7 @@ WebGPU y el audio nunca sale del navegador.
 
 <table>
 <tr>
-<td width="300" valign="top"><img src="docs/ejemplos/popup-local.png" alt="Popup de QUA" width="300"></td>
+<td width="300" valign="top"><img src="docs/ejemplos/popup-listo.png" alt="Popup de QUA con un reporte listo" width="300"></td>
 <td valign="top">
 
 ```markdown
@@ -48,6 +48,34 @@ abra una pantalla propia por proyecto"
 </td>
 </tr>
 </table>
+
+### Cómo se ve
+
+Una sola marca guía toda la UI: el anillo. Abriendo el micrófono gira, grabando late con
+tu voz, procesando se llena y listo tiene un punto por cada issue.
+
+<p><img src="docs/ejemplos/popup-estados.png" alt="Popup grabando, marcando un momento, listo e historial de sesiones" width="100%"></p>
+
+- **Popup**: grabar, marcar un momento, detener, copiar o bajar el reporte. El historial
+  (botón del reloj) lista las sesiones guardadas con sus issues.
+- **En la página**: mientras grabás, una pastilla flotante muestra el tiempo, el nivel del
+  micrófono y los botones de marcar y detener. Se arrastra a cualquier esquina y sus clicks
+  no entran al reporte.
+
+  <img src="docs/ejemplos/pastilla.png" alt="Pastilla de grabación en la página" width="330">
+- **Ícono de la barra**: el mismo anillo, dibujado por estado (punto rojo grabando, se
+  llena procesando, cantidad de issues en el badge cuando termina). Al terminar llega una
+  notificación con **Copiar reporte**.
+- **Visor del reporte**: línea de tiempo de la sesión, filtros por tipo, capturas y copiar
+  issue por issue.
+
+  <img src="docs/ejemplos/reporte.png" alt="Visor del reporte" width="100%">
+- **Primera vez**: cuatro pasos que se detectan solos (permiso del micrófono, modelo de
+  voz, fijar en la barra, atajos).
+
+  <img src="docs/ejemplos/primera-vez.png" alt="Primera vez" width="100%">
+- **Ajustes**: micrófono con prueba de nivel, modelo, atajos, espacio usado y borrar
+  sesiones.
 
 ### Cómo funciona
 
@@ -84,12 +112,13 @@ QUA es **una extensión de Chrome y nada más**: no hay app, daemon ni pairing. 
 graba, transcribe con Whisper en tu GPU (WebGPU) y arma el reporte sin que el audio salga
 del navegador. Ver D-L1-01 en `docs/DECISIONS.md`.
 
-1. Instalá la extensión. Se abre sola la página de configuración: dale permiso al
-   micrófono y, si querés, bajá el modelo de voz (~1 GB, una sola vez).
-2. Abrí la página a revisar, apretá **Grabar** (o `Ctrl+Shift+1` desde cualquier app) y
-   hablá en voz alta sobre lo que ves.
-3. **Detener**. Al rato el popup muestra **Copiar reporte** (lo pegás en tu agente, Linear
-   o Slack) y **Descargar** (`Descargas/qua/<id>/report.md` con sus capturas).
+1. Instalá la extensión. Se abre sola la primera vez: permiso al micrófono, modelo de voz
+   (~1 GB, una sola vez), fijarla en la barra y los atajos.
+2. Abrí la página a revisar, tocá el anillo del popup (o `Ctrl+Shift+1` desde cualquier
+   app) y hablá en voz alta sobre lo que ves. Con **Marcar** dejás una marca en un momento.
+3. **Detener** (desde el popup o la pastilla). Al terminar llega una notificación y el
+   popup muestra **Copiar reporte** (lo pegás en tu agente, Linear o Slack), **Ver
+   reporte** y **Descargar** (`Descargas/qua/<id>/report.md` con sus capturas).
 
 Para compilarla desde el repo:
 

@@ -57,8 +57,22 @@ export function startQuaOffscreen(opts: StartOffscreenOptions = {}): Teardown {
   };
 
   const pcm = new PcmStore();
+  // Nivel del micrófono para la onda del popup y de la pastilla: RMS de cada frame de
+  // 20 ms, y cada 100 ms se mandan los últimos 5 (las 5 barras de cada lado del anillo).
+  let recent: number[] = [];
+  let lastLevelSent = 0;
+  const onLevel = (bytes: Uint8Array) => {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let sum = 0;
+    const n = (bytes.byteLength - 13) >> 1;
+    for (let i = 0; i < n; i++) { const v = view.getInt16(13 + i * 2, true) / 32768; sum += v * v; }
+    recent.push(Math.min(1, Math.sqrt(sum / Math.max(1, n)) * 7));
+    if (recent.length > 5) recent = recent.slice(-5);
+    const now = Date.now();
+    if (now - lastLevelSent >= 100 && recent.length === 5) { lastLevelSent = now; send({ type: "qua:level", levels: recent } as never); }
+  };
   const capture = new AudioCapture(opts.deps ?? {}, {
-    onFrame: (bytes) => pcm.push(bytes),
+    onFrame: (bytes) => { pcm.push(bytes); onLevel(bytes); },
     onError: (message) => send({ type: "qua:capture-error", message }),
     onStarted: () => send({ type: "qua:capture-started" }),
   });
@@ -87,6 +101,12 @@ export function startQuaOffscreen(opts: StartOffscreenOptions = {}): Teardown {
       // Mientras el usuario graba, whisper se baja/carga en paralelo: al detener, casi
       // siempre ya está listo. Un fallo acá no corta nada — se reintenta al procesar.
       if (!opts.processor) void preload().catch(() => undefined);
+    } else if ((msg as { type?: string }).type === "qua:copy") {
+      // Portapapeles desde la notificación: el SW no tiene documento (reason CLIPBOARD).
+      const ta = document.createElement("textarea");
+      ta.value = (msg as unknown as { text: string }).text;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      send({ type: "qua:copied" } as never);
     } else if (isProcessSessionMessage(msg)) {
       capture.stop();
       const audio = pcm.pcm();

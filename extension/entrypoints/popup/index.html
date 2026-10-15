@@ -3,320 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <title>QUA</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: #f7f7f8;
-        --bg-elevated: #ffffff;
-        --bg-muted: #f1f1f3;
-        --fg: #18181b;
-        --fg-muted: #52525b;
-        --fg-subtle: #71717a;
-        --border: #e4e4e7;
-        --border-strong: #d4d4d8;
-        --accent: #2563eb;
-        --accent-hover: #1d4ed8;
-        --accent-fg: #ffffff;
-        --danger: #dc2626;
-        --danger-bg: #fef2f2;
-        --danger-border: #fecaca;
-        --danger-fg: #991b1b;
-        --focus-ring: #2563eb;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #19191c;
-          --bg-elevated: #232326;
-          --bg-muted: #29292d;
-          --fg: #f4f4f5;
-          --fg-muted: #a1a1aa;
-          --fg-subtle: #8b8b93;
-          --border: #38383d;
-          --border-strong: #46464c;
-          --accent: #3b82f6;
-          --accent-hover: #60a5fa;
-          --accent-fg: #0b1220;
-          --danger: #f87171;
-          --danger-bg: rgba(220, 38, 38, 0.14);
-          --danger-border: #7f1d1d;
-          --danger-fg: #fca5a5;
-          --focus-ring: #60a5fa;
-        }
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        width: 340px;
-        margin: 0;
-        padding: 14px;
-        font: 13px/1.45 -apple-system, system-ui, "Segoe UI", sans-serif;
-        color: var(--fg);
-        background: var(--bg);
-      }
-
-      p {
-        margin: 0;
-      }
-
-      button {
-        font: inherit;
-        border-radius: 7px;
-        border: 1px solid var(--border-strong);
-        background: var(--bg-elevated);
-        color: var(--fg);
-        cursor: pointer;
-        padding: 7px 12px;
-      }
-
-      button:hover:not(:disabled) {
-        border-color: var(--fg-subtle);
-      }
-
-      button:disabled {
-        opacity: 0.5;
-        cursor: default;
-      }
-
-      button:focus-visible,
-      input:focus-visible {
-        outline: 2px solid var(--focus-ring);
-        outline-offset: 2px;
-      }
-
-      .qua-btn-primary {
-        flex: 1;
-        border: none;
-        background: var(--accent);
-        color: var(--accent-fg);
-        font-weight: 600;
-        padding: 9px 12px;
-      }
-
-      .qua-btn-primary:hover:not(:disabled) {
-        background: var(--accent-hover);
-      }
-
-      .qua-btn-secondary {
-        background: transparent;
-      }
-
-      /* ---- Estado "sin conectar" (D-U1-01) ---- */
-
-      #qua-connect {
-        display: flex;
-        flex-direction: column;
-      }
-
-      #qua-connect[hidden] {
-        display: none;
-      }
-
-      #qua-connect-title {
-        font-size: 15px;
-        font-weight: 700;
-        margin-bottom: 4px;
-      }
-
-      #qua-connect-message {
-        color: var(--fg-muted);
-        margin-bottom: 14px;
-      }
-
-      #qua-connect-command-row {
-        display: flex;
-        align-items: stretch;
-        gap: 6px;
-        margin-bottom: 12px;
-      }
-
-      #qua-connect-command-row[hidden] {
-        display: none;
-      }
-
-      #qua-connect-command {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        padding: 7px 9px;
-        background: var(--bg-muted);
-        border: 1px solid var(--border);
-        border-radius: 7px;
-        font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
-        overflow-x: auto;
-        white-space: nowrap;
-        color: var(--fg);
-      }
-
-      #qua-connect-copy {
-        flex: none;
-      }
-
-      .qua-connect-actions {
-        display: flex;
-        gap: 8px;
-      }
-
-      /* ---- UI de grabación ---- */
-
-      #qua-main header {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 10px;
-      }
-
-      #qua-status {
-        font-size: 15px;
-        font-weight: 700;
-      }
-
-      #qua-duration {
-        font: 13px/1 ui-monospace, "SF Mono", Menlo, monospace;
-        font-variant-numeric: tabular-nums;
-        color: var(--fg-muted);
-      }
-
-      /* Sin ganchos de clase en el JS: :has() detecta "grabando" a partir del
-         estado real de #qua-mark (habilitado solo mientras graba, ver controller.ts). */
-      #qua-main:has(#qua-mark:not(:disabled)) #qua-status {
-        color: var(--danger);
-      }
-
-      #qua-main:has(#qua-toggle:disabled) #qua-status {
-        color: var(--fg-muted);
-      }
-
-      #qua-error {
-        display: flex;
-        gap: 6px;
-        background: var(--danger-bg);
-        border: 1px solid var(--danger-border);
-        color: var(--danger-fg);
-        border-radius: 7px;
-        padding: 7px 9px;
-        margin-bottom: 10px;
-        font-weight: 500;
-      }
-
-      #qua-error::before {
-        content: "⚠";
-      }
-
-      #qua-error[hidden] {
-        display: none;
-      }
-
-      .qua-diagnostics {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        font-size: 11.5px;
-        color: var(--fg-subtle);
-        background: var(--bg-muted);
-        border: 1px solid var(--border);
-        border-radius: 7px;
-        padding: 7px 9px;
-        margin-bottom: 10px;
-      }
-
-      #qua-reload-tab {
-        margin-top: 5px;
-        align-self: flex-start;
-        padding: 4px 9px;
-        font-size: 11.5px;
-      }
-
-      #qua-reload-tab[hidden] {
-        display: none;
-      }
-
-      .qua-actions {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 10px;
-      }
-
-      .qua-meta {
-        display: flex;
-        justify-content: flex-end;
-        color: var(--fg-subtle);
-        font-size: 11.5px;
-        margin-bottom: 6px;
-      }
-
-      #qua-report-actions { display: flex; gap: 8px; margin: 0 0 10px; }
-      #qua-report-actions[hidden] { display: none; }
-
-      #qua-transcript {
-        height: 170px;
-        overflow-y: auto;
-        border: 1px solid var(--border);
-        border-radius: 7px;
-        padding: 7px 9px;
-        background: var(--bg-elevated);
-      }
-
-      #qua-transcript:empty::after {
-        content: "Grabá y hablá sobre lo que ves: al detener, la transcripción queda en el reporte.";
-        color: var(--fg-subtle);
-        font-style: italic;
-      }
-
-      .qua-transcript-line {
-        padding: 3px 0;
-        border-bottom: 1px solid var(--bg-muted);
-      }
-
-      .qua-transcript-line:last-child {
-        border-bottom: none;
-      }
-    </style>
   </head>
   <body>
-    <!-- Estado "sin conectar" (U1/D-U1-01): un click empareja con el daemon local. -->
-    <div id="qua-connect" hidden>
-      <p id="qua-connect-title">Sin conectar al daemon</p>
-      <p id="qua-connect-message">Un click para emparejar esta extensión con el daemon local.</p>
-      <div id="qua-connect-command-row" hidden>
-        <code id="qua-connect-command"></code>
-        <button id="qua-connect-copy" class="qua-btn-secondary" type="button">Copiar</button>
-      </div>
-      <div class="qua-connect-actions">
-        <button id="qua-connect-button" class="qua-btn-primary" type="button">Conectar</button>
-        <button id="qua-connect-options" class="qua-btn-secondary" type="button" hidden>Abrir opciones</button>
-      </div>
-    </div>
-
-    <!-- UI de grabación. La franja de diagnóstico (U2) va acá adentro: los ids tienen
-         que existir UNA sola vez en el documento o `findPopupElements` agarra el
-         equivocado. -->
-    <div id="qua-main" hidden>
-      <header>
-        <span id="qua-status">Inactivo</span>
-        <span id="qua-duration">00:00</span>
+    <!-- Diseño 2026-10 (Penpot "QUA" → Popup). El anillo cuenta el estado y es el botón. -->
+    <main id="view-main">
+      <header class="bar">
+        <span id="place" class="place"></span>
+        <div class="glyphs">
+          <button id="open-history" class="glyph is-plain" type="button" title="Sesiones anteriores" aria-label="Sesiones anteriores"></button>
+          <span id="g-mic" class="glyph" role="img"></span>
+          <span id="g-engine" class="glyph" role="img"></span>
+          <span id="g-tab" class="glyph" role="img"></span>
+        </div>
       </header>
-      <div id="qua-error" role="alert" hidden></div>
-      <div class="qua-diagnostics">
-        <span id="qua-daemon-status">Motor: …</span>
-        <span id="qua-mic-status">Micrófono: …</span>
-        <span id="qua-content-script-status">Pestaña: …</span>
-        <button id="qua-reload-tab" class="qua-btn-secondary" type="button" hidden>Recargar la pestaña</button>
-      </div>
-      <div class="qua-actions">
-        <button id="qua-toggle" class="qua-btn-primary" type="button">Grabar</button>
-        <button id="qua-mark" class="qua-btn-secondary" type="button" disabled>Marcar</button>
-      </div>
-      <div class="qua-meta">Eventos: <span id="qua-events-count">0</span></div>
-      <div id="qua-report-actions" hidden>
-        <button id="qua-copy-report" class="qua-btn-primary" type="button">Copiar reporte</button>
-        <button id="qua-open-folder" class="qua-btn-secondary" type="button">Descargar</button>
-      </div>
-      <div id="qua-transcript"></div>
-    </div>
+      <button id="ring" class="ring" type="button"></button>
+      <p id="reading" class="reading qua-num"></p>
+      <p id="caption" class="caption"></p>
+      <div id="controls" class="controls"></div>
+      <p id="error" class="error" role="alert" hidden></p>
+    </main>
+
+    <main id="view-history" hidden>
+      <header class="bar">
+        <button id="close-history" class="glyph is-plain" type="button" aria-label="Volver"></button>
+        <span class="title">Sesiones</span>
+        <button id="open-settings" class="glyph is-plain" type="button" aria-label="Ajustes" title="Ajustes"></button>
+      </header>
+      <ul id="history" class="history"></ul>
+      <p class="foot">Se guardan en tu navegador. Las borrás desde Ajustes.</p>
+    </main>
     <script type="module" src="./index.ts"></script>
   </body>
 </html>

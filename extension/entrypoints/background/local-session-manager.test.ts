@@ -43,7 +43,7 @@ describe("LocalSessionManager (modo local, D-L1-01)", () => {
     await manager.start("https://agendi.app/", VIEWPORT, { id: 3, title: "Agendi" });
 
     expect(manager.getPhase()).toBe("recording");
-    expect(offscreen.createDocument).toHaveBeenCalledWith(expect.objectContaining({ reasons: ["USER_MEDIA", "WORKERS"] }));
+    expect(offscreen.createDocument).toHaveBeenCalledWith(expect.objectContaining({ reasons: ["USER_MEDIA", "WORKERS", "CLIPBOARD"] }));
     expect(sent).toEqual([
       { type: "qua:start-capture", t0Wall: 1_700_000_000_000 },
       { type: "qua:preload-model" },
@@ -66,6 +66,16 @@ describe("LocalSessionManager (modo local, D-L1-01)", () => {
     expect(sent.at(-1)).toMatchObject({ type: "qua:process-session", sessionId: s!.id, tStop: 1_700_000_010_000 });
   });
 
+  it("una sesión que quedó procesando sin offscreen (Chrome se cerró) pasa a fallida y deja grabar", async () => {
+    const { manager, store, offscreen } = await setup();
+    await manager.start("https://agendi.app/", VIEWPORT);
+    await manager.stop();
+    await offscreen.closeDocument();
+    await manager.start("https://agendi.app/", VIEWPORT);
+    const sessions = await store.listSessions();
+    expect(sessions.map((s) => s.status).sort()).toEqual(["failed", "recording"]);
+  });
+
   it("no deja grabar otra sesión mientras la anterior se procesa", async () => {
     const { manager } = await setup();
     await manager.start("https://agendi.app/", VIEWPORT);
@@ -74,9 +84,12 @@ describe("LocalSessionManager (modo local, D-L1-01)", () => {
   });
 
   it("al terminar de procesar cierra el offscreen y un fallo queda como error visible", async () => {
-    const { manager, offscreen } = await setup();
+    const { manager, offscreen, store } = await setup();
     await manager.start("https://agendi.app/", VIEWPORT);
     await manager.stop();
+    // El offscreen marca la sesión como fallida antes de avisar (processLocalSession).
+    const s = await store.latestSession();
+    await store.updateSession(s!.id, { status: "failed", error: "sin GPU" });
 
     expect(manager.handleOffscreenMessage({ type: "qua:process-done", sessionId: "x", ok: false, error: "sin GPU" })).toBe(true);
     await vi.waitFor(() => expect(offscreen.closeDocument).toHaveBeenCalled());

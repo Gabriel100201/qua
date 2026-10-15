@@ -94,3 +94,15 @@ export function isVisible(el: Element): boolean {
   const rect = el.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0;
 }
+
+/** Atributo del host de la pastilla de QUA (shadow DOM). */
+export const QUA_UI_ATTR = "data-qua-ui";
+
+/**
+ * Lo que pasa dentro de la pastilla de QUA no es interacción con la página que se prueba:
+ * no se registra (si no, cada "Marcar" aparecería en el reporte como un click más).
+ * Dentro del shadow DOM el evento llega a `document` retargeteado al host.
+ */
+export function isQuaUi(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(`[${QUA_UI_ATTR}]`) !== null;
+}

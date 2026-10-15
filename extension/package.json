@@ -1,6 +1,6 @@
 {
   "name": "@qua/extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Extensión Chrome MV3 (WXT). Modo local (D-L1-01): graba, transcribe y arma el reporte sin daemon.",
@@ -12,6 +12,7 @@
     "test": "tsc --noEmit && vitest run"
   },
   "dependencies": {
+    "@fontsource/instrument-sans": "^5.3.0",
     "@huggingface/transformers": "3.8.1",
     "@qua/protocol": "workspace:*",
     "@qua/source-resolver": "workspace:*",

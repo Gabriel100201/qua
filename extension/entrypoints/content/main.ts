@@ -7,6 +7,7 @@ import { installListeners } from "./lib/listeners.js";
 import { installObservers } from "./lib/observers.js";
 import { installMarkRelay } from "./lib/mark.js";
 import { installPingResponder } from "./lib/ping.js";
+import { installOverlay } from "./lib/overlay.js";
 import { nowMs } from "./lib/clock.js";
 import type { BuildTargetRefOptions } from "./lib/target.js";
 
@@ -20,6 +21,8 @@ export interface StartOptions {
   PerformanceObserverCtor?: typeof PerformanceObserver;
   /** Si es `false`, no intenta cargar `@qua/source-resolver` en segundo plano (tests). */
   autoLoadSourceResolver?: boolean;
+  /** Si es `false`, no instala la pastilla de grabación (tests). */
+  overlay?: boolean;
 }
 
 export type { Teardown };
@@ -42,13 +45,23 @@ export function startQuaContentScript(opts: StartOptions = {}): Teardown {
 
   const target = { window: win, document: doc };
 
-  const teardowns: Teardown[] = [
-    installHooks(target, emit, { redaction }),
-    installListeners(target, emit, { targetRefOptions }),
-    installObservers(target, emit, { targetRefOptions, PerformanceObserverCtor: opts.PerformanceObserverCtor }),
-    installMarkRelay(emit),
-    installPingResponder(),
-  ];
+  // Cada parte se instala por separado: si una falla en una página rara, las demás siguen.
+  const teardowns: Teardown[] = [];
+  const install = (name: string, fn: () => Teardown) => {
+    try {
+      teardowns.push(fn());
+    } catch (err) {
+      console.warn(`[qua] no se pudo instalar ${name}`, err);
+    }
+  };
+  install("hooks", () => installHooks(target, emit, { redaction }));
+  install("listeners", () => installListeners(target, emit, { targetRefOptions }));
+  install("observers", () => installObservers(target, emit, { targetRefOptions, PerformanceObserverCtor: opts.PerformanceObserverCtor }));
+  install("mark", () => installMarkRelay(emit));
+  install("ping", () => installPingResponder());
+
+  // La pastilla va solo en el frame principal (no en cada iframe de la página).
+  if (win.top === win && opts.overlay !== false) install("overlay", () => installOverlay(doc));
 
   emit({ t: nowMs(), k: "nav", url: win.location.href, title: doc.title, kind: "load" } as Event);
   emit({ t: nowMs(), k: "viewport", w: win.innerWidth, h: win.innerHeight, dpr: win.devicePixelRatio || 1 } as Event);

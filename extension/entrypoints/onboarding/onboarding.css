@@ -1,0 +1,82 @@
+@import "../../shared/ui/base.css";
+
+html, body { min-height: 100%; }
+body { display: grid; place-items: center; min-height: 100vh; padding: 32px 16px; }
+h1 { font-weight: 500; }
+.lead { color: var(--gray); font-size: 16px; line-height: 1.5; }
+
+/* Bienvenida */
+.welcome { width: min(1040px, 100%); padding: 0 24px; }
+.welcome h1 { font-size: clamp(32px, 4.5vw, 44px); line-height: 1.1; margin-top: 56px; }
+.welcome .lead { max-width: 540px; margin-top: 14px; }
+.welcome .start { margin-top: 28px; width: 180px; }
+.scenes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 72px; }
+.scene { margin: 0; }
+.scene figcaption { margin-top: 12px; color: var(--gray); font-weight: 500; }
+.card { height: 168px; background: var(--white); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.rec { display: flex; align-items: center; gap: 10px; }
+.rec .t { margin-left: auto; font-weight: 500; font-size: 16px; }
+.rec .t2 { font-weight: 500; font-size: 16px; }
+.said { margin-top: 24px; background: var(--screen); border-radius: 10px; padding: 20px 16px; font-weight: 500; font-size: 15px; }
+.lines i { display: block; height: 10px; border-radius: 5px; background: var(--line); }
+.lines i + i { margin-top: 8px; }
+.focus { margin: 34px auto 0; width: max-content; padding: 4px; border: 2px solid var(--ink); border-radius: 15px; }
+.fake-btn { display: block; width: 160px; height: 40px; line-height: 40px; text-align: center; border-radius: 10px; background: var(--ink); color: var(--screen); font-weight: 600; }
+.items { list-style: none; padding: 0; margin: 26px 0 0; }
+.items li { display: flex; align-items: center; gap: 12px; height: 26px; }
+.items li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.items li::after { content: ""; width: var(--w); height: 8px; border-radius: 4px; background: var(--line); }
+
+/* Pasos */
+.setup { width: min(1040px, 100%); display: grid; grid-template-columns: 1fr 1fr; min-height: 640px; }
+.left { padding: 0 40px; display: flex; flex-direction: column; justify-content: center; }
+.left h1 { font-size: 30px; margin-top: 32px; padding-left: 26px; }
+.left .lead { margin-top: 12px; padding-left: 26px; max-width: 380px; font-size: 15px; }
+.art svg { width: 100%; max-width: 435px; height: auto; }
+.right { border-left: 1px solid var(--line); padding: 64px 40px 40px 64px; }
+.steps { list-style: none; padding: 0; margin: 0; }
+.step { position: relative; padding: 0 0 32px 44px; }
+.step::before { content: ""; position: absolute; left: 9px; top: 20px; bottom: 0; width: 2px; background: var(--line); }
+.step.is-done::before { background: var(--ink); }
+.step:last-child::before { display: none; }
+.node { position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; box-sizing: border-box; border: 2.2px solid var(--faint); background: var(--screen); }
+.step.is-done .node { background: var(--ink); border-color: var(--ink); }
+.step.is-current .node { border: 2.4px solid var(--ink); }
+.step.is-current .node::after { content: ""; position: absolute; inset: 3.5px; border-radius: 50%; background: var(--ink); }
+.step.is-error .node { border-color: var(--red); }
+.step.is-error .node::after { background: var(--red); }
+.step h2 { font-size: 18px; font-weight: 600; line-height: 1.2; }
+.step.is-pending h2 { color: var(--gray); }
+.step.is-error h2 { color: var(--red-text); }
+.step .sub { margin-top: 8px; color: var(--gray); font-size: 14px; line-height: 1.45; max-width: 340px; }
+.step .ok { margin-top: 6px; display: inline-flex; gap: 6px; align-items: center; color: var(--gray); font-size: 14px; }
+.step .body { margin-top: 18px; display: grid; gap: 14px; justify-items: start; }
+.progress { display: flex; gap: 14px; align-items: center; }
+.progress .pct { font-size: 18px; font-weight: 500; }
+.progress .det { color: var(--gray); font-size: 12px; margin-top: 2px; }
+.note-card { display: flex; gap: 12px; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 14px; max-width: 360px; color: var(--gray); font-size: 13px; line-height: 1.45; }
+.mock { display: grid; gap: 8px; }
+.mock-bar { position: relative; width: 300px; height: 36px; border-radius: 18px; background: #dee1e6; display: flex; align-items: center; padding: 0 4px; }
+.mock-bar .lock, .mock-bar .puz { width: 28px; height: 28px; border-radius: 50%; background: var(--white); display: inline-flex; align-items: center; justify-content: center; outline: 2px solid var(--ink); outline-offset: 3px; }
+.mock-bar .puz { margin-left: auto; }
+.mock-bar .omni { width: 220px; height: 24px; border-radius: 12px; background: var(--white); margin-left: 6px; }
+.mock-row { width: 300px; height: 48px; border-radius: 10px; background: var(--white); border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.mock-row .sw { margin-left: auto; width: 36px; height: 20px; border-radius: 10px; background: var(--ink); position: relative; }
+.mock-row .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--white); }
+.mock-row .pin { margin-left: auto; display: inline-flex; outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+.mock-menu { margin-left: 110px; }
+.keys-line { display: flex; gap: 12px; align-items: center; color: var(--gray); font-size: 13px; }
+.keys-line .qua-key { color: var(--ink); }
+
+/* El cartel de permiso de Chrome, dibujado arriba a la izquierda (donde aparece el real). */
+.chrome-prompt { position: fixed; top: 12px; left: 12px; width: 330px; padding: 18px 20px; border-radius: 12px; background: var(--white); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.12); }
+.cp-row { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+.cp-actions { display: flex; gap: 12px; margin-top: 18px; }
+.cp-btn { flex: 1; height: 36px; border-radius: 18px; border: 1.2px solid var(--faint); display: grid; place-items: center; font-size: 13px; font-weight: 500; }
+.cp-btn.is-allow { background: #1a73e8; border-color: #1a73e8; color: #fff; font-weight: 600; outline: 2px solid var(--ink); outline-offset: 4px; }
+
+@media (max-width: 860px) {
+  .setup { grid-template-columns: 1fr; }
+  .right { border-left: 0; border-top: 1px solid var(--line); padding: 40px 24px; }
+  .scenes { grid-template-columns: 1fr; }
+}

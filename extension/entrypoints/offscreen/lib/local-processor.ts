@@ -32,18 +32,23 @@ function peak(pcm: Int16Array): number {
 export async function processLocalSession(
   deps: LocalProcessorDeps,
   sessionId: string,
-  pcm: Int16Array,
+  pcmIn: Int16Array,
   tStop: number,
   endedAt: string,
   captureStats?: Record<string, number>,
 ): Promise<void> {
   const { store } = deps;
+  let pcm = pcmIn;
   const row = await store.getSession(sessionId);
   if (!row) throw new Error(`[qua] no encontré la sesión ${sessionId} en IndexedDB`);
 
   // Las escrituras de progreso no se esperan: si una se pisa con la siguiente no
   // importa, y no tiene sentido frenar a whisper por IndexedDB.
   const progress = (p: ProcessingProgress) => void store.updateSession(sessionId, { progress: p });
+
+  // El audio queda guardado antes de procesar: si algo falla, "Reintentar" no pierde la sesión.
+  if (pcm.length) await store.putAudio(sessionId, pcm).catch(() => undefined);
+  else pcm = (await store.audio(sessionId)) ?? pcm;
 
   try {
     await store.updateSession(sessionId, {
@@ -81,6 +86,9 @@ export async function processLocalSession(
       transcript: out.transcript,
       session_json: JSON.stringify(out.session),
       issues: out.session.issues.length,
+      issue_times: out.session.issues.map((i) => i.t),
+      mark_times: out.session.events.filter((e) => e.k === "mark").map((e) => e.t),
+      duration_ms: out.session.duration_ms ?? tStop - row.meta.t0_wall,
       assets: out.assets.map((a) => a.name),
     });
     await store.dropEvents(sessionId);
