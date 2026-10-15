@@ -6,30 +6,35 @@
 </p>
 
 <p align="center">
-  <strong>Hablás sobre lo que ves. QUA lo convierte en un reporte anclado a cada elemento.</strong>
+  <strong>Talk through what you see. QUA turns it into a QA report anchored to every element.</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Chrome-MV3-4285F4?logo=googlechrome&logoColor=white" alt="Chrome MV3">
-  <img src="https://img.shields.io/badge/Whisper-WebGPU-111111" alt="Whisper en WebGPU">
-  <img src="https://img.shields.io/badge/Rust-%E2%86%92%20WASM-B7410E?logo=rust&logoColor=white" alt="Rust a WASM">
+  <img src="https://img.shields.io/badge/Whisper-WebGPU-111111" alt="Whisper on WebGPU">
+  <img src="https://img.shields.io/badge/Rust-%E2%86%92%20WASM-B7410E?logo=rust&logoColor=white" alt="Rust to WASM">
+  <img src="https://img.shields.io/badge/runs-100%25%20on--device-2ea44f" alt="100% on-device">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
+</p>
+
+<p align="center">
+  <b>English</b> · <a href="./README.es.md">Español</a>
 </p>
 
 ---
 
-Probás una web y vas diciendo en voz alta lo que ves: *"este botón no hace nada"*, *"acá el
-texto se corta"*. QUA graba la sesión, transcribe tu voz y ancla cada comentario al elemento
-que estabas mirando o clickeando, con selector, geometría, clases, ruta, errores de consola,
-requests y una captura recortada. El resultado es un `report.md` listo para pegarle a tu agente
-de código, a Linear o a Slack.
+You test a web app and say out loud what you notice: *"this button does nothing"*, *"the text
+gets cut off here"*. QUA records the session, transcribes your voice and anchors each comment
+to the element you were looking at or clicking — with its selector, geometry, classes, route,
+console errors, network requests and a cropped screenshot. The output is a `report.md` you can
+paste straight into your coding agent, Linear or Slack.
 
-**Todo pasa dentro de Chrome.** No hay app, ni servidor, ni cuenta: Whisper corre en tu GPU con
-WebGPU y el audio nunca sale del navegador.
+**Everything happens inside Chrome.** No app, no server, no account: Whisper runs on your GPU
+through WebGPU and the audio never leaves the browser.
 
 <table>
 <tr>
-<td width="300" valign="top"><img src="docs/ejemplos/popup-listo.png" alt="Popup de QUA con un reporte listo" width="300"></td>
+<td width="300" valign="top"><img src="docs/ejemplos/popup-listo.png" alt="QUA popup with a finished report" width="300"></td>
 <td valign="top">
 
 ```markdown
@@ -45,279 +50,186 @@ abra una pantalla propia por proyecto"
 **Captura** ![](assets/i01.png)
 ```
 
+<sub>A real issue from a real session. <i>Dicho</i> = what you said, <i>Ancla</i> = the element it was
+anchored to. The UI and reports are in Spanish today (see <a href="#limitations">Limitations</a>).</sub>
+
 </td>
 </tr>
 </table>
 
-### Cómo se ve
+## Why
 
-Una sola marca guía toda la UI: el anillo. Abriendo el micrófono gira, grabando late con
-tu voz, procesando se llena y listo tiene un punto por cada issue.
+When you review a UI, the slow part isn't finding problems — it's writing them down. You
+notice ten things in two minutes and then spend twenty describing *which* button, *which*
+screen, *what* the console said. Coding agents make this worse: they can fix the bug in
+seconds, but only if you tell them exactly where it is.
 
-<p><img src="docs/ejemplos/popup-estados.png" alt="Popup grabando, marcando un momento, listo e historial de sesiones" width="100%"></p>
+QUA lets you keep talking and clicking. It figures out *where* you meant.
 
-- **Popup**: grabar, marcar un momento, detener, copiar o bajar el reporte. El historial
-  (botón del reloj) lista las sesiones guardadas con sus issues.
-- **En la página**: mientras grabás, una pastilla flotante muestra el tiempo, el nivel del
-  micrófono y los botones de marcar y detener. Se arrastra a cualquier esquina y sus clicks
-  no entran al reporte.
-
-  <img src="docs/ejemplos/pastilla.png" alt="Pastilla de grabación en la página" width="330">
-- **Ícono de la barra**: el mismo anillo, dibujado por estado (punto rojo grabando, se
-  llena procesando, cantidad de issues en el badge cuando termina). Al terminar llega una
-  notificación con **Copiar reporte**.
-- **Visor del reporte**: línea de tiempo de la sesión, filtros por tipo, capturas y copiar
-  issue por issue.
-
-  <img src="docs/ejemplos/reporte.png" alt="Visor del reporte" width="100%">
-- **Primera vez**: cuatro pasos que se detectan solos (permiso del micrófono, modelo de
-  voz, fijar en la barra, atajos).
-
-  <img src="docs/ejemplos/primera-vez.png" alt="Primera vez" width="100%">
-- **Ajustes**: micrófono con prueba de nivel, modelo, atajos, espacio usado y borrar
-  sesiones.
-
-### Cómo funciona
+## How it works
 
 ```
- micrófono ─▶ silero VAD ─▶ Whisper large-v3-turbo ─┐   (offscreen doc, WebGPU)
-                                                    ├─▶ correlador ─▶ report.md + capturas
- DOM: clicks, hover, foco, consola, red, rutas ─────┘   (Rust compilado a WASM)
+ microphone ─▶ Silero VAD ─▶ Whisper large-v3-turbo ─┐   offscreen document, WebGPU
+                                                     ├─▶ correlator ─▶ report.md + screenshots
+ DOM: clicks, hover, focus, console, network, routes ┘   Rust compiled to WASM
 ```
 
-El correlador no es un join por timestamp: puntúa los elementos con los que interactuaste
-hacia atrás en el tiempo (uno habla *después* de ver la cosa), entiende deixis en español
-(*"este"*, *"acá"*, *"la sección de arriba"*) y, ante la duda, ancla a la ruta en vez de
-inventar un elemento.
+- **Speech** — Silero VAD (onnxruntime-web) cuts the audio into utterances; Whisper
+  large-v3-turbo (transformers.js on WebGPU, fp16 encoder + q4 decoder) transcribes them.
+  Without a GPU it falls back to Whisper small on WASM.
+- **Browser trace** — a content script records clicks, hover, focus, route changes, console
+  errors and network requests, with stable selectors and element geometry. On React dev
+  builds it also resolves the source file and component.
+- **Correlator** — this is the core, written in Rust and compiled to WebAssembly. It is not a
+  timestamp join: people speak *after* they see something, so it scores the elements you
+  interacted with going backwards in time, weighs hover, clicks and focus, and understands
+  Spanish deixis (*"este"* = this, *"acá"* = here, *"la sección de arriba"* = the section
+  above). When in doubt it anchors to the route instead of making up an element.
+- **Report** — Markdown with one section per issue (category, severity, confidence, anchor,
+  evidence) plus cropped screenshots. Sessions are stored in IndexedDB.
 
-### Medido, no prometido
+## Measured, not promised
 
-Sobre sesiones reales, contra la versión anterior que corría whisper.cpp nativo:
+QUA started as a native Rust daemon running whisper.cpp. Before replacing it with a
+browser-only extension, I measured both on the same real sessions:
 
-| Qué | Resultado |
+| What | Result |
 |---|---|
-| Diferencia de transcripción | **1,0 %** de las palabras |
-| Issues del reporte | **los mismos**, con las mismas anclas |
-| Procesar 2,5 min de audio | **77 s** con GPU |
-| Del click en *Grabar* al primer audio | **~200 ms** |
+| Transcription difference vs. whisper.cpp | **1.0 %** of words |
+| Report issues | **the same 7**, with the same anchors |
+| Processing 153 s of audio | **77 s** on GPU |
+| From clicking *Record* to the first audio frame | **~200 ms** |
 
-Detalle de cada medición en [`docs/DECISIONS.md`](docs/DECISIONS.md) (sección L1).
+Methodology and every run are in [`docs/DECISIONS.md`](docs/DECISIONS.md) (section L1).
 
-- **Spec:** [`docs/SPEC.md`](docs/SPEC.md) — fuente de verdad.
-- **Estado:** [`STATE.md`](STATE.md) — tablero de tareas y bitácora.
+## What it looks like
 
-## Instalación y uso — solo la extensión (modo local)
+One mark drives the whole UI: the ring. It spins while the mic opens, pulses with your voice
+while recording, fills up while processing and shows one dot per issue when it's done.
 
-QUA es **una extensión de Chrome y nada más**: no hay app, daemon ni pairing. La extensión
-graba, transcribe con Whisper en tu GPU (WebGPU) y arma el reporte sin que el audio salga
-del navegador. Ver D-L1-01 en `docs/DECISIONS.md`.
+<p><img src="docs/ejemplos/popup-estados.png" alt="Popup recording, dropping a mark, ready, and session history" width="100%"></p>
 
-1. Instalá la extensión. Se abre sola la primera vez: permiso al micrófono, modelo de voz
-   (~1 GB, una sola vez), fijarla en la barra y los atajos.
-2. Abrí la página a revisar, tocá el anillo del popup (o `Ctrl+Shift+1` desde cualquier
-   app) y hablá en voz alta sobre lo que ves. Con **Marcar** dejás una marca en un momento.
-3. **Detener** (desde el popup o la pastilla). Al terminar llega una notificación y el
-   popup muestra **Copiar reporte** (lo pegás en tu agente, Linear o Slack), **Ver
-   reporte** y **Descargar** (`Descargas/qua/<id>/report.md` con sus capturas).
+- **Popup** — record, drop a mark, stop, copy or download the report. The history (clock
+  button) lists saved sessions and their issues.
+- **On the page** — while recording, a floating pill shows the time, the mic level and the
+  mark/stop buttons. Drag it to any corner; its clicks never end up in the report.
 
-Para compilarla desde el repo:
+  <img src="docs/ejemplos/pastilla.png" alt="Recording pill on the page" width="330">
+- **Toolbar icon** — the same ring, drawn per state (red dot while recording, fills while
+  processing, issue count on the badge when done). A notification with **Copy report**
+  arrives when it finishes.
+- **Report viewer** — session timeline, filters by type, screenshots and per-issue copy.
+
+  <img src="docs/ejemplos/reporte.png" alt="Report viewer" width="100%">
+- **First run** — four steps that detect themselves (mic permission, voice model, pin to
+  toolbar, shortcuts).
+
+  <img src="docs/ejemplos/primera-vez.png" alt="First run" width="100%">
+- **Settings** — mic picker with a level test, model, shortcuts, storage used and session
+  cleanup.
+
+## Install
+
+**From source** (Chrome Web Store listing in progress):
 
 ```bash
 pnpm install
-pnpm --filter @qua/extension run build:wasm   # qua-core → WebAssembly (necesita Rust + wasm-pack)
+pnpm --filter @qua/extension run build:wasm   # Rust correlator → WebAssembly (needs Rust + wasm-pack)
 pnpm --filter @qua/extension run build        # → extension/build/chrome-mv3
-node e2e/local.e2e.mjs                         # sesión real en Chrome, sin daemon
 ```
 
-## Modo daemon (anterior)
+Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick
+`extension/build/chrome-mv3`.
 
-Hay una app de bandeja (Tauri 2, `apps/qua-app`) con tray, hotkeys globales, onboarding y
-sidecar del daemon — y también se puede usar sin ella: `quad` corrido directo desde la
-terminal + la extensión de Chrome cargada sin empaquetar. Las dos formas comparten
-`~/.qua/` (sesiones, modelo de whisper, `config.toml`) y el mismo protocolo — ninguna es un
-fallback de la otra. Esto es real y funciona de punta a punta hoy: probado con Chrome real,
-sin intervención manual, en `e2e/` (el camino sin la app — ver más abajo por qué).
+Requirements: Node 26, pnpm 10, Rust with `wasm-pack`, and a recent Chrome. WebGPU is
+strongly recommended.
 
-### Arranque rápido: repo recién clonado → un `report.md`
+## Usage
 
-**Node 26 · pnpm 10 · Rust 1.98.** En esta máquina `rustup` se instaló con
-`--no-modify-path`, así que `cargo`/`rustc` no quedaron en el `PATH` de una shell nueva —
-por eso todos los comandos de Rust de este README (acá y en `docs/DECISIONS.md`) usan la
-ruta absoluta `~/.cargo/bin/cargo`.
+1. The first run opens by itself: mic permission, voice model (~1 GB, downloaded once from
+   Hugging Face and cached), pin to toolbar, shortcuts.
+2. Open the page you want to review, click the ring in the popup (or press `Ctrl+Shift+1`
+   from any app) and talk about what you see. **Mark** (`Ctrl+Shift+2`) pins a precise moment.
+3. **Stop** from the popup or the pill. When processing finishes you get a notification, and
+   the popup offers **Copy report**, **View report** and **Download**
+   (`Downloads/qua/<id>/report.md` plus its screenshots).
 
-```bash
-pnpm install                                                          # una vez
-pnpm --filter @qua/protocol --filter @qua/source-resolver run build   # dependencias de la extensión
-pnpm --filter @qua/extension run build                                # → extension/.output/chrome-mv3
-apps/qua-app/scripts/build-sidecars.sh                                 # compila quad+qua release, los copia a src-tauri/binaries/
-~/.cargo/bin/cargo build --release -p quad
-./target/release/quad                                                  # daemon en 127.0.0.1:7331
-```
+## Privacy
 
-`build-sidecars.sh` hace falta incluso si no vas a tocar la app: `apps/qua-app` es parte
-del workspace de Cargo, así que sin los binarios de sidecar ni `~/.cargo/bin/cargo test
---workspace` compila (ver `docs/DECISIONS.md`, D-M1-03).
+- Audio, transcripts, traces and reports stay on your machine (IndexedDB and your Downloads
+  folder).
+- The only network request QUA makes is downloading the Whisper weights from Hugging Face the
+  first time. No analytics, no telemetry, no account.
+- Recording only happens while you press *Record*, and the pill is visible the whole time.
 
-Con el daemon corriendo:
+Full policy: [`PRIVACY.md`](PRIVACY.md).
 
-1. `chrome://extensions` → "Modo de desarrollador" → "Cargar descomprimida" → elegir
-   `extension/.output/chrome-mv3`.
-2. Abrí el popup de la extensión (ícono) y clickeá "Conectar" — un solo click, sin
-   terminal ni código (D-U1-01, `docs/DECISIONS.md`: emparejamiento automático mientras
-   el daemon no tenga ninguna extensión emparejada todavía). Si ya emparejaste una
-   extensión antes y necesitás re-emparejar, el popup te manda a las opciones para el
-   código de 6 dígitos (`POST /pair/start` + `POST /pair`, el flujo de siempre).
-3. Desde el popup de la extensión: "Grabar", hablá en voz alta sobre lo que ves, "Detener".
-   `quad` corre ASR + correlador + render solo al recibir `session.stop`.
-4. Cuando termine el procesamiento, usá **Copiar reporte** en el popup. También podés usar `qua last` o `qua last --copy`.
+## How it was built
 
-Este es el camino que verifiqué corriendo cada comando de este pase (build, daemon,
-`qua sessions`/`show`/`reprocess`, y el `e2e/` completo — ver §6 más abajo). **La app de
-bandeja (§3) no la relancé de punta a punta en este pase**: abre una ventana real y pide
-pairing a mano, así que no es automatizable sin intervención humana — `apps/qua-app/README.md`
-documenta que arranca y responde `/health` (verificado ahí), pero el flujo de grabación
-completo vía tray/hotkey no tiene una prueba automática todavía.
+QUA is a one-person project, built as an exercise in **orchestrating coding agents** on a
+real, multi-language system:
 
-### 1. El daemon (`quad` + `qua`)
+- **v1 (daemon)** — ~26,000 lines of Rust and TypeScript (daemon, CLI, MCP server, Tauri
+  tray app, Chrome extension, whisper.cpp) in 101 commits over one night. Several agents
+  worked in parallel (Opus on the correlator, Sonnet and Codex on the rest) against
+  **frozen contracts** — a Zod protocol mirrored in Rust and validated with golden fixtures
+  on both sides — and a shared task board in [`STATE.md`](STATE.md). It shipped with an
+  end-to-end test that drives real Chrome with an injected microphone.
+- **v2 (extension only)** — the daemon became a burden to install, so I ported the whole
+  pipeline into the browser: Whisper on WebGPU, Silero on onnxruntime-web, and the Rust
+  correlator compiled to WASM. I only switched after measuring it (table above).
+- **v0.2 (UI)** — the UI was redesigned in Penpot and then implemented, fixing four real bugs
+  along the way (content script timing, a blocked IndexedDB migration, stuck sessions and a
+  service worker race). 219 tests plus an E2E in real Chrome.
 
-**Opción A — `.dmg` completo (app, daemon, CLI y extensión):**
+Every non-obvious decision is written down with its reasoning in
+[`docs/DECISIONS.md`](docs/DECISIONS.md); the full spec is in [`docs/SPEC.md`](docs/SPEC.md).
 
-```bash
-./packaging/macos/build-dmg-app.sh
-open target/release/bundle/dmg/QUA_*.dmg
-```
+## Limitations
 
-Arrastrá QUA a Aplicaciones y abrila. Como no hay Developer ID en este entorno, usá
-clic derecho → Abrir; si macOS la bloquea, Configuración del Sistema → Privacidad y
-seguridad → Abrir de todas formas. El onboarding muestra la ruta exacta de la extensión
-incluida y los pasos para cargarla en Chrome. `build-dmg.sh` sigue disponible para quien
-quiera solamente los binarios CLI.
+- **Spanish first.** Whisper transcribes many languages, but the UI, the report labels and the
+  deixis rules are in Spanish. English is the next step.
+- **Chrome only** (Manifest V3, WebGPU, global shortcuts).
+- Without WebGPU it uses Whisper small on the CPU: ~3× the audio length to process and
+  slightly worse transcription (2.6 % difference).
+- The first run downloads ~1 GB of model weights.
 
-**Opción B — compilar y correr directo:**
-
-```bash
-~/.cargo/bin/cargo build --release -p quad
-./target/release/quad          # arranca el daemon en 127.0.0.1:7331
-```
-
-Los datos (sesiones, modelo de whisper, `config.toml`) quedan en `~/.qua/`. El
-modelo por default (`large-v3-turbo-q5_0`, ~574 MB) se baja solo la primera vez que
-termina una sesión con audio; para no esperar esa descarga en una prueba rápida,
-poné `model = "base"` bajo `[asr]` en `~/.qua/config.toml` (148 MB, el mismo que usa
-el test de aceptación de B2 y el que usa `e2e/`).
-
-### 2. La extensión de Chrome
-
-Sin empaquetar todavía (necesita `pnpm install` + build primero):
-
-```bash
-pnpm --filter @qua/protocol --filter @qua/source-resolver run build
-pnpm --filter @qua/extension run build   # produce extension/.output/chrome-mv3
-```
-
-En Chrome: `chrome://extensions` → activar "Modo de desarrollador" → "Cargar
-descomprimida" → elegir `extension/.output/chrome-mv3`.
-
-### 3. La app de bandeja (opcional, pensada para uso diario)
-
-`apps/qua-app` (Tauri 2) reemplaza el paso "correr `quad` a mano" del daemon: ícono en la
-barra de menú (sin ícono en el Dock), levanta y supervisa `quad` como sidecar con
-health-check y reinicio automático si se muere, hotkeys globales (⌘⇧R graba/para, ⌘⇧E deja
-un marcador — funcionan con cualquier app en foco, Chrome incluido), onboarding que baja el
-modelo de ASR con progreso real y pide permiso de micrófono, y una ventana de sesiones. Ver
-[`apps/qua-app/README.md`](apps/qua-app/README.md) para el detalle completo (estructura,
-qué hace cada módulo, build de producción).
-
-```bash
-apps/qua-app/scripts/build-sidecars.sh   # una vez, y cada vez que cambie crates/quad o crates/qua-core
-cd apps/qua-app && pnpm tauri dev
-```
-
-**Límite conocido** (§09, D-P1-02): el hotkey global llega al daemon por `POST /control` y
-de ahí a la extensión por `session.control` — es best-effort; si el daemon no responde, el
-intento queda logueado en `~/.qua/logs/qua-app.log` en vez de fallar en silencio.
-
-### 4. Emparejar y grabar
-
-Con `quad` corriendo (a mano o vía la app), abrí el popup de la extensión (ícono) y
-clickeá "Conectar" — un click alcanza si es el primer emparejamiento (D-U1-01,
-`docs/DECISIONS.md`; `POST /pair/auto`). Si el popup dice "El daemon no está corriendo",
-es porque `quad` no está arriba: te muestra el comando exacto para levantarlo. Si ya
-había una extensión emparejada, el popup te manda a las opciones para el código de 6
-dígitos (`POST /pair/start` + `POST /pair`). Después, "Grabar" arranca la sesión — desde el popup de la extensión, o con el hotkey global
-si estás usando la app — hablá en voz alta sobre lo que ves en la página, "Detener" la
-cierra. `quad` corre ASR + correlador + render automáticamente al recibir `session.stop` —
-no hace falta ningún paso manual después.
-
-### 5. Ver el reporte
-
-```bash
-qua sessions              # lista las sesiones grabadas, más recientes primero
-qua show <id>              # report.md de una sesión (default)
-qua last                   # report.md más reciente
-qua last --copy            # lo copia al portapapeles
-qua show <id> --format json   # session.json completo
-qua reprocess <id>         # re-corre el pipeline (para tunear [correlator] en config.toml)
-```
-
-O, si estás usando la app de bandeja, desde su ventana de sesiones (`report.md` en texto
-plano, sin Markdown renderizado todavía).
-
-### 6. Probarlo sin tocar nada a mano
-
-`e2e/` tiene un script que hace exactamente los pasos 1, 2 y 4 de arriba con Chrome real
-(vía Playwright — no el Chrome de `/Applications`, ver D-G1-05 en `docs/DECISIONS.md`) y un
-daemon real, sin ningún clic humano: lanza la extensión cargada, arranca una sesión,
-hace un hover real sobre un botón mientras le inyecta a Chrome un `.wav` como si fuera el
-micrófono, para la sesión, y valida que el daemon produzca un `report.md` real con
-transcripción de whisper — ver [`e2e/README.md`](e2e/README.md):
-
-```bash
-pnpm --filter @qua/e2e run e2e
-```
-
-No usa la app de bandeja (§3): arranca `quad` directo, igual que la Opción B de §1 — es
-el camino que sí está probado de punta a punta sin intervención humana.
-
-## Layout (§13)
+## Repository layout
 
 ```
-packages/
-  protocol/              TS + Zod — FUENTE DE VERDAD de los tipos
-  source-resolver/       tiers 2 y 3 de React (§11)
-  babel-plugin-source/
-  vite-plugin-source/
-extension/               WXT + TypeScript (MV3)
+extension/               WXT + TypeScript (MV3) — the product
 crates/
-  qua-protocol/          espejo Rust + tests contra fixtures
-  qua-core/              ingest · asr · correlate · render · store
-  quad/                  binario axum (el daemon)
-  qua-mcp/               binario MCP stdio
-apps/qua-app/            Tauri 2 — tray, sidecar, hotkeys globales, onboarding (C1)
-fixtures/                sesiones doradas — contrato compartido TS ↔ Rust
-e2e/                     sesión real de punta a punta (Chrome + daemon), G1
-packaging/macos/         build-dmg.sh — daemon + CLI (sin la app de bandeja), G1
+  qua-core/              correlator and report renderer (shared by the extension and the daemon)
+  qua-wasm/              qua-core compiled to WebAssembly
+  qua-protocol/          Rust mirror of the protocol, tested against the fixtures
+packages/
+  protocol/              TS + Zod — source of truth for every type
+  source-resolver/       React component/file resolution
+  babel-plugin-source/,
+  vite-plugin-source/    optional plugins that tag elements with their source location
+fixtures/                golden sessions — the shared TS ↔ Rust contract
+e2e/                     real sessions in real Chrome
+crates/quad, qua-mcp,
+apps/qua-app, packaging/ v1 daemon, MCP server and Tauri app (see docs/DAEMON.md)
 ```
 
-## Desarrollo
+The original daemon architecture (Rust daemon + CLI + MCP server + Tauri app) still lives in
+the repo and is documented in [`docs/DAEMON.md`](docs/DAEMON.md).
 
-Node 26 · pnpm 10 · Rust 1.98. **`rustup` no está en el `PATH`**: se invoca por ruta
-absoluta.
+## Development
 
 ```bash
 pnpm install
-pnpm test                             # typecheck + vitest (incluye fixtures doradas)
-pnpm gen:schema                       # regenera fixtures/schema/ desde Zod
-~/.cargo/bin/cargo test --workspace   # incluye las mismas fixtures del lado Rust
+pnpm test                                     # typecheck + vitest, including golden fixtures
+pnpm --filter @qua/extension run build:wasm   # rebuild the WASM after touching crates/qua-core
+node e2e/local.e2e.mjs                        # full session in real Chrome
 ```
 
-`cargo test --workspace` compila `apps/qua-app` como parte del workspace, así que necesita
-los binarios de sidecar — corré `apps/qua-app/scripts/build-sidecars.sh` una vez por
-worktree antes del primer `cargo test --workspace` (ver `docs/DECISIONS.md`, D-M1-03).
+## Author
 
-## Las dos reglas
+Built by **Gabriel Funes** — AI-focused full-stack engineer from Argentina.
+[LinkedIn](https://www.linkedin.com/in/gabriel-funes-developer) · [GitHub](https://github.com/Gabriel100201)
 
-1. **Nadie toca `packages/protocol` ni `fixtures/` fuera de F0.** Si tu tarea necesita un
-   cambio de contrato, lo reporta. Ver [`fixtures/README.md`](fixtures/README.md).
-2. **Los umbrales van a `config.toml`, nunca hardcodeados.** Es lo que hace posible tunear
-   el correlador con `qua reprocess` sin recompilar.
+## License
+
+[MIT](./LICENSE)

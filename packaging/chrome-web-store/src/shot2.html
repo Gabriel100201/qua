@@ -1,0 +1,21 @@
+<!doctype html><meta charset=utf-8><link rel=stylesheet href=base.css>
+<style>body{width:1280px;height:800px;display:flex;align-items:center;gap:56px;padding:0 72px}
+.l{width:430px;display:flex;flex-direction:column;gap:18px}h1{font-size:44px}p{font-size:20px}
+.r{flex:1;padding:28px 30px}.r pre b{color:var(--ink)}.r pre{color:#3d3f42}</style>
+<div class=l><h1>Every comment, anchored to the element.</h1><p>Selector, geometry, classes, route, console errors, requests and a cropped screenshot. Paste it into your coding agent, Linear or Slack.</p></div>
+<div class="r shot"><pre><b>## 01 · bug · high</b>
+<b>Dicho</b> (00:01:26) — "Actualmente si presiono uno me lleva al
+proyecto. Pero quizás lo mejor sería que cuando lo presione se
+abra una pantalla propia por proyecto"
+
+<b>Ancla</b> #project-gallery > a:nth-of-type(2)
+  · confianza 0.74 · click −0.7s
+<b>Elemento</b> el enlace que dice "PediloApp Sistema de pedidos…"
+<b>Geometría</b> 314×310 px @ (697, 335) · viewport 1710×981 @2x
+<b>Captura</b> assets/i01.png
+
+<b>## 02 · perf · med</b>
+<b>Dicho</b> (00:02:05) — "este botón tarda un montón en abrir el modal"
+<b>Ancla</b> button[data-testid="nuevo-turno"] · deixis:este · hover 2.1s
+<b>Fuente</b> src/components/AgendaHeader.tsx:42
+<b>Timing</b> click → primer render: 1412 ms</pre></div>

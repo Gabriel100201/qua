@@ -1,0 +1,9 @@
+<!doctype html><meta charset=utf-8><link rel=stylesheet href=base.css>
+<style>body{width:1280px;height:800px;display:flex;flex-direction:column;justify-content:center;padding:0 90px;gap:50px}
+h1{font-size:50px}p{font-size:22px;margin-top:14px}
+.row{display:flex;gap:28px}.c{flex:1;padding:28px;border-radius:14px;background:#fff;border:1px solid var(--line)}
+.c b{display:block;font-size:40px;font-weight:600}.c span{color:var(--gray);font-size:18px}</style>
+<div><h1>100% on-device. Measured.</h1><p>Whisper large-v3-turbo runs on your GPU with WebGPU. The correlator is Rust compiled to WebAssembly. No account, no server, no telemetry.</p></div>
+<div class=row><div class=c><b>1.0%</b><span>transcription difference vs. native whisper.cpp</span></div>
+<div class=c><b>77 s</b><span>to process 153 s of audio on GPU</span></div>
+<div class=c><b>0 bytes</b><span>of audio sent anywhere</span></div></div>

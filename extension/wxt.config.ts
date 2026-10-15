@@ -30,6 +30,9 @@ export default defineConfig({
   filterEntrypoints: process.env.QUA_LAB === "1" ? undefined : ["background", "content", "offscreen", "popup", "options", "onboarding", "report", "pcm-tap-processor"],
   manifest: {
     name: "QUA",
+    // Lo que muestra Chrome Web Store y chrome://extensions (máx. 132 caracteres).
+    description: "Talk through what you see while testing a web app. QUA turns your voice into a QA report anchored to each element. Runs on-device.",
+    homepage_url: "https://github.com/Gabriel100201/qua",
     permissions: [
       "tabs",
       "storage",

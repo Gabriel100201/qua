@@ -1,0 +1,9 @@
+@font-face{font-family:"Instrument Sans";font-weight:500;src:url(../../../extension/public/fonts/instrument-sans-500.woff2)}
+@font-face{font-family:"Instrument Sans";font-weight:600;src:url(../../../extension/public/fonts/instrument-sans-600.woff2)}
+:root{--ink:#1d1e20;--gray:#6b6d70;--line:#dcddd9;--red:#e0352b;--screen:#f4f4f1;--white:#fff;--font:"Instrument Sans",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--screen);color:var(--ink);font-family:var(--font);overflow:hidden}
+h1{font-weight:600;letter-spacing:-.02em;line-height:1.08}
+p{color:var(--gray);line-height:1.4}
+.shot{box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 40px rgba(0,0,0,.10);border-radius:14px;border:1px solid var(--line);background:#fff}
+pre{font:13px/1.55 ui-monospace,Menlo,monospace;white-space:pre-wrap}
