@@ -3,6 +3,7 @@ import { StatusClient } from "./lib/status-client.js";
 import { PopupDiagnosticsClient } from "./lib/diagnostics.js";
 import { startConnectController, type ConnectElements } from "./lib/connect-controller.js";
 import { getStoredToken, isDaemonRunning, autoPair, type ConnectionDeps } from "./lib/connection.js";
+import { copyLastReport, getLastReport, revealLastReport } from "./lib/report-actions.js";
 
 export type { Teardown };
 
@@ -13,6 +14,8 @@ export function findPopupElements(doc: Document): PopupElements {
     if (!el) throw new Error(`[qua] falta #${id} en popup/index.html`);
     return el as T;
   };
+  const optionalById = <T extends HTMLElement>(id: string): T | undefined =>
+    (doc.getElementById(id) as T | null) ?? undefined;
   return {
     toggleButton: byId<HTMLButtonElement>("qua-toggle"),
     markButton: byId<HTMLButtonElement>("qua-mark"),
@@ -25,6 +28,9 @@ export function findPopupElements(doc: Document): PopupElements {
     micStatusLabel: byId("qua-mic-status"),
     contentScriptStatusLabel: byId("qua-content-script-status"),
     reloadTabButton: byId<HTMLButtonElement>("qua-reload-tab"),
+    reportActions: optionalById("qua-report-actions"),
+    copyReportButton: optionalById<HTMLButtonElement>("qua-copy-report"),
+    openFolderButton: optionalById<HTMLButtonElement>("qua-open-folder"),
   };
 }
 
@@ -78,6 +84,7 @@ export function startQuaPopup(doc: Document = document, opts: StartQuaPopupOptio
         client,
         diagnostics: new PopupDiagnosticsClient(client),
         elements: findPopupElements(doc),
+        reportActions: { getLastReport, copyLastReport, revealLastReport },
       });
     }
   }

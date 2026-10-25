@@ -19,12 +19,12 @@ uno, no están commiteados, ver `docs/DECISIONS.md` D-C1-02).
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"   # cargo no está en PATH por default, ver STATE.md
-./scripts/build-sidecars.sh
-pnpm tauri build --bundles app,dmg
+../../packaging/macos/build-dmg-app.sh
 ```
 
-Genera `target/release/bundle/macos/QUA.app` (y el `.dmg`). Verificado en esta máquina: el
-`.app` arranca, lanza `quad` desde `Contents/MacOS/`, y `GET /health` responde.
+Genera `target/release/bundle/macos/QUA.app` y el `.dmg`, con `quad`, `qua` y la carpeta
+compilada de la extensión como recurso. La pantalla inicial muestra su ruta copiable y las
+instrucciones exactas de Chrome; la app arranca y supervisa el daemon sola.
 
 ## Qué hace (§09)
 

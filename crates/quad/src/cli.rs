@@ -35,6 +35,67 @@ fn load_session_json(dir: &Path) -> anyhow::Result<Session> {
     Ok(serde_json::from_str(&raw)?)
 }
 
+/// `qua last [--copy]`: el camino corto desde una grabación terminada al texto
+/// listo para pegar. La DB es la fuente de orden; se ignoran sesiones sin reporte.
+pub fn last(data_dir: &Path, copy: bool) -> anyhow::Result<String> {
+    let conn = qua_core::store::open(data_dir)?;
+    let rows = qua_core::store::list_sessions(&conn, None, None)?;
+    let (path, report) = rows
+        .iter()
+        .map(|row| session_dir(data_dir, &row.id).join("report.md"))
+        .find_map(|path| {
+            std::fs::read_to_string(&path)
+                .ok()
+                .map(|report| (path, report))
+        })
+        .ok_or_else(|| anyhow::anyhow!("no hay ningún report.md listo todavía"))?;
+
+    if !copy {
+        return Ok(report);
+    }
+    copy_to_clipboard(&report)?;
+    Ok(format!(
+        "Reporte copiado al portapapeles: {}",
+        path.display()
+    ))
+}
+
+fn copy_to_clipboard(text: &str) -> anyhow::Result<()> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    #[cfg(target_os = "macos")]
+    let candidates: &[(&str, &[&str])] = &[("pbcopy", &[])];
+    #[cfg(target_os = "windows")]
+    let candidates: &[(&str, &[&str])] = &[("clip", &[])];
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let candidates: &[(&str, &[&str])] =
+        &[("wl-copy", &[]), ("xclip", &["-selection", "clipboard"])];
+
+    let mut errors = Vec::new();
+    for (program, args) in candidates {
+        let mut child = match Command::new(program)
+            .args(*args)
+            .stdin(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(e) => {
+                errors.push(format!("{program}: {e}"));
+                continue;
+            }
+        };
+        if let Some(stdin) = child.stdin.as_mut() {
+            stdin.write_all(text.as_bytes())?;
+        }
+        if child.wait()?.success() {
+            return Ok(());
+        }
+        errors.push(format!("{program}: terminó con error"));
+    }
+    anyhow::bail!("no pude copiar al portapapeles ({})", errors.join("; "))
+}
+
 /// `qua recover <id>` (§04 Resiliencia, criterio de aceptación de B1): reconstruye
 /// `session.json` desde `raw/` cuando el proceso normal no llegó a escribirlo.
 pub fn recover(id: &str, data_dir: &Path) -> anyhow::Result<String> {
@@ -262,7 +323,11 @@ mod refine_tests {
                 ua: "ua".into(),
                 chrome: "1".into(),
                 platform: "macOS".into(),
-                viewport: ViewportInfo { w: 1, h: 1, dpr: 1.0 },
+                viewport: ViewportInfo {
+                    w: 1,
+                    h: 1,
+                    dpr: 1.0,
+                },
                 ext: "1".into(),
             },
             audio: AudioInfo {

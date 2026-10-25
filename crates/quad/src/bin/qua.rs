@@ -22,6 +22,11 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Imprime el reporte de la sesión más reciente; con --copy lo deja en el portapapeles.
+    Last {
+        #[arg(long)]
+        copy: bool,
+    },
     /// Reconstruye una sesión desde `raw/` (§04 Resiliencia). Es el criterio de
     /// aceptación de B1: `kill -9` a mitad de sesión, después `qua recover <id>`.
     Recover { id: String },
@@ -62,6 +67,7 @@ fn main() -> anyhow::Result<()> {
     let data_dir = cli.data_dir.unwrap_or_else(quad::config::qua_home);
 
     let output = match cli.command {
+        Command::Last { copy } => quad::cli::last(&data_dir, copy),
         Command::Recover { id } => quad::cli::recover(&id, &data_dir),
         Command::Doctor { port } => quad::cli::doctor(port),
         Command::Sessions { project, limit } => {

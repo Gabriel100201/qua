@@ -28,7 +28,18 @@ export default defineConfig({
   outDir: "build",
   manifest: {
     name: "QUA",
-    permissions: ["tabs", "storage", "offscreen", "alarms", "scripting", "webNavigation"],
+    permissions: [
+      "tabs",
+      "storage",
+      "offscreen",
+      "alarms",
+      "scripting",
+      "webNavigation",
+      // Chrome exige este permiso para que una página de la extensión pueda
+      // abrir el micrófono mediante getUserMedia(). Sin él responde
+      // NotSupportedError aun cuando macOS ya haya autorizado a Chrome.
+      "audioCapture",
+    ],
     host_permissions: ["<all_urls>"],
     commands: {
       toggle_recording: {

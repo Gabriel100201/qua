@@ -102,7 +102,105 @@ pub fn build_router(state: AppState) -> Router {
         .route("/pair/auto", post(pair_auto_handler))
         .route("/ws", get(ws_upgrade_handler))
         .route("/control", post(control_handler))
+        .route("/last/report", get(last_report_handler))
+        .route("/last/reveal", post(last_reveal_handler))
         .with_state(state)
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenQuery {
+    token: String,
+}
+
+#[derive(Debug, Serialize)]
+struct LastReportResponse {
+    report: String,
+    path: String,
+}
+
+fn extension_authorized(state: &AppState, headers: &HeaderMap, token: &str) -> bool {
+    headers
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|origin| state.config.lock().unwrap().is_allowed(origin, token))
+}
+
+fn latest_report(state: &AppState) -> anyhow::Result<(PathBuf, String)> {
+    let conn = qua_core::store::open(&state.data_dir)?;
+    qua_core::store::list_sessions(&conn, None, None)?
+        .into_iter()
+        .map(|row| PathBuf::from(row.dir).join("report.md"))
+        .find_map(|path| {
+            std::fs::read_to_string(&path)
+                .ok()
+                .map(|report| (path, report))
+        })
+        .ok_or_else(|| anyhow::anyhow!("todavía no hay un reporte listo"))
+}
+
+async fn last_report_handler(
+    State(state): State<AppState>,
+    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
+) -> Response {
+    if !extension_authorized(&state, &headers, &query.token) {
+        return err(
+            StatusCode::UNAUTHORIZED,
+            error_codes::UNAUTHORIZED,
+            "token/Origin no autorizado",
+        );
+    }
+    match latest_report(&state) {
+        Ok((path, report)) => Json(LastReportResponse {
+            report,
+            path: path.to_string_lossy().into_owned(),
+        })
+        .into_response(),
+        Err(e) => err(StatusCode::NOT_FOUND, error_codes::STORAGE, e.to_string()),
+    }
+}
+
+async fn last_reveal_handler(
+    State(state): State<AppState>,
+    Query(query): Query<TokenQuery>,
+    headers: HeaderMap,
+) -> Response {
+    if !extension_authorized(&state, &headers, &query.token) {
+        return err(
+            StatusCode::UNAUTHORIZED,
+            error_codes::UNAUTHORIZED,
+            "token/Origin no autorizado",
+        );
+    }
+    let dir = match latest_report(&state) {
+        Ok((path, _)) => path.parent().map(PathBuf::from),
+        Err(e) => return err(StatusCode::NOT_FOUND, error_codes::STORAGE, e.to_string()),
+    };
+    let Some(dir) = dir else {
+        return err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            error_codes::STORAGE,
+            "ruta de sesión inválida",
+        );
+    };
+    match reveal_path(&dir) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            error_codes::INTERNAL,
+            e.to_string(),
+        ),
+    }
+}
+
+fn reveal_path(path: &std::path::Path) -> std::io::Result<()> {
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open").arg(path).spawn()?;
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer").arg(path).spawn()?;
+    #[cfg(all(unix, not(target_os = "macos")))]
+    std::process::Command::new("xdg-open").arg(path).spawn()?;
+    Ok(())
 }
 
 async fn health_handler(State(state): State<AppState>) -> Json<HealthResponse> {

@@ -112,7 +112,7 @@ impl Config {
     }
 
     /// Resuelve `base_url` contra `[[projects]].origins` (prefijo). Sin match, la
-    /// sesión queda atribuida a un proyecto "unknown" en vez de fallar — la
+    /// sesión queda atribuida al sitio que se está probando en vez de fallar — la
     /// atribución es un enriquecimiento, no un requisito para grabar.
     pub fn match_project(&self, base_url: &str) -> ProjectRef {
         for project in &self.projects {
@@ -123,10 +123,12 @@ impl Config {
                 };
             }
         }
-        ProjectRef {
-            label: "unknown".to_string(),
-            repo: None,
-        }
+        let label = url::Url::parse(base_url)
+            .ok()
+            .and_then(|url| url.host_str().map(str::to_owned))
+            .filter(|host| !host.is_empty())
+            .unwrap_or_else(|| "Sesión sin proyecto".to_string());
+        ProjectRef { label, repo: None }
     }
 }
 
@@ -162,7 +164,7 @@ mod tests {
             loaded.match_project("http://localhost:3000/agenda").label,
             "Agendi"
         );
-        assert_eq!(loaded.match_project("http://otra.app").label, "unknown");
+        assert_eq!(loaded.match_project("http://otra.app").label, "otra.app");
     }
 
     #[test]

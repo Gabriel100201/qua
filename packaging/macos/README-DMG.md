@@ -1,9 +1,8 @@
 # QUA CLI — instalación (macOS)
 
-Este `.dmg` trae el daemon (`quad`) y el CLI (`qua`) de QUA — **no** la app de
-bandeja (Tauri, C1 en `docs/STATE.md`), que todavía no está lista. Podés grabar
-sesiones y ver los reportes igual, solo que arrancando el daemon a mano en vez de
-por un ícono en la barra de menú.
+Este documento corresponde al instalador alternativo de **sólo CLI**. Para el producto
+completo usá `packaging/macos/build-dmg-app.sh`: incluye QUA.app, daemon, CLI y la
+extensión compilada, y no requiere terminal para usarlo.
 
 ## 1. Instalar
 

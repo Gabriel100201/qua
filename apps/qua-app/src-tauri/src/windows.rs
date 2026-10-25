@@ -2,7 +2,7 @@
 //! el frontend rutea por hash (`src/main.ts`). Nace oculta y minimizada: la app vive
 //! en el tray, no en el Dock.
 
-use tauri::{AppHandle, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 const LABEL: &str = "main";
 
@@ -14,10 +14,12 @@ pub fn show(app: &AppHandle, view: &str) {
         return;
     }
 
-    let win = match WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
+    let url = WebviewUrl::App(format!("index.html#/{view}").into());
+    let win = match WebviewWindowBuilder::new(app, LABEL, url)
         .title("QUA")
-        .inner_size(760.0, 560.0)
-        .visible(false)
+        .inner_size(1040.0, 700.0)
+        .min_inner_size(760.0, 480.0)
+        .visible(true)
         .build()
     {
         Ok(w) => w,
@@ -26,11 +28,7 @@ pub fn show(app: &AppHandle, view: &str) {
             return;
         }
     };
-    let view = view.to_string();
-    let win_clone = win.clone();
-    win.once("tauri://created", move |_| {
-        let _ = win_clone.eval(&format!("location.hash = '#/{view}'"));
-        let _ = win_clone.show();
-        let _ = win_clone.set_focus();
-    });
+    // Ya nace visible y con la ruta en la URL: no depende de un evento de carga.
+    let _ = win.show();
+    let _ = win.set_focus();
 }
